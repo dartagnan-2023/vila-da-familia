@@ -4,6 +4,8 @@ Motor headless de um jogo 8-bit cooperativo para a família: cada pessoa cuida d
 sua **herdade**, mas todo mundo divide os mesmos **bens comuns** (água, mata,
 terra e harmonia). O que um faz hoje aparece na colheita do outro amanhã.
 
+**No ar:** https://dartagnan-2023.github.io/vila-da-familia/web/ (GitHub Pages, publica a cada push em `main`).
+
 Sem dependências. Node 20+.
 
 ```bash
@@ -206,8 +208,6 @@ explicar pra vovó por que a mata sumiu.
 
 ## O que ainda não existe
 
-- Hospedagem: o jogo roda em `localhost`. Pra família abrir de casa, `web/` e
-  `src/` precisam ir pra um host estático (GitHub Pages, Netlify, Vercel).
 - Autenticação — hoje "quem tem a chave, entra".
 - Telas do layout ainda não montadas: inventário completo e mural de trocas.
 - Balanceamento fino: os números de `conteudo.js` seguram uma partida inteira,
