@@ -1,0 +1,15 @@
+{
+  "name": "vila-da-familia",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Motor de jogo 8-bit cooperativo para a familia: cada um cuida da sua herdade, todos dividem o destino da vila.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node tests/motor.test.mjs && node tests/rede.test.mjs",
+    "demo": "node demo/simulacao.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {}
+}

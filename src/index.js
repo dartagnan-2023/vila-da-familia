@@ -1,0 +1,10 @@
+export { Motor } from './engine/motor.js';
+export { criarMundo, criarJogador, herdadeDe, vizinhas, herdadeLivre } from './engine/mundo.js';
+export { REGRAS } from './engine/regras.js';
+export { passarDia } from './engine/simular.js';
+export { visao, acoesPossiveis } from './engine/apresentador.js';
+export { novaChave, lerChave } from './engine/convite.js';
+export { TransporteLocal, Sessao } from './net/transporte.js';
+export { TransporteSupabase, criarVila, acharVila } from './net/supabase.js';
+export { CULTURAS, CONSTRUCOES, OBRAS, CONFIG, ESTACOES, LIMIARES, SPRITES } from './engine/conteudo.js';
+export { hashMundo } from './engine/rng.js';
