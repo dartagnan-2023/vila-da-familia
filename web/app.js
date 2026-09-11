@@ -1,6 +1,6 @@
 import { Motor } from '../src/engine/motor.js';
 import { visao, acoesPossiveis } from '../src/engine/apresentador.js';
-import { novaChave, lerChave } from '../src/engine/convite.js';
+import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js';
 import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
@@ -83,8 +83,14 @@ const vilasSalvas = () => Object.keys(localStorage)
 
 const salvaVila = (v) => localStorage.setItem(`vila:${v.chave}`, JSON.stringify(v));
 
+// Link de convite: a URL carrega a chave, ninguem precisa digitar nada.
+const chaveDaUrl = () => extrairChave(new URLSearchParams(location.search).get('chave') ?? location.hash);
+const linkDeConvite = (chave) => `${location.origin}${location.pathname}?chave=${chave}`;
+
 function telaEntrada() {
   const vilas = vilasSalvas();
+  const convite = chaveDaUrl();
+  const campo = 'w-full bg-surface-dim px-gutter-sm py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md';
   $('entrada').innerHTML = `
   <div class="bg-surface-container-low p-panel-pad-lg shadow-[6px_6px_0_0_#221b08] w-full max-w-lg">
     <div class="bg-secondary px-gutter-sm py-pixel-step shadow-[2px_2px_0_0_#331200] mb-panel-pad-md flex justify-between items-end">
@@ -94,27 +100,32 @@ function telaEntrada() {
       </div>
       <span class="font-label-sm text-[10px] uppercase ${nuvem ? 'text-primary-fixed' : 'text-tertiary-fixed'}">${nuvem ? '● entre casas' : '○ só neste aparelho'}</span>
     </div>
-    ${vilas.length ? `
+    ${vilas.length && !convite ? `
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Voltar para a vila</p>
       <div class="space-y-1 mb-panel-pad-md">
         ${vilas.map((v) => `<button class="w-full text-left bg-surface-container px-gutter-sm py-pixel-step shadow-[2px_2px_0_0_#221b08] press font-label-md text-label-md uppercase flex justify-between" data-acao="abrir-vila" data-chave="${esc(v.chave)}">
           <span>${ICO('cottage', 'text-secondary text-[16px] align-middle')} ${esc(v.nome)}</span><span class="text-on-surface-variant">${esc(v.chave)}</span></button>`).join('')}
       </div>` : ''}
-    <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Seu nome</p>
-    <input class="w-full bg-surface-dim px-gutter-sm py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md mb-gutter-xs" id="in-nome" maxlength="18" placeholder="Ex: Vovô Chico"/>
-    <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Fundar uma vila nova</p>
-    <input class="w-full bg-surface-dim px-gutter-sm py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md mb-1" id="in-vila" maxlength="24" placeholder="Nome da vila (ex: Vila do Riacho)"/>
-    <button class="w-full bg-primary text-on-primary font-label-lg uppercase py-gutter-xs shadow-[4px_4px_0_0_#221b08] press" data-acao="fundar">Fundar a vila</button>
-    <div class="mt-panel-pad-md pt-gutter-xs border-t-2 border-dashed border-surface-dim">
-      <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Recebi uma chave familiar</p>
-      <input class="w-full bg-surface-dim px-gutter-sm py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md mb-1 uppercase" id="in-chave" placeholder="VILA-XXXXX-XXXXX"/>
-      <button class="w-full bg-secondary text-on-secondary font-label-lg uppercase py-gutter-xs shadow-[4px_4px_0_0_#221b08] press" data-acao="usar-chave">Entrar com a chave</button>
+
+    <div class="bg-surface-container-highest p-gutter-sm shadow-[inset_2px_2px_0_0_#221b08] mb-panel-pad-md">
+      <p class="font-label-md text-label-md uppercase text-secondary mb-1">${convite ? '🔑 Você foi convidado(a) pra uma vila' : '🔑 Recebi uma chave da família'}</p>
+      <input class="${campo} mb-1 uppercase" id="in-chave" placeholder="VILA-XXXXX-XXXXX" value="${esc(convite ?? '')}" ${convite ? 'readonly' : ''}/>
+      <input class="${campo} mb-gutter-xs" id="in-nome" maxlength="18" placeholder="Seu nome (ex: Vovó Rosa)" autofocus/>
+      <button class="w-full bg-primary text-on-primary font-label-lg uppercase py-gutter-xs shadow-[4px_4px_0_0_#221b08] press" data-acao="usar-chave">Entrar na vila</button>
       <p class="font-body-sm text-[11px] text-on-surface-variant mt-1 leading-tight">
         ${nuvem
           ? 'A chave abre a vila de qualquer aparelho. Quem tem a chave, entra — trate como segredo da família.'
           : 'Sem <code>web/config.js</code> a chave só abre vilas guardadas <strong>neste navegador</strong>.'}
       </p>
     </div>
+
+    <details ${vilas.length || convite ? '' : 'open'}>
+      <summary class="font-label-sm text-label-sm uppercase text-on-surface-variant cursor-pointer mb-1">Não tenho chave — quero fundar uma vila nova</summary>
+      <input class="${campo} mb-1" id="in-vila" maxlength="24" placeholder="Nome da vila (ex: Vila do Riacho)"/>
+      <input class="${campo} mb-gutter-xs" id="in-nome-fundador" maxlength="18" placeholder="Seu nome"/>
+      <button class="w-full bg-secondary text-on-secondary font-label-lg uppercase py-gutter-xs shadow-[4px_4px_0_0_#221b08] press" data-acao="fundar">Fundar a vila</button>
+      <p class="font-body-sm text-[11px] text-on-surface-variant mt-1 leading-tight">Só quem vai começar a vila. Os outros entram pela chave que você manda.</p>
+    </details>
   </div>`;
   $('entrada').hidden = false;
 }
@@ -132,7 +143,7 @@ async function fundar(nomeVila, nomeJogador) {
 }
 
 async function usarChave(digitada, nomeJogador) {
-  const lida = lerChave(digitada);
+  const lida = lerChave(extrairChave(digitada) ?? digitada);
   if (!lida.valida) return aviso(lida.erro, true);
   let vila = vilasSalvas().find((v) => v.chave === lida.chave);
   if (!vila) {
@@ -165,11 +176,18 @@ async function abrirVila(chave, nomeJogador) {
   try { await app.sessao.sincronizar(); }
   catch (e) { return aviso(`não deu para carregar a vila: ${e.message}`, true); }
 
-  if (nomeJogador && !(app.eu && app.motor.mundo.jogadores[app.eu])) await entrarComoFamiliar(nomeJogador);
+  // Nome novo neste aparelho = familiar novo. Quem ja e da vila volta a ser quem era.
+  const salvo = app.eu && app.motor.mundo.jogadores[app.eu];
+  const mesmoNome = (a, b) => a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
+  if (nomeJogador && !mesmoNome(salvo?.nome, nomeJogador)) {
+    const jaExiste = Object.values(app.motor.mundo.jogadores).find((p) => mesmoNome(p.nome, nomeJogador));
+    if (jaExiste) trocarDeFamiliar(jaExiste.id); else await entrarComoFamiliar(nomeJogador);
+  }
   if (!app.eu || !app.motor.mundo.jogadores[app.eu]) app.eu = Object.keys(app.motor.mundo.jogadores)[0] ?? null;
   if (!app.eu) return aviso('diga seu nome para entrar na vila', true);
   trocarDeFamiliar(app.eu);
   $('entrada').hidden = true;
+  if (location.search) history.replaceState(null, '', location.pathname);
   pinta();
 }
 
@@ -241,7 +259,7 @@ function topo(v) {
       <div class="hidden xl:flex items-center gap-gutter-xs bg-surface-dim px-panel-pad-sm py-pixel-step shadow-[inset_2px_2px_0_0_#38301b]">
         <span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Chave:</span>
         <span class="font-label-md text-label-md text-on-surface select-all">${chave}</span>
-        <button class="bg-tertiary-fixed text-on-tertiary-fixed px-pixel-step py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="copiar" data-texto="${chave}" title="Copiar chave familiar">${ICO('content_copy', 'text-[14px] leading-none align-middle')}</button>
+        <button class="bg-tertiary-fixed text-on-tertiary-fixed px-pixel-step py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="copiar" data-texto="${linkDeConvite(chave)}" title="Copiar link de convite">${ICO('content_copy', 'text-[14px] leading-none align-middle')}</button>
       </div>
     </div>
     <nav class="flex items-center gap-gutter-xs flex-wrap">
@@ -546,7 +564,11 @@ function palcoFamilia(v) {
     <div class="bg-surface-dim p-gutter-md shadow-[inset_2px_2px_0_0_#221b08] text-center">
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant">Mande esta chave para quem falta</p>
       <p class="font-headline-lg text-headline-lg text-secondary select-all my-1">${chave}</p>
-      <button class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${chave}">Copiar chave</button>
+      <div class="flex gap-gutter-xs justify-center flex-wrap">
+        <button class="bg-primary text-on-primary font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${linkDeConvite(chave)}">Copiar link de convite</button>
+        <button class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${chave}">Só a chave</button>
+      </div>
+      <p class="font-body-sm text-[11px] text-on-surface-variant mt-1">Manda o link: quem abre já cai na vila certa, só digita o nome.</p>
     </div>
     <div>
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Na vila agora</p>
@@ -732,7 +754,10 @@ document.addEventListener('click', async (e) => {
   const d = alvo.dataset;
   const acoes = {
     fundar: () => {
-      const vila = $('in-vila').value.trim(), nome = $('in-nome').value.trim();
+      const vila = $('in-vila').value.trim(), nome = $('in-nome-fundador').value.trim() || $('in-nome').value.trim();
+      // Colou a chave no campo errado? Entao e convidado, nao fundador.
+      const chaveNoNome = extrairChave(vila);
+      if (chaveNoNome) return usarChave(chaveNoNome, nome);
       if (!vila || !nome) return aviso('preencha o nome da vila e o seu', true);
       fundar(vila, nome);
     },
@@ -749,7 +774,7 @@ document.addEventListener('click', async (e) => {
     },
     aba: () => { app.aba = d.aba; pinta(); },
     trocar: () => trocarDeFamiliar(d.quem),
-    copiar: () => { navigator.clipboard?.writeText(d.texto); aviso('chave copiada'); },
+    copiar: () => { navigator.clipboard?.writeText(d.texto); aviso(d.texto.startsWith('http') ? 'link de convite copiado' : 'chave copiada'); },
     slot: () => {
       const s = SLOTS.find((x) => x.chave === d.slot);
       if (s.cmd) return manda(s.cmd);

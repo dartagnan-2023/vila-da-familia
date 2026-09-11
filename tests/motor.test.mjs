@@ -1,6 +1,6 @@
 import { Motor } from '../src/engine/motor.js';
 import { visao } from '../src/engine/apresentador.js';
-import { novaChave, lerChave } from '../src/engine/convite.js';
+import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 
 let passou = 0, falhou = 0;
@@ -293,6 +293,15 @@ await teste('a visao traduz o impacto de cada atitude para a tela', () => {
   igual(v.missao.chave, 'ponte');
   ok(v.missao.chamada.includes('40 de madeira'), v.missao.chamada);
   ok(v.hud.terra > 0);
+});
+
+await teste('chave sobrevive ao WhatsApp: travessao, aspas, texto em volta, link', () => {
+  const chave = novaChave();
+  igual(lerChave(chave.replace(/-/g, '–')).chave, chave, 'travessao do iOS');
+  igual(lerChave(`"${chave}"`).chave, chave, 'aspas');
+  igual(extrairChave(`oi mae, entra na vila com ${chave.toLowerCase()} beijo`), chave, 'no meio da mensagem');
+  igual(extrairChave(`https://x.github.io/vila/web/?chave=${chave}`), chave, 'dentro do link');
+  igual(extrairChave('Vila do Riacho'), null, 'nome de vila nao e chave');
 });
 
 console.log(`\n${passou} passaram, ${falhou} falharam\n`);

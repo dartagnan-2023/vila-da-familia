@@ -24,9 +24,17 @@ const paraBase32 = (n, tamanho) => {
 const digitos = (corpo) => paraBase32(fnv1a(corpo + '|vila') % (32 ** 2), 2);
 
 // Tira o prefixo ANTES de normalizar: senao o "VILA" vira "V11A" na traducao.
+// Teclado de celular troca hifen por travessao, cola aspas, poe espaco: tudo
+// que nao for letra ou numero cai fora antes de conferir.
 const normaliza = (chave) =>
-  String(chave).toUpperCase().replace(/[\s-]/g, '').replace(/^VILA/, '')
+  String(chave).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^VILA/, '')
     .replace(/I|L/g, '1').replace(/O/g, '0').replace(/U/g, 'V');
+
+/** Acha uma chave perdida no meio de um texto (mensagem de WhatsApp, link). */
+export function extrairChave(texto) {
+  const m = String(texto ?? '').toUpperCase().match(/V\s*[I1L]\s*[L1]\s*A\s*[^A-Z0-9]{0,3}([A-Z0-9]{5})[^A-Z0-9]{0,3}([A-Z0-9]{5})/);
+  return m ? `VILA-${m[1]}-${m[2]}` : null;
+}
 
 const formata = (bruto) => `VILA-${bruto.slice(0, 5)}-${bruto.slice(5)}`;
 
