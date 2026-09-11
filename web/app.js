@@ -62,14 +62,14 @@ window.vila = app; // para inspecionar no console: vila.motor.mundo, vila.cena
 const SLOTS = [
   { tecla: '1', chave: 'regador',  nome: 'Regador',        icone: 'water_drop', dica: 'Clique num canteiro para regar. Bebe do rio comum.' },
   { tecla: '2', chave: 'foice',    nome: 'Foice',          icone: 'agriculture', dica: 'Clique num canteiro maduro para colher.' },
-  { tecla: '3', chave: 'semente',  nome: 'Sementes',       icone: 'spa', dica: 'Clique num canteiro vazio para plantar.' },
-  { tecla: '4', chave: 'machado',  nome: 'Machado',        icone: 'carpenter', dica: 'Corta madeira da mata comum (−3 de mata).', cmd: { tipo: 'CORTAR' } },
-  { tecla: '5', chave: 'picareta', nome: 'Picareta',       icone: 'construction', dica: 'Tira pedra da encosta.', cmd: { tipo: 'MINERAR' } },
-  { tecla: '6', chave: 'muda',     nome: 'Muda',           icone: 'park', dica: 'Replanta a mata comum (+4 de mata).', cmd: { tipo: 'PLANTAR_ARVORE' } },
-  { tecla: '7', chave: 'martelo',  nome: 'Martelo',        icone: 'handyman', dica: 'Construir benfeitoria na sua herdade.', abre: 'construir' },
+  { tecla: '3', chave: 'semente',  nome: 'Semente',        icone: 'spa', dica: 'Escolher o que plantar nos canteiros vazios.' },
+  { tecla: '4', chave: 'machado',  nome: 'Madeira',        icone: 'carpenter', dica: 'Machado: +3 a 5 de madeira por 2 de energia. Tira 3 da mata comum.', cmd: { tipo: 'CORTAR' } },
+  { tecla: '5', chave: 'picareta', nome: 'Pedra',          icone: 'construction', dica: 'Picareta: +2 a 4 de pedra por 2 de energia.', cmd: { tipo: 'MINERAR' } },
+  { tecla: '6', chave: 'muda',     nome: 'Replantar',      icone: 'park', dica: 'Gasta 2 de madeira e devolve +4 de mata comum.', cmd: { tipo: 'PLANTAR_ARVORE' } },
+  { tecla: '7', chave: 'martelo',  nome: 'Construir',      icone: 'handyman', dica: 'Benfeitoria na sua herdade (custa madeira, pedra, moedas).', abre: 'construir' },
   { tecla: '8', chave: 'presente', nome: 'Presente',       icone: 'redeem', dica: 'Dar recurso para um parente.', abre: 'presentear' },
   { tecla: '9', chave: 'recado',   nome: 'Recado',         icone: 'campaign', dica: 'Deixar um recado no mural da família.', abre: 'recado' },
-  { tecla: '0', chave: 'dormir',   nome: 'Dormir',         icone: 'bedtime', dica: 'Vira o dia para a vila inteira.', cmd: { tipo: 'PASSAR_DIA' } },
+  { tecla: '0', chave: 'dormir',   nome: 'Dormir',         icone: 'bedtime', dica: 'Vira o dia pra vila inteira: energia volta, plantas crescem.', cmd: { tipo: 'PASSAR_DIA' } },
 ];
 
 // --- entrada ---------------------------------------------------------------
@@ -86,6 +86,12 @@ const salvaVila = (v) => localStorage.setItem(`vila:${v.chave}`, JSON.stringify(
 // Link de convite: a URL carrega a chave, ninguem precisa digitar nada.
 const chaveDaUrl = () => extrairChave(new URLSearchParams(location.search).get('chave') ?? location.hash);
 const linkDeConvite = (chave) => `${location.origin}${location.pathname}?chave=${chave}`;
+const mensagemDeConvite = (chave) =>
+  `Vem pra nossa vila! 🌳 Abre o link, coloca seu nome e pronto:
+${linkDeConvite(chave)}
+
+(se pedir, a chave é ${chave})`;
+const linkWhatsApp = (chave) => `https://wa.me/?text=${encodeURIComponent(mensagemDeConvite(chave))}`;
 
 function telaEntrada() {
   const vilas = vilasSalvas();
@@ -482,6 +488,7 @@ function palcoHerdade(v) {
         </div>
         <div class="flex gap-gutter-xs mt-gutter-md font-label-sm text-label-sm uppercase">
           <span class="bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_1px_1px_0_0_#221b08]">🪵 ${v.hud.madeira}</span>
+          ${v.hud.madeira < 5 ? `<span class="font-body-sm text-[10px] normal-case text-on-surface-variant self-center">madeira vem do <strong>Machado (4)</strong> na barra de baixo</span>` : ''}
           <span class="bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_1px_1px_0_0_#221b08]">🪨 ${v.hud.pedra}</span>
           <span class="bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_1px_1px_0_0_#221b08]">💰 ${v.hud.moedas}</span>
         </div>
@@ -565,7 +572,9 @@ function palcoFamilia(v) {
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant">Mande esta chave para quem falta</p>
       <p class="font-headline-lg text-headline-lg text-secondary select-all my-1">${chave}</p>
       <div class="flex gap-gutter-xs justify-center flex-wrap">
-        <button class="bg-primary text-on-primary font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${linkDeConvite(chave)}">Copiar link de convite</button>
+        <a class="bg-[#25D366] text-white font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press inline-block" href="${linkWhatsApp(chave)}" target="_blank" rel="noopener">💬 Convidar pelo WhatsApp</a>
+        ${navigator.share ? `<button class="bg-primary text-on-primary font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="compartilhar" data-chave="${chave}">Compartilhar…</button>` : ''}
+        <button class="bg-surface-dim font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${linkDeConvite(chave)}">Copiar link</button>
         <button class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${chave}">Só a chave</button>
       </div>
       <p class="font-body-sm text-[11px] text-on-surface-variant mt-1">Manda o link: quem abre já cai na vila certa, só digita o nome.</p>
@@ -616,7 +625,7 @@ function hotbar(v) {
         <button class="relative w-full aspect-square max-h-16 ${app.ferramenta === s.chave ? 'bg-surface-container-lowest ring-2 ring-tertiary-fixed-dim' : 'bg-surface-container'} shadow-[inset_2px_2px_0_0_#221b08] flex items-center justify-center press group ${s.habilitado ? '' : 'opacity-40'}"
                 data-acao="slot" data-slot="${s.chave}" title="${esc(s.motivo ?? s.dica)}">
           <span class="absolute top-0.5 left-1 font-label-sm text-[10px] text-on-surface-variant">${s.tecla}</span>
-          ${ICO(s.icone, 'text-secondary text-[24px]')}
+          <span class="flex flex-col items-center leading-none">${ICO(s.icone, 'text-secondary text-[22px]')}<span class="font-label-sm text-[8px] uppercase text-on-surface mt-0.5">${esc(s.nome)}</span></span>
           <span class="hidden group-hover:block absolute bottom-full mb-2 z-50 bg-surface-container-lowest p-gutter-xs shadow-[2px_2px_0_0_#221b08] w-44 pointer-events-none text-left">
             <span class="font-label-sm text-label-sm font-bold text-secondary uppercase block">${esc(s.nome)}</span>
             <span class="font-body-sm text-[10px] text-on-surface-variant">${esc(s.motivo ?? s.dica)}</span>
@@ -774,6 +783,7 @@ document.addEventListener('click', async (e) => {
     },
     aba: () => { app.aba = d.aba; pinta(); },
     trocar: () => trocarDeFamiliar(d.quem),
+    compartilhar: () => navigator.share({ title: 'Vila Raízes', text: mensagemDeConvite(d.chave), url: linkDeConvite(d.chave) }).catch(() => {}),
     copiar: () => { navigator.clipboard?.writeText(d.texto); aviso(d.texto.startsWith('http') ? 'link de convite copiado' : 'chave copiada'); },
     slot: () => {
       const s = SLOTS.find((x) => x.chave === d.slot);
