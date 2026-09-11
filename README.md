@@ -69,11 +69,23 @@ Consequências práticas:
 | `RECADO` | deixa um recado no mural | — | — |
 | **`AJUDAR`** | rega/colhe **na terra do outro** | 2 energia | **harmonia +2** |
 | `DOAR` | material pra obra da vila | — | harmonia +1 |
+| `DEMOLIR` | desmancha benfeitoria, devolve metade | 1 energia | — |
+| `ACORDAR` | não faz nada: carimba a data no log | — | — |
 | `PASSAR_DIA` | vira o dia (pelo log) | — | clima, destino |
 
 `AJUDAR` é o comando que define o jogo: você gasta a **sua** energia e a
 colheita vai pro **celeiro do outro** — o que volta pra você é reputação,
 harmonia e, por tabela, energia extra todo dia.
+
+### O dia vira com o relógio
+
+Não há botão de dormir. `src/engine/calendario.js`: todo comando leva a data
+local (fuso de Brasília); a primeira vira a data de fundação. Quem abre o jogo
+depois da meia-noite compara a data do mundo com a de hoje e envia um
+`PASSAR_DIA` por dia que falta, com id `dia:AAAA-MM-DD` — único por vila, então
+dois primos abrindo juntos não viram o mesmo dia duas vezes. Sumiu uma semana?
+Passam até 7 dias e o calendário pula pra hoje. Sem cron, sem servidor extra: é
+o log de comandos fazendo o serviço.
 
 ## Como uma atitude vira o destino do outro
 

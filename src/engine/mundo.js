@@ -26,6 +26,7 @@ export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l:
     estacao: ESTACOES[0],
     diaDaEstacao: 1,
     clima: 'sol',
+    dataDoDia: null, // 'AAAA-MM-DD' do ultimo dia virado (vem do log)
     grade,
     herdades,
     jogadores: {},

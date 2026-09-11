@@ -8,3 +8,4 @@ export { TransporteLocal, Sessao } from './net/transporte.js';
 export { TransporteSupabase, criarVila, acharVila } from './net/supabase.js';
 export { CULTURAS, CONSTRUCOES, OBRAS, CONFIG, ESTACOES, LIMIARES, SPRITES } from './engine/conteudo.js';
 export { hashMundo } from './engine/rng.js';
+export { dataLocal, diasPendentes, comandoDoDia } from './engine/calendario.js';

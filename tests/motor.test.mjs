@@ -304,5 +304,45 @@ await teste('chave sobrevive ao WhatsApp: travessao, aspas, texto em volta, link
   igual(extrairChave('Vila do Riacho'), null, 'nome de vila nao e chave');
 });
 
+await teste('demolir libera a vaga e devolve metade do material', () => {
+  const m = vilaCom('Ana');
+  m.mundo.jogadores.ana.inventario.madeira = 40;
+  m.mundo.jogadores.ana.inventario.moedas = 200;
+  for (const c of ['poco', 'colmeia', 'composteira']) ok(m.executar({ tipo: 'CONSTRUIR', por: 'ana', construcao: c }).ok);
+  ok(!m.executar({ tipo: 'CONSTRUIR', por: 'ana', construcao: 'celeiro' }).ok, 'cheia');
+  const madeira = m.mundo.jogadores.ana.inventario.madeira;
+  m.passarDia(); // energia
+  const r = m.executar({ tipo: 'DEMOLIR', por: 'ana', construcao: 'colmeia' });
+  ok(r.ok, r.erro);
+  igual(m.mundo.jogadores.ana.inventario.madeira, madeira + 3, 'colmeia custa 6 de madeira, volta 3');
+  ok(!m.mundo.herdades.h00.construcoes.includes('poliniza'));
+  ok(m.executar({ tipo: 'CONSTRUIR', por: 'ana', construcao: 'celeiro' }).ok, 'abriu vaga');
+  ok(!m.executar({ tipo: 'DEMOLIR', por: 'ana', construcao: 'forja' }).ok, 'nao tem forja');
+});
+
+await teste('o calendario vem do log: primeira data funda, PASSAR_DIA avanca', async () => {
+  const { diasPendentes, comandoDoDia, dataLocal } = await import('../src/engine/calendario.js');
+  const m = Motor.criar(OPC);
+  m.executar({ tipo: 'ENTRAR', por: 'ana', nome: 'Ana', data: '2026-09-10' });
+  igual(m.mundo.dataDoDia, '2026-09-10', 'fundacao');
+  const velha = vilaCom('Beto');
+  igual(velha.mundo.dataDoDia, null, 'vila antiga nao tem data');
+  ok(velha.executar({ tipo: 'ACORDAR', por: 'beto', data: '2026-09-11' }).ok);
+  igual(velha.mundo.dataDoDia, '2026-09-11', 'ACORDAR carimba sem mexer em nada');
+  igual(velha.mundo.tick, 0);
+  m.executar({ tipo: 'CORTAR', por: 'ana', data: '2026-09-12' });
+  igual(m.mundo.dataDoDia, '2026-09-10', 'comando comum nao avanca o calendario');
+  igual(diasPendentes('2026-09-10', '2026-09-10').length, 0);
+  igual(diasPendentes('2026-09-10', '2026-09-12').join(','), '2026-09-11,2026-09-12');
+  const longe = diasPendentes('2026-08-01', '2026-09-12', 7);
+  igual(longe.length, 7, 'no maximo 7 dias de uma vez');
+  igual(longe.at(-1), '2026-09-12', 'e o ultimo cai em hoje');
+  for (const d of diasPendentes(m.mundo.dataDoDia, '2026-09-12')) m.executar(comandoDoDia(d));
+  igual(m.mundo.tick, 2);
+  igual(m.mundo.dataDoDia, '2026-09-12');
+  igual(m.executar(comandoDoDia('2026-09-12')).repetido, true, 'mesmo dia duas vezes = ignorado');
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(dataLocal()));
+});
+
 console.log(`\n${passou} passaram, ${falhou} falharam\n`);
 process.exit(falhou ? 1 : 0);

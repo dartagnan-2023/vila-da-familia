@@ -201,6 +201,13 @@ export const REGRAS = {
     },
   },
 
+  // Nao faz nada no mundo: existe para levar a data local para o log e assim
+  // carimbar a fundacao de vilas que nasceram antes do calendario existir.
+  ACORDAR: {
+    valida(mundo, cmd) { return checaBase(mundo, cmd); },
+    emite() { return []; },
+  },
+
   // Gestos que nao custam energia: o barato que segura a familia junta.
   ABRACAR: {
     valida(mundo, cmd) {
@@ -325,6 +332,31 @@ export const REGRAS = {
         dados: { herdade: her.id, efeito: b.efeito, custo: b.custo, energia: energiaDe(mundo, 'CONSTRUIR', her) },
         comuns: b.poluicao ? { harmonia: -1 } : { harmonia: 1 },
         texto: `${nome(mundo, cmd.por)} construiu ${b.nome} em ${her.nome}. ${b.texto}`,
+      }];
+    },
+  },
+
+  DEMOLIR: {
+    valida(mundo, cmd) {
+      const her = alvo(mundo, cmd);
+      const erro = checaBase(mundo, cmd, { energia: 1 });
+      if (erro) return erro;
+      if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
+      const b = CONSTRUCOES[cmd.construcao];
+      if (!b) return 'construcao desconhecida';
+      if (!her.construcoes.includes(b.efeito)) return 'nao tem isso na sua herdade';
+      return null;
+    },
+    emite(mundo, cmd) {
+      const her = alvo(mundo, cmd);
+      const b = CONSTRUCOES[cmd.construcao];
+      // Devolve metade do material: desmanchar nao e de graca, mas nao e castigo.
+      const devolve = Object.fromEntries(Object.entries(b.custo).map(([r, q]) => [r, Math.floor(q / 2)]));
+      return [{
+        tipo: 'DEMOLIU',
+        ator: cmd.por,
+        dados: { herdade: her.id, efeito: b.efeito, devolve, energia: 1 },
+        texto: `${nome(mundo, cmd.por)} desmanchou ${b.nome} em ${her.nome} e recuperou ${resumo(devolve)}.`,
       }];
     },
   },

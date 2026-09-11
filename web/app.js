@@ -5,6 +5,7 @@ import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js';
 import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
 import { VilaCanvas } from './vila-canvas.js';
+import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 
 // Se houver web/config.js com o projeto Supabase, o jogo e entre casas.
 // Sem ele, tudo fica no aparelho (revezamento). A tela e a mesma.
@@ -69,7 +70,7 @@ const SLOTS = [
   { tecla: '7', chave: 'martelo',  nome: 'Construir',      icone: 'handyman', dica: 'Benfeitoria na sua herdade (custa madeira, pedra, moedas).', abre: 'construir' },
   { tecla: '8', chave: 'presente', nome: 'Presente',       icone: 'redeem', dica: 'Dar recurso para um parente.', abre: 'presentear' },
   { tecla: '9', chave: 'recado',   nome: 'Recado',         icone: 'campaign', dica: 'Deixar um recado no mural da família.', abre: 'recado' },
-  { tecla: '0', chave: 'dormir',   nome: 'Dormir',         icone: 'bedtime', dica: 'Vira o dia pra vila inteira: energia volta, plantas crescem.', cmd: { tipo: 'PASSAR_DIA' } },
+  { tecla: '0', chave: 'vender',   nome: 'Vender',         icone: 'monetization_on', dica: 'Vende tudo que esta no celeiro. O dia vira sozinho a meia-noite.', acao: 'vender-tudo' },
 ];
 
 // --- entrada ---------------------------------------------------------------
@@ -181,6 +182,7 @@ async function abrirVila(chave, nomeJogador) {
 
   try { await app.sessao.sincronizar(); }
   catch (e) { return aviso(`não deu para carregar a vila: ${e.message}`, true); }
+  await virarDiasPendentes();
 
   // Nome novo neste aparelho = familiar novo. Quem ja e da vila volta a ser quem era.
   const salvo = app.eu && app.motor.mundo.jogadores[app.eu];
@@ -197,10 +199,33 @@ async function abrirVila(chave, nomeJogador) {
   pinta();
 }
 
+// O dia vira com o relogio: quem abre primeiro depois da meia-noite manda o
+// PASSAR_DIA do dia; o id `dia:AAAA-MM-DD` e unico, entao ninguem vira duas vezes.
+let virando = null;
+async function virarDiasPendentes() {
+  if (!app.sessao || virando) return virando;
+  virando = (async () => {
+    const hoje = dataLocal();
+    // Vila sem calendario (anterior a esta versao): carimba hoje e segue.
+    if (!app.motor.mundo.dataDoDia && app.motor.mundo.jogadores[app.eu]) {
+      await app.sessao.executar({ tipo: 'ACORDAR', data: hoje });
+    }
+    const datas = diasPendentes(app.motor.mundo.dataDoDia, hoje);
+    for (const data of datas) {
+      const r = await app.sessao.executar(comandoDoDia(data));
+      if (!r.ok) break;
+    }
+    if (datas.length) aviso(datas.length === 1 ? 'amanheceu na vila' : `passaram ${datas.length} dias na vila`);
+  })().finally(() => { virando = null; });
+  return virando;
+}
+setInterval(() => { if (!document.hidden) virarDiasPendentes(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) virarDiasPendentes(); });
+
 async function entrarComoFamiliar(nome) {
   const id = `${nome.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Math.random().toString(36).slice(2, 6)}`;
   app.sessao.jogadorId = id;
-  const r = await app.sessao.executar({ tipo: 'ENTRAR', por: id, nome, nomeHerdade: `Herdade ${nome}` });
+  const r = await app.sessao.executar({ tipo: 'ENTRAR', por: id, nome, nomeHerdade: `Herdade ${nome}`, data: dataLocal() });
   if (!r.ok) return aviso(r.erro, true);
   trocarDeFamiliar(id);
 }
@@ -310,7 +335,7 @@ function hud(v) {
           <span class="w-1.5 h-1.5 bg-primary"></span>
           <span class="font-label-md text-label-md text-secondary">Ano ${v.vila.ano}</span>
         </div>
-        <span class="font-label-sm text-label-sm text-on-surface-variant">${esc(v.vila.rotuloClima)}</span>
+        <span class="font-label-sm text-label-sm text-on-surface-variant">${esc(v.vila.rotuloClima)} · vira à meia-noite</span>
       </div>
     </div>
 
@@ -457,7 +482,7 @@ function legendaVila(v) {
 
 function palcoHerdade(v) {
   const h = v.minhaHerdade;
-  const slots = Object.entries(CONSTRUCOES).filter(([, b]) => h.construcoes.some((c) => c.efeito === b.efeito));
+  const slots = h.construcoes;
   return `
   <div class="bg-surface-container-low p-panel-pad-md shadow-[4px_4px_0_0_#221b08]">
     <div class="bg-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-md">
@@ -474,8 +499,12 @@ function palcoHerdade(v) {
       <div class="flex-1 min-w-[220px]">
         <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Benfeitorias</p>
         <div class="space-y-1 mb-gutter-md">
-          ${slots.length ? slots.map(([, b]) => `<div class="bg-surface-container px-gutter-xs py-pixel-step shadow-[1px_1px_0_0_#221b08]"><span class="font-label-sm text-label-sm uppercase">${esc(b.nome)}</span><p class="font-body-sm text-[11px] text-on-surface-variant">${esc(b.texto)}</p></div>`).join('')
-            : `<p class="font-body-sm text-[12px] text-on-surface-variant">Nenhuma ainda. Martelo (7) para construir.</p>`}
+          ${slots.length ? slots.map((b) => `<div class="bg-surface-container px-gutter-xs py-pixel-step shadow-[1px_1px_0_0_#221b08] flex items-start gap-gutter-xs">
+              <div class="flex-1"><span class="font-label-sm text-label-sm uppercase">${b.icone} ${esc(b.nome)}</span><p class="font-body-sm text-[11px] text-on-surface-variant">${esc(b.texto)}</p></div>
+              <button class="bg-error-container text-on-error-container font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="demolir" data-construcao="${b.chave}" title="Desmanchar e recuperar metade do material">Demolir</button>
+            </div>`).join('')
+            : `<p class="font-body-sm text-[12px] text-on-surface-variant">Nenhuma ainda. Construir (7) na barra de baixo.</p>`}
+          <p class="font-label-sm text-[10px] uppercase text-on-surface-variant">${h.vagas > 0 ? `${h.vagas} vaga(s) livre(s)` : 'herdade cheia — demolir uma pra trocar'}</p>
         </div>
         <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Celeiro</p>
         <div class="space-y-1">
@@ -741,7 +770,7 @@ function aviso(texto, ruim = false) {
 // --- comandos --------------------------------------------------------------
 
 async function manda(cmd) {
-  const r = await app.sessao.executar(cmd);
+  const r = await app.sessao.executar({ ...cmd, data: dataLocal() });
   if (!r.ok) return aviso(r.erro, true);
   pinta();
 }
@@ -789,6 +818,7 @@ document.addEventListener('click', async (e) => {
       const s = SLOTS.find((x) => x.chave === d.slot);
       if (s.cmd) return manda(s.cmd);
       if (s.abre) return abreModal(s.abre);
+      if (s.acao) return acoes[s.acao]();
       app.ferramenta = s.chave;
       if (s.chave === 'semente') abreModal('semente');
       pinta();
@@ -809,6 +839,12 @@ document.addEventListener('click', async (e) => {
     construir: async () => { fechaModal(); await manda({ tipo: 'CONSTRUIR', construcao: d.construcao }); },
     doar: async () => { fechaModal(); await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); },
     vender: () => manda({ tipo: 'VENDER', cultura: d.cultura, quantidade: Number(d.qtd) }),
+    'vender-tudo': async () => {
+      const c = visao(app.motor.mundo, app.eu).hud.colheita;
+      if (!c.length) return aviso('celeiro vazio — nada pra vender', true);
+      for (const item of c) await manda({ tipo: 'VENDER', cultura: item.cultura, quantidade: item.qtd });
+    },
+    demolir: () => { if (confirm('Desmanchar? Volta metade do material.')) manda({ tipo: 'DEMOLIR', construcao: d.construcao }); },
   };
   acoes[d.acao]?.();
 });
@@ -820,6 +856,7 @@ document.addEventListener('keydown', (e) => {
   if (!s) return;
   if (s.cmd) return manda(s.cmd);
   if (s.abre) return abreModal(s.abre);
+  if (s.acao) return document.querySelector(`[data-acao="slot"][data-slot="${s.chave}"]`)?.click();
   app.ferramenta = s.chave;
   pinta();
 });

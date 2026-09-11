@@ -38,6 +38,10 @@ export class Motor {
     const id = cmd.id ?? `${cmd.por ?? 'mundo'}#${this.mundo.seq + 1}`;
     if (this.mundo.aplicados[id]) return { ok: true, repetido: true, eventos: [] };
 
+    // Todo comando pode trazer a data local de quem enviou. A primeira vira a
+    // data de fundacao; um PASSAR_DIA com data avanca o calendario da vila.
+    if (cmd.data && (!this.mundo.dataDoDia || cmd.tipo === 'PASSAR_DIA')) this.mundo.dataDoDia = cmd.data;
+
     if (cmd.tipo === 'PASSAR_DIA') {
       const eventos = passarDia(this.mundo).map((e) => this.#registra(e));
       this.mundo.aplicados[id] = 1;

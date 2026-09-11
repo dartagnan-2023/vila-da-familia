@@ -19,7 +19,7 @@ export function visao(mundo, jogadorId) {
     vila: {
       nome: mundo.nome, dia: mundo.diaDaEstacao, estacao: mundo.estacao, ano: mundo.ano,
       clima: mundo.clima, iconeClima: ICONE_CLIMA[mundo.clima], rotuloClima: ROTULO_CLIMA[mundo.clima],
-      tick: mundo.tick, semente: mundo.semente,
+      tick: mundo.tick, semente: mundo.semente, dataDoDia: mundo.dataDoDia,
     },
     sinergia: sinergia(mundo),
     hud: eu && {
@@ -85,7 +85,11 @@ export function visao(mundo, jogadorId) {
 function herdadeView(mundo, h) {
   return {
     id: h.id, nome: h.nome, fertilidade: h.fertilidade, poluicao: h.poluicao,
-    construcoes: h.construcoes.map((e) => ({ efeito: e, icone: ICONE_CONSTRUCAO[e] })),
+    construcoes: h.construcoes.map((e) => {
+      const [chave, b] = Object.entries(CONSTRUCOES).find(([, x]) => x.efeito === e) ?? [e, { nome: e, texto: '' }];
+      return { efeito: e, chave, nome: b.nome, texto: b.texto, icone: ICONE_CONSTRUCAO[e] };
+    }),
+    vagas: CONFIG.construcoesPorHerdade - h.construcoes.length,
     canteiros: h.tiles.map((t, i) => {
       if (!t) return { i, vazio: true };
       const c = CULTURAS[t.cultura];

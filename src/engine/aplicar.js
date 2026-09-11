@@ -87,6 +87,14 @@ const REDUCERS = {
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
+  DEMOLIU(mundo, ev, d) {
+    const her = h(mundo, d.herdade);
+    her.construcoes = her.construcoes.filter((e) => e !== d.efeito);
+    const p = j(mundo, ev.ator);
+    for (const [rec, qtd] of Object.entries(d.devolve)) p.inventario[rec] += qtd;
+    gastaEnergia(mundo, ev.ator, d.energia);
+  },
+
   PRESENTEOU(mundo, ev, d) {
     const de = j(mundo, ev.ator), para = j(mundo, d.para);
     if (d.recurso === 'colheita') {
