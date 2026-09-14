@@ -69,6 +69,7 @@ Consequências práticas:
 | `RECADO` | deixa um recado no mural | — | — |
 | **`AJUDAR`** | rega/colhe **na terra do outro** | 2 energia | **harmonia +2** |
 | `DOAR` | material pra obra da vila | — | harmonia +1 |
+| `COMPRAR_CANTEIRO` | abre o 10º, 11º, 12º canteiro | 1 energia + 60/90/120 G | — |
 | `DEMOLIR` | desmancha benfeitoria, devolve metade | 1 energia | — |
 | `ACORDAR` | não faz nada: carimba a data no log | — | — |
 | `PASSAR_DIA` | vira o dia (pelo log) | — | clima, destino |

@@ -198,7 +198,49 @@ async function abrirVila(chave, nomeJogador) {
   $('entrada').hidden = true;
   if (location.search) history.replaceState(null, '', location.pathname);
   pinta();
+  if (!localStorage.getItem('vila:tutorial')) abreModal('tutorial');
+  else mostrarNovidades();
 }
+
+// ---------------------------------------------------------------------------
+// "Enquanto voce esteve fora": o que a familia fez POR voce e o que o mundo
+// mandou desde a ultima visita. E o "obrigado" que faltava.
+// ---------------------------------------------------------------------------
+function novidadesDesde(seqVisto) {
+  const m = app.motor.mundo;
+  const eu = m.jogadores[app.eu];
+  const minha = eu?.herdade;
+  const nomeDe = (id) => m.jogadores[id]?.nome ?? 'alguém';
+  const linhas = [];
+  let dias = 0;
+  for (const l of m.feed) {
+    if (l.seq <= seqVisto || l.ator === app.eu) continue;
+    const r = l.ref ?? {};
+    if (l.tipo === 'DIA_PASSOU') dias++;
+    else if (l.tipo === 'AJUDOU' && r.para === app.eu) linhas.push(`🤝 ${nomeDe(l.ator)} foi cuidar da sua horta`);
+    else if ((l.tipo === 'REGOU' || l.tipo === 'COLHEU') && r.herdade === minha) linhas.push(`${l.tipo === 'REGOU' ? '💧' : '🌾'} ${nomeDe(l.ator)} ${l.tipo === 'REGOU' ? 'regou' : 'colheu'} um canteiro seu`);
+    else if (l.tipo === 'ABRACOU' && r.para === app.eu) linhas.push(`❤️ ${nomeDe(l.ator)} te mandou um abraço`);
+    else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push(`🎁 ${l.texto}`);
+    else if (l.tipo === 'RECADO') linhas.push(`💬 ${l.texto}`);
+    else if (l.tipo === 'JOGADOR_ENTROU') linhas.push(`🏠 ${nomeDe(l.ator)} chegou na vila!`);
+    else if (l.tipo === 'OBRA_CONCLUIDA') linhas.push(`🏆 ${l.texto}`);
+    else if (l.tipo === 'DESTINO') linhas.push(`🔮 ${l.texto}`);
+  }
+  return { dias, linhas: linhas.slice(-10) };
+}
+
+function mostrarNovidades() {
+  const vila = vilasSalvas().find((v) => v.chave === app.chave);
+  const visto = vila?.vistoSeq ?? 0;
+  const ultimo = app.motor.mundo.seq;
+  if (vila) salvaVila({ ...vila, vistoSeq: ultimo });
+  if (!visto) return; // primeira visita neste aparelho: nada a "recuperar"
+  const n = novidadesDesde(visto);
+  if (!n.dias && !n.linhas.length) return;
+  app.novidades = n;
+  abreModal('novidades');
+}
+
 
 // O dia vira com o relogio: quem abre primeiro depois da meia-noite manda o
 // PASSAR_DIA do dia; o id `dia:AAAA-MM-DD` e unico, entao ninguem vira duas vezes.
@@ -298,6 +340,7 @@ function topo(v) {
       ${abas.map(([k, r]) => `<button class="font-label-md text-label-md uppercase px-gutter-sm py-pixel-step ${app.aba === k ? 'bg-primary-container text-on-primary-container shadow-[inset_0_-3px_0_0_#245107]' : 'text-on-secondary hover:bg-surface-variant hover:text-on-surface'}" data-acao="aba" data-aba="${k}">${r}</button>`).join('')}
     </nav>
     <div class="flex items-center gap-gutter-md">
+      <button class="bg-surface-container-low text-secondary font-label-lg px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="tutorial" title="Como jogar">❔</button>
       <div class="flex items-center gap-gutter-xs bg-tertiary-fixed px-panel-pad-sm py-pixel-step shadow-[2px_2px_0_0_#221b08]">
         ${ICO('monetization_on', 'text-tertiary text-[18px]')}
         <span class="font-label-md text-label-md text-on-tertiary-fixed">${v.hud.moedas} G</span>
@@ -499,6 +542,10 @@ function palcoHerdade(v) {
         <div class="grid grid-cols-3 gap-gutter-xs w-fit chao p-gutter-xs shadow-[inset_2px_2px_0_0_#221b08]">
           ${h.canteiros.map((c) => canteiroGrande(c)).join('')}
         </div>
+        ${h.proximoCanteiro != null ? `
+        <button class="mt-gutter-xs w-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press ${v.hud.moedas >= h.proximoCanteiro ? '' : 'opacity-50'}" data-acao="comprar-canteiro" title="A herdade cresce e todo mundo ve no mapa">
+          + Abrir canteiro · ${h.proximoCanteiro} G
+        </button>` : `<p class="font-label-sm text-[10px] uppercase text-on-surface-variant mt-1">herdade no tamanho máximo</p>`}
       </div>
       <div class="flex-1 min-w-[220px]">
         <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Benfeitorias</p>
@@ -687,6 +734,26 @@ function abreModal(qual) {
       </div>${corpo}</div>`;
 
   const corpos = {
+    tutorial: () => caixa('Bem-vindo(a) à vila', `
+      <div class="space-y-gutter-xs font-body-sm text-[12px] text-on-surface">
+        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌱</span><div><strong class="uppercase font-label-sm">1. Planta</strong><br>Na aba <em>Minha Herdade</em>, toque num canteiro vazio. Trigo é bom pra começar: 2 G, fica pronto em 3 dias.</div></div>
+        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">💧</span><div><strong class="uppercase font-label-sm">2. Rega todo dia</strong><br>Toque de novo no canteiro (ou em <em>Regar tudo</em>). A água sai do rio de <strong>todo mundo</strong>. Se chover, a chuva rega por você.</div></div>
+        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌙</span><div><strong class="uppercase font-label-sm">3. Volta amanhã</strong><br>O dia vira à meia-noite. Sua energia volta, as plantas crescem — as regadas, pelo menos.</div></div>
+        <div class="flex gap-gutter-xs bg-primary-fixed p-gutter-xs shadow-[inset_1px_1px_0_0_#245107]"><span class="text-[22px]">🤝</span><div><strong class="uppercase font-label-sm">4. Cuida de alguém</strong><br>Toque na herdade de um parente no mapa e rega pra ele. A colheita é dele; o que volta pra você é harmonia — e harmonia alta dá energia extra pra <strong>todo mundo</strong>.</div></div>
+        <p class="font-label-sm text-[10px] uppercase text-on-surface-variant">Madeira vem do Machado (4). Ouro vem de colher e Vender (0). Dúvida? O ❔ no topo reabre isto.</p>
+      </div>
+      <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="fecha-tutorial">Bora plantar</button>`),
+
+    novidades: () => {
+      const n = app.novidades ?? { dias: 0, linhas: [] };
+      return caixa('Enquanto você esteve fora', `
+        ${n.dias ? `<p class="font-label-sm text-label-sm uppercase text-secondary mb-1">${n.dias === 1 ? 'passou 1 dia' : `passaram ${n.dias} dias`} na vila</p>` : ''}
+        <div class="space-y-1 font-body-sm text-[12px]">
+          ${n.linhas.length ? n.linhas.map((l) => `<div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">${esc(l)}</div>`).join('') : `<p class="text-on-surface-variant">Tudo quieto por aqui.</p>`}
+        </div>
+        <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="fecha-modal">Ver a vila</button>`);
+    },
+
     semente: () => caixa('Escolher semente', `<div class="grid grid-cols-2 gap-gutter-xs">
       ${Object.entries(CULTURAS).map(([k, c]) => `
         <button class="bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press text-left ${app.cultura === k ? 'ring-2 ring-tertiary-fixed-dim' : ''}" data-acao="escolhe-cultura" data-cultura="${k}">
@@ -839,6 +906,8 @@ document.addEventListener('click', async (e) => {
     },
     modal: () => abreModal(d.modal),
     'fecha-modal': fechaModal,
+    'fecha-tutorial': () => { localStorage.setItem('vila:tutorial', '1'); fechaModal(); app.aba = 'herdade'; pinta(); },
+    tutorial: () => abreModal('tutorial'),
     'escolhe-cultura': () => { app.cultura = d.cultura; app.ferramenta = 'semente'; fechaModal(); pinta(); },
     canteiro: () => usaFerramentaNoCanteiro(Number(d.tile)),
     'abrir-herdade': () => {
@@ -870,6 +939,7 @@ document.addEventListener('click', async (e) => {
       if (!c.length) return aviso('celeiro vazio — nada pra vender', true);
       for (const item of c) await manda({ tipo: 'VENDER', cultura: item.cultura, quantidade: item.qtd });
     },
+    'comprar-canteiro': () => manda({ tipo: 'COMPRAR_CANTEIRO' }),
     demolir: () => { if (confirm('Desmanchar? Volta metade do material.')) manda({ tipo: 'DEMOLIR', construcao: d.construcao }); },
   };
   acoes[d.acao]?.();

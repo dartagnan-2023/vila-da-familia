@@ -112,7 +112,7 @@ export const REGRAS = {
       if (!her) return 'herdade inexistente';
       if (her.dono !== cmd.por) return 'essa herdade nao e sua';
       if (!CULTURAS[cmd.cultura]) return 'cultura desconhecida';
-      if (cmd.tile == null || cmd.tile < 0 || cmd.tile >= CONFIG.tilesPorHerdade) return 'canteiro invalido';
+      if (cmd.tile == null || cmd.tile < 0 || cmd.tile >= her.tiles.length) return 'canteiro invalido';
       if (her.tiles[cmd.tile]) return 'canteiro ocupado';
       if (p.inventario.moedas < CULTURAS[cmd.cultura].semente) return 'moedas insuficientes para a semente';
       return null;
@@ -335,6 +335,29 @@ export const REGRAS = {
         dados: { herdade: her.id, efeito: b.efeito, custo: b.custo, energia: energiaDe(mundo, 'CONSTRUIR', her) },
         comuns: b.poluicao ? { harmonia: -1 } : { harmonia: 1 },
         texto: `${nome(mundo, cmd.por)} construiu ${b.nome} em ${her.nome}. ${b.texto}`,
+      }];
+    },
+  },
+
+  // Para onde o ouro vai: a herdade cresce, e todo mundo ve no mapa.
+  COMPRAR_CANTEIRO: {
+    valida(mundo, cmd) {
+      const her = herdadeDe(mundo, cmd.por);
+      const erro = checaBase(mundo, cmd, { energia: 1 });
+      if (erro) return erro;
+      if (her.tiles.length >= CONFIG.canteirosMax) return 'a herdade ja esta no tamanho maximo';
+      const preco = CONFIG.precoCanteiro[her.tiles.length - CONFIG.tilesPorHerdade];
+      if (mundo.jogadores[cmd.por].inventario.moedas < preco) return `custa ${preco} moedas`;
+      return null;
+    },
+    emite(mundo, cmd) {
+      const her = herdadeDe(mundo, cmd.por);
+      const preco = CONFIG.precoCanteiro[her.tiles.length - CONFIG.tilesPorHerdade];
+      return [{
+        tipo: 'CANTEIRO_COMPRADO',
+        ator: cmd.por,
+        dados: { herdade: her.id, preco, energia: 1 },
+        texto: `${nome(mundo, cmd.por)} abriu mais um canteiro em ${her.nome} (${preco} moedas).`,
       }];
     },
   },

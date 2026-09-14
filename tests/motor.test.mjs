@@ -324,6 +324,24 @@ await teste('chave sobrevive ao WhatsApp: travessao, aspas, texto em volta, link
   igual(extrairChave('Vila do Riacho'), null, 'nome de vila nao e chave');
 });
 
+await teste('comprar canteiro: a herdade cresce ate 12, o preco sobe', () => {
+  const m = vilaCom('Ana');
+  m.mundo.jogadores.ana.inventario.moedas = 50;
+  let r = m.executar({ tipo: 'COMPRAR_CANTEIRO', por: 'ana' });
+  ok(!r.ok && /60 moedas/.test(r.erro), r.erro);
+  m.mundo.jogadores.ana.inventario.moedas = 300;
+  ok(m.executar({ tipo: 'COMPRAR_CANTEIRO', por: 'ana' }).ok);
+  igual(m.mundo.herdades.h00.tiles.length, 10);
+  igual(m.mundo.jogadores.ana.inventario.moedas, 240);
+  ok(m.executar({ tipo: 'PLANTAR', por: 'ana', tile: 9, cultura: 'flor' }).ok, 'planta no canteiro novo');
+  ok(m.executar({ tipo: 'COMPRAR_CANTEIRO', por: 'ana' }).ok);
+  ok(m.executar({ tipo: 'COMPRAR_CANTEIRO', por: 'ana' }).ok);
+  igual(m.mundo.jogadores.ana.inventario.moedas, 240 - 1 - 90 - 120, 'menos a semente da flor');
+  r = m.executar({ tipo: 'COMPRAR_CANTEIRO', por: 'ana' });
+  ok(!r.ok && /maximo/.test(r.erro), r.erro);
+  igual(visao(m.mundo, 'ana').minhaHerdade.canteiros.length, 12);
+});
+
 await teste('demolir libera a vaga e devolve metade do material', () => {
   const m = vilaCom('Ana');
   m.mundo.jogadores.ana.inventario.madeira = 40;

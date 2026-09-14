@@ -91,6 +91,7 @@ function herdadeView(mundo, h) {
       return { efeito: e, chave, nome: b.nome, texto: b.texto, icone: ICONE_CONSTRUCAO[e] };
     }),
     vagas: CONFIG.construcoesPorHerdade - h.construcoes.length,
+    proximoCanteiro: h.tiles.length < CONFIG.canteirosMax ? CONFIG.precoCanteiro[h.tiles.length - CONFIG.tilesPorHerdade] : null,
     canteiros: h.tiles.map((t, i) => {
       if (!t) return { i, vazio: true };
       const c = CULTURAS[t.cultura];

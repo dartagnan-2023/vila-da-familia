@@ -166,7 +166,8 @@ export class VilaCanvas {
       const o = origemHerdade(h, geo);
       if (tx < o.tx || ty < o.ty || tx >= o.tx + HERD || ty >= o.ty + HERD) continue;
       const dx = tx - o.tx, dy = ty - o.ty;
-      const canteiro = dx >= 3 && dx <= 5 && dy >= 2 && dy <= 4 ? (dy - 2) * 3 + (dx - 3) : null;
+      const idx = dx >= 3 && dx <= 5 && dy >= 2 && dy <= 5 ? (dy - 2) * 3 + (dx - 3) : null;
+      const canteiro = idx != null && idx < h.tiles.length ? idx : null;
       return this.aoClicar({ herdade: h.id, canteiro });
     }
     const poco = this.#poco(geo);

@@ -8,6 +8,8 @@ export const CONFIG = {
   energiaMax: 10,
   comumMax: 100,
   tilesPorHerdade: 9,
+  canteirosMax: 12,            // 9 de nascenca + ate 3 comprados
+  precoCanteiro: [60, 90, 120], // o 10o, o 11o e o 12o
   construcoesPorHerdade: 3,
   feedMax: 300,
 };

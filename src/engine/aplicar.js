@@ -87,6 +87,12 @@ const REDUCERS = {
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
+  CANTEIRO_COMPRADO(mundo, ev, d) {
+    h(mundo, d.herdade).tiles.push(null);
+    j(mundo, ev.ator).inventario.moedas -= d.preco;
+    gastaEnergia(mundo, ev.ator, d.energia);
+  },
+
   DEMOLIU(mundo, ev, d) {
     const her = h(mundo, d.herdade);
     her.construcoes = her.construcoes.filter((e) => e !== d.efeito);
