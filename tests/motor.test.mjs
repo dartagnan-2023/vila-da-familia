@@ -1,5 +1,5 @@
 import { Motor } from '../src/engine/motor.js';
-import { visao } from '../src/engine/apresentador.js';
+import { visao, acoesPossiveis } from '../src/engine/apresentador.js';
 import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 
@@ -85,6 +85,18 @@ await teste('lavoura sem agua acumula estresse e nao cresce', () => {
   const t = m.mundo.herdades.h00.tiles[0];
   ok(t.estresse > 0, 'deveria ter estresse');
   ok(t.idade < 4, `nao deveria estar madura (idade ${t.idade})`);
+});
+
+await teste('chuva rega por voce: a planta cresce e regar e recusado', () => {
+  const m = vilaCom('Ana');
+  m.executar({ tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'trigo' });
+  m.mundo.clima = 'chuva';
+  const r = m.executar({ tipo: 'REGAR', por: 'ana', tile: 0 });
+  ok(!r.ok && /chovendo/.test(r.erro), r.erro);
+  igual(visao(m.mundo, 'ana').minhaHerdade.canteiros[0].sede, false, 'na chuva nao tem sede');
+  m.passarDia();
+  igual(m.mundo.herdades.h00.tiles[0].idade, 1, 'cresceu com a chuva');
+  igual(m.mundo.herdades.h00.tiles[0].estresse, 0);
 });
 
 await teste('ajudar o vizinho: a colheita e dele, o laco e dos dois', () => {
@@ -217,6 +229,14 @@ await teste('chave de convite: sorteia, le com erro de digitacao e barra chave e
   ok(novaChave() !== novaChave(), 'duas chaves iguais seria muito azar');
   const fixa = novaChave(() => 0.5);
   igual(fixa, novaChave(() => 0.5), 'com o mesmo gerador, a mesma chave');
+});
+
+await teste('acoesPossiveis: botao valido vem habilitado, invalido vem com motivo', () => {
+  const m = vilaCom('Ana');
+  const [cortar, regar, xis] = acoesPossiveis(m.mundo, 'ana', [{ tipo: 'CORTAR' }, { tipo: 'REGAR', tile: 0 }, { tipo: 'XIS' }]);
+  ok(cortar.habilitado && cortar.motivo === null, `cortar deveria estar liberado: ${cortar.motivo}`);
+  ok(!regar.habilitado && /nada plantado/.test(regar.motivo), regar.motivo);
+  ok(!xis.habilitado && /desconhecido/.test(xis.motivo));
 });
 
 await teste('a visao entrega tudo mastigado para a tela', () => {

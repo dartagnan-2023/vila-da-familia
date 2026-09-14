@@ -9,6 +9,9 @@ import { vizinhas, temConstrucao, obraConcluida } from './mundo.js';
 
 const CHANCE_CHUVA = { Primavera: 0.5, Verao: 0.25, Outono: 0.4, Inverno: 0.35 };
 
+/** Chuva de verdade: dispensa regar. */
+export const choveu = (clima) => clima === 'chuva' || clima === 'tempestade';
+
 export function passarDia(mundo) {
   const eventos = [];
   const tick = mundo.tick + 1;
@@ -48,9 +51,10 @@ export function passarDia(mundo) {
     texto: `Dia ${diaDaEstacao} de ${estacao} (ano ${ano}) — ${rotuloClima(clima)}.`,
   });
 
-  // 2. Lavouras. Molhado ontem ou choveu hoje = cresce; senao acumula estresse.
+  // 2. Lavouras. Regada hoje ou choveu hoje = cresce; senao acumula estresse.
+  // "Hoje" e o dia que esta acabando: a chuva que a familia viu na tela.
   const seca = mundo.comuns.agua < LIMIARES.secaAgua;
-  const chovendo = clima === 'chuva' || clima === 'tempestade';
+  const chovendo = choveu(mundo.clima);
   for (const her of Object.values(mundo.herdades)) {
     her.tiles.forEach((t, i) => {
       if (!t) return;

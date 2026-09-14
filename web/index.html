@@ -29,6 +29,9 @@ tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-dim":"#e7d9b
   .pisca{animation:pisca 1s steps(2,start) infinite}
   @keyframes pisca{to{opacity:.35}}
   [hidden]{display:none !important}
+  #topo nav{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #topo nav::-webkit-scrollbar{display:none}
+  @media (max-width:1023px){ #hud .w-28{width:5.5rem} #hud .w-44{width:8rem} }
 </style>
 </head>
 <body class="bg-background font-body-md text-body-md text-on-background min-h-screen">
@@ -36,8 +39,8 @@ tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-dim":"#e7d9b
 <!-- PORTA DE ENTRADA: criar a vila ou entrar com a chave da família -->
 <div class="fixed inset-0 z-[100] bg-inverse-surface/90 scanlines flex items-center justify-center p-gutter-md" id="entrada"></div>
 
-<header class="sticky top-0 z-50 bg-secondary shadow-[0_4px_0_0_#331200]" id="topo"></header>
-<div class="sticky top-20 z-40 bg-surface-dim shadow-[0_4px_0_0_#221b08] px-panel-pad-md py-pixel-step" id="hud"></div>
+<header class="lg:sticky lg:top-0 z-50 bg-secondary shadow-[0_4px_0_0_#331200]" id="topo"></header>
+<div class="sticky top-0 lg:top-20 z-40 bg-surface-dim shadow-[0_4px_0_0_#221b08] px-gutter-xs lg:px-panel-pad-md py-pixel-step" id="hud"></div>
 
 <main class="w-full">
   <div class="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_320px] gap-gutter-md p-gutter-md items-start">

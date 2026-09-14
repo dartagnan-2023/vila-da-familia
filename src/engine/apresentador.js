@@ -1,5 +1,6 @@
 import { CULTURAS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG } from './conteudo.js';
 import { vizinhas, temConstrucao } from './mundo.js';
+import { choveu } from './simular.js';
 import { REGRAS } from './regras.js';
 
 // ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ function herdadeView(mundo, h) {
         idade: t.idade, dias: c.dias,
         progresso: Math.min(100, Math.round((t.idade / c.dias) * 100)),
         pronto: t.idade >= c.dias,
-        sede: t.regadoEm !== mundo.tick && t.idade < c.dias,
+        sede: t.regadoEm !== mundo.tick && !choveu(mundo.clima) && t.idade < c.dias,
         estresse: t.estresse,
         plantadoPor: t.plantadoPor,
       };
@@ -106,16 +107,21 @@ function herdadeView(mundo, h) {
   };
 }
 
+// A familia inteira, vizinhos primeiro: ninguem deixa a vo sem agua por
+// estar na outra ponta da vila.
 function pedidos(mundo, jogadorId) {
   const minha = mundo.herdades[mundo.jogadores[jogadorId].herdade];
   const out = [];
-  for (const v of vizinhas(mundo, minha.id)) {
+  const perto = new Set(vizinhas(mundo, minha.id).map((v) => v.id));
+  const todas = Object.values(mundo.herdades).sort((a, b) => (perto.has(b.id) ? 1 : 0) - (perto.has(a.id) ? 1 : 0));
+  const chovendo = choveu(mundo.clima);
+  for (const v of todas) {
     if (!v.dono || v.dono === jogadorId) continue;
     v.tiles.forEach((t, i) => {
       if (!t) return;
       const c = CULTURAS[t.cultura];
       if (t.idade >= c.dias) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', motivo: `${c.nome} passando do ponto em ${v.nome}` });
-      else if (t.regadoEm !== mundo.tick) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'REGAR', motivo: `${c.nome} com sede em ${v.nome}` });
+      else if (t.regadoEm !== mundo.tick && !chovendo) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'REGAR', motivo: `${c.nome} com sede em ${v.nome}` });
     });
   }
   return out.slice(0, 8);
@@ -199,7 +205,8 @@ const laco = (rep, souEu) => {
 export function acoesPossiveis(mundo, jogadorId, comandos) {
   return comandos.map((cmd) => {
     const c = { ...cmd, por: jogadorId };
-    const erro = REGRAS[c.tipo]?.valida(mundo, c) ?? 'comando desconhecido';
+    const regra = REGRAS[c.tipo];
+    const erro = regra ? regra.valida(mundo, c) : 'comando desconhecido';
     return { comando: c, habilitado: !erro, motivo: erro ?? null };
   });
 }

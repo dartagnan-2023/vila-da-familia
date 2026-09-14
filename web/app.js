@@ -6,6 +6,7 @@ import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js
 import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
 import { VilaCanvas } from './vila-canvas.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
+import { choveu } from '../src/engine/simular.js';
 
 // Se houver web/config.js com o projeto Supabase, o jogo e entre casas.
 // Sem ele, tudo fica no aparelho (revezamento). A tela e a mesma.
@@ -61,8 +62,8 @@ const app = {
 window.vila = app; // para inspecionar no console: vila.motor.mundo, vila.cena
 
 const SLOTS = [
-  { tecla: '1', chave: 'regador',  nome: 'Regador',        icone: 'water_drop', dica: 'Clique num canteiro para regar. Bebe do rio comum.' },
-  { tecla: '2', chave: 'foice',    nome: 'Foice',          icone: 'agriculture', dica: 'Clique num canteiro maduro para colher.' },
+  { tecla: '1', chave: 'regador',  nome: 'Regar tudo',     icone: 'water_drop', dica: 'Rega todos os seus canteiros com sede (1 energia cada).', acao: 'regar-tudo' },
+  { tecla: '2', chave: 'foice',    nome: 'Colher tudo',    icone: 'agriculture', dica: 'Colhe todos os seus canteiros maduros (1 energia cada).', acao: 'colher-tudo' },
   { tecla: '3', chave: 'semente',  nome: 'Semente',        icone: 'spa', dica: 'Escolher o que plantar nos canteiros vazios.' },
   { tecla: '4', chave: 'machado',  nome: 'Madeira',        icone: 'carpenter', dica: 'Machado: +3 a 5 de madeira por 2 de energia. Tira 3 da mata comum.', cmd: { tipo: 'CORTAR' } },
   { tecla: '5', chave: 'picareta', nome: 'Pedra',          icone: 'construction', dica: 'Picareta: +2 a 4 de pedra por 2 de energia.', cmd: { tipo: 'MINERAR' } },
@@ -278,7 +279,7 @@ function topo(v) {
   const chave = app.chave;
   const abas = [['vila', 'Vila Principal'], ['herdade', 'Minha Herdade'], ['destino', 'Mural do Destino'], ['familia', 'Chave Familiar & Parentes']];
   return `
-  <div class="h-20 w-full px-gutter-lg flex items-center justify-between gap-gutter-md flex-wrap">
+  <div class="min-h-20 w-full px-gutter-sm lg:px-gutter-lg py-pixel-step flex items-center justify-between gap-gutter-sm lg:gap-gutter-md flex-wrap">
     <div class="flex items-center gap-gutter-md">
       <div class="flex items-center gap-gutter-sm bg-surface-container-low px-panel-pad-sm py-pixel-step shadow-[2px_2px_0_0_#221b08]">
         <span class="text-[28px] leading-none">🌳</span>
@@ -293,7 +294,7 @@ function topo(v) {
         <button class="bg-tertiary-fixed text-on-tertiary-fixed px-pixel-step py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="copiar" data-texto="${linkDeConvite(chave)}" title="Copiar link de convite">${ICO('content_copy', 'text-[14px] leading-none align-middle')}</button>
       </div>
     </div>
-    <nav class="flex items-center gap-gutter-xs flex-wrap">
+    <nav class="flex items-center gap-gutter-xs w-full lg:w-auto order-3 lg:order-none">
       ${abas.map(([k, r]) => `<button class="font-label-md text-label-md uppercase px-gutter-sm py-pixel-step ${app.aba === k ? 'bg-primary-container text-on-primary-container shadow-[inset_0_-3px_0_0_#245107]' : 'text-on-secondary hover:bg-surface-variant hover:text-on-surface'}" data-acao="aba" data-aba="${k}">${r}</button>`).join('')}
     </nav>
     <div class="flex items-center gap-gutter-md">
@@ -374,7 +375,10 @@ function ecos(v) {
           <span class="font-label-sm text-[11px] font-bold uppercase text-on-error-container">🔮 O mundo respondeu</span>
           <p class="font-body-sm text-[12px] text-on-error-container mt-1 leading-snug">${esc(p.texto)}</p>
         </div>`).join('')}
-      ${v.feed.map((l) => `
+      ${v.feed.map((l) => l.tipo === 'DIA_PASSOU' ? `
+        <div class="flex items-center gap-1 text-on-surface-variant font-label-sm text-[10px] uppercase py-pixel-unit">
+          <span class="flex-1 h-px bg-outline-variant"></span><span>${esc(l.texto.replace(/ \(ano \d+\)/, '').replace(' — ', ' · ').replace(/\.$/, ''))}</span><span class="flex-1 h-px bg-outline-variant"></span>
+        </div>` : `
         <div class="bg-surface-container-highest p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">
           <div class="flex items-center justify-between text-secondary">
             <span class="font-label-sm text-[11px] font-bold uppercase">${l.sprite} ${esc(l.autor)}</span>
@@ -651,10 +655,10 @@ function hotbar(v) {
   <div class="max-w-[1600px] mx-auto flex flex-col items-center gap-gutter-xs">
     <div class="grid grid-cols-5 sm:grid-cols-10 gap-gutter-xs w-full max-w-4xl">
       ${testes.map((s) => `
-        <button class="relative w-full aspect-square max-h-16 ${app.ferramenta === s.chave ? 'bg-surface-container-lowest ring-2 ring-tertiary-fixed-dim' : 'bg-surface-container'} shadow-[inset_2px_2px_0_0_#221b08] flex items-center justify-center press group ${s.habilitado ? '' : 'opacity-40'}"
+        <button class="relative w-full h-12 sm:h-14 bg-surface-container hover:bg-surface-container-lowest shadow-[inset_2px_2px_0_0_#221b08] flex items-center justify-center press group ${s.habilitado ? '' : 'opacity-40'}"
                 data-acao="slot" data-slot="${s.chave}" title="${esc(s.motivo ?? s.dica)}">
           <span class="absolute top-0.5 left-1 font-label-sm text-[10px] text-on-surface-variant">${s.tecla}</span>
-          <span class="flex flex-col items-center leading-none">${ICO(s.icone, 'text-secondary text-[22px]')}<span class="font-label-sm text-[8px] uppercase text-on-surface mt-0.5">${esc(s.nome)}</span></span>
+          <span class="flex flex-col items-center leading-none">${ICO(s.icone, 'text-secondary text-[18px] sm:text-[22px]')}<span class="font-label-sm text-[7px] sm:text-[8px] uppercase text-on-surface mt-0.5">${esc(s.nome)}</span></span>
           <span class="hidden group-hover:block absolute bottom-full mb-2 z-50 bg-surface-container-lowest p-gutter-xs shadow-[2px_2px_0_0_#221b08] w-44 pointer-events-none text-left">
             <span class="font-label-sm text-label-sm font-bold text-secondary uppercase block">${esc(s.nome)}</span>
             <span class="font-body-sm text-[10px] text-on-surface-variant">${esc(s.motivo ?? s.dica)}</span>
@@ -663,6 +667,7 @@ function hotbar(v) {
     </div>
     <div class="flex items-center gap-gutter-md font-label-sm text-label-sm text-on-surface-variant uppercase flex-wrap justify-center">
       <span>${v.hud.sprite} ${esc(v.hud.nome)} · ⚡${v.hud.energia}/${v.hud.energiaMax} · Nv.${v.hud.nivel} (${v.hud.xp}/${v.hud.xpMax})</span>
+      ${v.hud.energia === 0 ? `<span class="bg-tertiary-fixed text-on-tertiary-fixed px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] normal-case">Por hoje é isso — a energia volta à meia-noite. Abraço e recado ainda valem!</span>` : ''}
       <span class="w-2 h-2 bg-primary"></span>
       <span>${app.online ? '● entre casas' : '○ só neste aparelho'} · hash ${app.motor.hash}</span>
     </div>
@@ -773,6 +778,15 @@ async function manda(cmd) {
   const r = await app.sessao.executar({ ...cmd, data: dataLocal() });
   if (!r.ok) return aviso(r.erro, true);
   pinta();
+  confirma();
+}
+
+// "✓ regou trigo · −1 agua": o ultimo ato meu, com o que ele custou/deu pra vila.
+function confirma() {
+  const l = visao(app.motor.mundo, app.eu).feed.find((x) => x.ator === app.eu);
+  if (!l) return;
+  const verbo = l.texto.replace(/^.*? (plantou|regou|colheu|derrubou|tirou|construiu|desmanchou|deu|mandou|foi ajudar|doou|vendeu)/, '$1').split(' em ')[0].split(' (')[0];
+  aviso(`✓ ${verbo}${l.impacto ? ` · ${l.impacto}` : ''}`);
 }
 
 // Canteiro vazio planta a semente escolhida, maduro colhe, o resto rega.
@@ -839,6 +853,18 @@ document.addEventListener('click', async (e) => {
     construir: async () => { fechaModal(); await manda({ tipo: 'CONSTRUIR', construcao: d.construcao }); },
     doar: async () => { fechaModal(); await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); },
     vender: () => manda({ tipo: 'VENDER', cultura: d.cultura, quantidade: Number(d.qtd) }),
+    'regar-tudo': async () => {
+      const c = visao(app.motor.mundo, app.eu).minhaHerdade.canteiros.filter((x) => !x.vazio && x.sede);
+      if (!c.length) return aviso(choveu(app.motor.mundo.clima) ? 'esta chovendo — a chuva rega por voce' : 'nada com sede', true);
+      for (const x of c) { const r = await app.sessao.executar({ tipo: 'REGAR', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
+      pinta(); confirma();
+    },
+    'colher-tudo': async () => {
+      const c = visao(app.motor.mundo, app.eu).minhaHerdade.canteiros.filter((x) => x.pronto);
+      if (!c.length) return aviso('nada maduro ainda', true);
+      for (const x of c) { const r = await app.sessao.executar({ tipo: 'COLHER', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
+      pinta(); confirma();
+    },
     'vender-tudo': async () => {
       const c = visao(app.motor.mundo, app.eu).hud.colheita;
       if (!c.length) return aviso('celeiro vazio — nada pra vender', true);

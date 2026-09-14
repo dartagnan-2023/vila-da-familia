@@ -1,5 +1,6 @@
 import { CULTURAS, CONSTRUCOES, OBRAS, CUSTO_ENERGIA, CONFIG, SPRITES } from './conteudo.js';
 import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida } from './mundo.js';
+import { choveu } from './simular.js';
 
 // ---------------------------------------------------------------------------
 // Regras: comando -> (validacao) -> lista de eventos.
@@ -138,6 +139,7 @@ export const REGRAS = {
       const t = her.tiles[cmd.tile];
       if (!t) return 'nao ha nada plantado ai';
       if (t.regadoEm === mundo.tick) return 'ja foi regado hoje';
+      if (choveu(mundo.clima)) return 'esta chovendo — a chuva rega por voce';
       if (mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o poco comum secou';
       return null;
     },
@@ -177,6 +179,7 @@ export const REGRAS = {
       const t = her.tiles[cmd.tile];
       if (!t) return 'nao ha nada plantado ai';
       if (cmd.acao === 'REGAR' && t.regadoEm === mundo.tick) return 'ja foi regado hoje';
+      if (cmd.acao === 'REGAR' && choveu(mundo.clima)) return 'esta chovendo — a chuva rega por voce';
       if (cmd.acao === 'REGAR' && mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o poco comum secou';
       if (cmd.acao === 'COLHER' && t.idade < CULTURAS[t.cultura].dias) return 'ainda nao esta no ponto';
       return null;
