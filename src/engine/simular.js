@@ -61,9 +61,9 @@ export function passarDia(mundo) {
   // 3. Terra: composteira cura, forja do vizinho contamina, pousio descansa.
   for (const her of Object.values(mundo.herdades)) {
     if (!her.dono) continue;
-    let fert = 0, pol = 0;
-    if (temConstrucao(her, 'solo')) fert += 2;
-    if (her.tiles.every((t) => !t)) fert += 1;
+    let fert = 2, pol = 0; // a terra se refaz todo dia
+    if (temConstrucao(her, 'solo')) fert += 3;
+    if (her.tiles.every((t) => !t)) fert += 2; // pousio
     const forjasVizinhas = vizinhas(mundo, her.id).filter((v) => temConstrucao(v, 'ferramenta')).length;
     pol += forjasVizinhas > 0 ? forjasVizinhas : -1;
     if (pol > 0) fert -= 1;
@@ -108,7 +108,7 @@ function presagios(mundo, tick, { seca, clima }) {
   const rnd = rngPara(mundo.semente, tick, 'destino');
 
   if (seca) {
-    out.push(presagio('seca', `O rio comum baixou. Regar ficou caro para todo mundo.`));
+    out.push(presagio('seca', `O rio comum baixou. As plantas de todo mundo murcham.`));
   }
   if (mundo.comuns.floresta < LIMIARES.desmatamento) {
     out.push(presagio('desmatamento', `A mata comum esta rala — as chuvas andam sumindo.`));
@@ -121,9 +121,9 @@ function presagios(mundo, tick, { seca, clima }) {
     });
   }
   if (mundo.comuns.harmonia >= LIMIARES.harmoniaAlta) {
-    out.push(presagio('festa', `A vila esta em festa. Todo mundo acorda com mais disposicao.`));
+    out.push(presagio('festa', `A vila esta em festa. Tudo cresce mais rapido para todo mundo.`));
   } else if (mundo.comuns.harmonia <= LIMIARES.harmoniaBaixa) {
-    out.push(presagio('discordia', `Anda todo mundo emburrado. O dia rende menos.`));
+    out.push(presagio('discordia', `Anda todo mundo emburrado. Tudo cresce mais devagar.`));
   }
   if (clima === 'tempestade' && mundo.comuns.floresta < LIMIARES.desmatamento) {
     out.push(presagio('erosao', `A enxurrada levou parte da terra boa da vila.`));

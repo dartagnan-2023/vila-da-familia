@@ -9,5 +9,6 @@ export { TransporteSupabase, criarVila, acharVila } from './net/supabase.js';
 export { CULTURAS, CONSTRUCOES, OBRAS, CONFIG, ESTACOES, LIMIARES, SPRITES } from './engine/conteudo.js';
 export { hashMundo } from './engine/rng.js';
 export { dataLocal, diasPendentes, comandoDoDia } from './engine/calendario.js';
-export { avancarTempo, projetar, prontaEm, rotuloDuracao } from './engine/tempo.js';
-export { missoesDoDia } from './engine/regras.js';
+export { avancarTempo, projetar, prontaEm, rotuloDuracao, velocidade, estaMadura } from './engine/tempo.js';
+export { missoesDoDia, gerarEncomenda } from './engine/regras.js';
+export { PRODUTOS, XP, nivelDe, xpParaNivel, precoDe, nomeDe } from './engine/conteudo.js';

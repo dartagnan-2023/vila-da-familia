@@ -14,6 +14,7 @@ export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l:
         poluicao: 0,
         tiles: Array.from({ length: CONFIG.tilesPorHerdade }, () => null),
         construcoes: [],
+        producao: {}, // maquina -> { produto, prontoEm }
       };
     }
   }
@@ -44,14 +45,17 @@ export function criarJogador({ id, nome, sprite, herdade }) {
   return {
     id, nome, sprite,
     herdade,
-    energia: CONFIG.energiaMax,
+    energia: CONFIG.energiaMax,    // legado: nao limita mais nada
     energiaMax: CONFIG.energiaMax,
+    xp: 0,
     inventario: { madeira: 5, pedra: 0, moedas: 30 },
     colheita: {},
     reputacao: {},
     gestos: {}, // ultimo dia em que abracou cada parente
-    regenResto: 0,
-    hoje: { regas: 0, plantios: 0, colheitas: 0, ajudas: 0, abracos: 0, cortes: 0, arvores: 0, doacoes: 0, vendas: 0, recados: 0 },
+    descanso: { machado: 0, picareta: 0 }, // ate quando a ferramenta descansa
+    encomendas: [],
+    encomendasGeradas: 0,
+    hoje: { cuidados: 0, plantios: 0, colheitas: 0, ajudas: 0, abracos: 0, cortes: 0, arvores: 0, doacoes: 0, vendas: 0, recados: 0, encomendas: 0, producoes: 0 },
     missoesFeitas: [],
     feitos: { plantios: 0, colheitas: 0, ajudas: 0, presentes: 0, doacoes: 0, arvores: 0, cortes: 0, abracos: 0 },
   };

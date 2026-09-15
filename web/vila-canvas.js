@@ -1,5 +1,5 @@
 import { CULTURAS } from '../src/engine/conteudo.js';
-import { estaMadura, estaMolhada, duracaoCultura } from '../src/engine/tempo.js';
+import { estaMadura, duracaoCultura } from '../src/engine/tempo.js';
 
 // ---------------------------------------------------------------------------
 // O mundo desenhado. Tudo aqui e pixel art feita em codigo: nenhuma imagem
@@ -354,7 +354,7 @@ export class VilaCanvas {
   #canteiro(x, y, t, h, mundo) {
     const { ctx } = this;
     const fert = h.fertilidade;
-    ctx.fillStyle = t && estaMolhada(t, mundo.agora) ? P.terraMolhada : fert < 40 ? P.terraSeca : P.terra;
+    ctx.fillStyle = t && !t.problema ? P.terraMolhada : fert < 40 ? P.terraSeca : P.terra;
     ctx.fillRect(x + 1, y + 1, 14, 14);
     ctx.fillStyle = 'rgba(0,0,0,.15)';
     for (let s = 3; s < 14; s += 4) ctx.fillRect(x + 1, y + s, 14, 1);
@@ -373,8 +373,11 @@ export class VilaCanvas {
       ctx.fillStyle = cor; ctx.fillRect(x + 4 + balanco, y + 2, 8, 6);
       ctx.fillStyle = P.ouro; ctx.fillRect(x + 12, y + 1 + ((this.frame >> 4) % 2), 2, 2);
     }
-    if (!estaMolhada(t, mundo.agora) && prog < 1 && (this.frame >> 5) % 2 === 0) {
-      ctx.fillStyle = P.agua; ctx.fillRect(x + 12, y + 2, 2, 3); ctx.fillRect(x + 11, y + 4, 4, 2);
+    // A planta esta pedindo: marca piscando (gota azul, praga vermelha, mato verde).
+    if (t.problema && (this.frame >> 4) % 2 === 0) {
+      ctx.fillStyle = { sede: P.agua, praga: '#b84133', mato: '#2d4c1e' }[t.problema] ?? P.ouro;
+      ctx.fillRect(x + 11, y + 1, 4, 4);
+      ctx.fillStyle = P.parede; ctx.fillRect(x + 12, y + 2, 1, 1);
     }
   }
 
@@ -392,6 +395,14 @@ export class VilaCanvas {
       ctx.fillStyle = P.tronco; ctx.fillRect(x + 3, y + 7, 10, 8); ctx.fillStyle = P.terraMolhada; ctx.fillRect(x + 5, y + 5, 6, 4);
     } else if (efeito === 'estoque') { // celeiro
       ctx.fillStyle = P.cerca; ctx.fillRect(x + 2, y + 6, 12, 9); ctx.fillStyle = P.telhado2; ctx.fillRect(x + 1, y + 3, 14, 4);
+    } else if (efeito === 'moinho') {
+      ctx.fillStyle = P.parede; ctx.fillRect(x + 5, y + 6, 6, 9); ctx.fillStyle = P.telhado; ctx.fillRect(x + 4, y + 4, 8, 3);
+      ctx.strokeStyle = P.ink; ctx.lineWidth = 1; const a = this.frame / 20; ctx.beginPath();
+      for (let k = 0; k < 4; k++) { const ang = a + k * Math.PI / 2; ctx.moveTo(x + 8, y + 6); ctx.lineTo(x + 8 + Math.cos(ang) * 6, y + 6 + Math.sin(ang) * 6); }
+      ctx.stroke();
+    } else if (efeito === 'forno') {
+      ctx.fillStyle = P.pedra; ctx.fillRect(x + 3, y + 6, 10, 9); ctx.fillStyle = '#ff7a3d'; ctx.fillRect(x + 6, y + 10, 4, 3);
+      ctx.fillStyle = P.telhado2; ctx.fillRect(x + 5, y + 3, 6, 3);
     } else if (efeito === 'ferramenta') { // forja
       ctx.fillStyle = P.pedra; ctx.fillRect(x + 3, y + 6, 10, 9); ctx.fillStyle = '#ff7a3d'; ctx.fillRect(x + 6, y + 10, 4, 3);
       ctx.fillStyle = 'rgba(66,73,60,.8)'; ctx.fillRect(x + 6 - ((this.frame >> 2) % 5), y - ((this.frame >> 2) % 5), 4, 3);

@@ -1,41 +1,46 @@
-import { CULTURAS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG } from './conteudo.js';
+import {
+  CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG, PROBLEMAS, TEMPO,
+  nivelDe, xpParaNivel, precoDe, nomeDe,
+} from './conteudo.js';
 import { vizinhas, temConstrucao } from './mundo.js';
-import { choveu } from './simular.js';
 import { REGRAS, missoesDoDia } from './regras.js';
-import { projetar, estaMadura, estaMolhada, estresseDe, prontaEm, duracaoCultura, rotuloDuracao } from './tempo.js';
-import { TEMPO } from './conteudo.js';
+import { projetar, estaMadura, prontaEm, duracaoCultura, rotuloDuracao, velocidade } from './tempo.js';
 
 // ---------------------------------------------------------------------------
 // Camada de vitrine: transforma o estado cru no que a TELA precisa mostrar.
-// A UI (o layout que vier do Stitch) le SO isto — nunca o mundo direto.
+// A UI le SO isto — nunca o mundo direto.
 // ---------------------------------------------------------------------------
 
-const ICONE_CULTURA = { trigo: '🌾', milho: '🌽', abobora: '🎃', arroz: '🍚', flor: '🌻' };
-const ICONE_CONSTRUCAO = { agua: '🪣', poliniza: '🐝', solo: '♻️', estoque: '🏚️', ferramenta: '🔨' };
+const ICONE_ITEM = { trigo: '🌾', milho: '🌽', abobora: '🎃', arroz: '🍚', flor: '🌻', cenoura: '🥕', cafe: '☕', farinha: '🫓', pao: '🍞', bolo: '🍰' };
+const ICONE_CONSTRUCAO = { agua: '🪣', poliniza: '🐝', solo: '♻️', estoque: '🏚️', ferramenta: '🔨', moinho: '🌀', forno: '🔥' };
 const ICONE_CLIMA = { sol: '☀️', sol_forte: '🔥', chuva: '🌧️', tempestade: '⛈️' };
+export const iconeDe = (chave) => ICONE_ITEM[chave] ?? '📦';
 
 export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
   // A tela ve o mundo COMO ESTA AGORA, sem esperar o proximo comando.
   const mundo = projetar(mundoCru, agora);
   const eu = mundo.jogadores[jogadorId] ?? null;
   const minha = eu ? mundo.herdades[eu.herdade] : null;
+  const nv = eu ? nivelDe(eu.xp ?? 0) : 1;
 
   return {
     vila: {
       nome: mundo.nome, dia: mundo.diaDaEstacao, estacao: mundo.estacao, ano: mundo.ano,
       clima: mundo.clima, iconeClima: ICONE_CLIMA[mundo.clima], rotuloClima: ROTULO_CLIMA[mundo.clima],
-      tick: mundo.tick, semente: mundo.semente, dataDoDia: mundo.dataDoDia,
+      tick: mundo.tick, semente: mundo.semente, dataDoDia: mundo.dataDoDia, agora: mundo.agora,
+      velocidade: Math.round(velocidade(mundo) * 100),
     },
     sinergia: sinergia(mundo),
     hud: eu && {
       id: eu.id, nome: eu.nome, sprite: eu.sprite,
-      energia: eu.energia, energiaMax: eu.energiaMax,
+      nivel: nv, xp: (eu.xp ?? 0) - xpParaNivel(nv), xpMax: xpParaNivel(nv + 1) - xpParaNivel(nv), xpTotal: eu.xp ?? 0,
       moedas: eu.inventario.moedas, madeira: eu.inventario.madeira, pedra: eu.inventario.pedra,
-      proximaEnergiaEm: eu.energia < eu.energiaMax ? TEMPO.regenEnergia - (eu.regenResto ?? 0) : null,
-      // O layout pede um segundo medidor ao lado da energia: usamos a saude da terra.
       terra: minha ? Math.max(0, minha.fertilidade - minha.poluicao) : 0,
-      ...nivel(eu),
-      colheita: Object.entries(eu.colheita).map(([k, v]) => ({ cultura: k, nome: CULTURAS[k].nome, icone: ICONE_CULTURA[k], qtd: v, preco: CULTURAS[k].preco })),
+      machadoEm: Math.max(0, (eu.descanso?.machado ?? 0) - mundo.agora),
+      picaretaEm: Math.max(0, (eu.descanso?.picareta ?? 0) - mundo.agora),
+      colheita: Object.entries(eu.colheita).map(([k, v]) => ({ cultura: k, nome: nomeDe(k), icone: iconeDe(k), qtd: v, preco: precoDe(k) })),
+      // legado (a tela antiga lia isto)
+      energia: 0, energiaMax: 0,
     },
     comuns: Object.entries(mundo.comuns).map(([chave, valor]) => ({
       chave,
@@ -44,7 +49,7 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       pct: Math.round((valor / CONFIG.comumMax) * 100),
       estado: estadoComum(chave, valor),
     })),
-    minhaHerdade: minha && herdadeView(mundo, minha),
+    minhaHerdade: minha && herdadeView(mundo, minha, eu),
     mapa: Object.values(mundo.herdades).map((h) => ({
       id: h.id, x: h.x, y: h.y, nome: h.nome, dono: h.dono,
       sprite: mundo.jogadores[h.dono]?.sprite ?? null,
@@ -54,11 +59,16 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       poluicao: h.poluicao,
       plantados: h.tiles.filter(Boolean).length,
       maduros: h.tiles.filter((t) => estaMadura(t)).length,
-      sedentos: h.tiles.filter((t) => t && !estaMadura(t) && !estaMolhada(t, mundo.agora)).length,
+      pedindo: h.tiles.filter((t) => t?.problema).length,
       construcoes: h.construcoes.map((e) => ({ efeito: e, icone: ICONE_CONSTRUCAO[e] })),
     })),
     // O convite social: onde a sua mao faz falta agora.
     pedidosDeAjuda: minha ? pedidos(mundo, jogadorId) : [],
+    encomendas: eu ? (eu.encomendas ?? []).map((e, i) => ({
+      indice: i, cliente: e.cliente, moedas: e.moedas, xp: e.xp,
+      itens: Object.entries(e.itens).map(([k, q]) => ({ chave: k, nome: nomeDe(k), icone: iconeDe(k), qtd: q, tenho: eu.colheita[k] ?? 0, ok: (eu.colheita[k] ?? 0) >= q })),
+      pronta: Object.entries(e.itens).every(([k, q]) => (eu.colheita[k] ?? 0) >= q),
+    })) : [],
     obras: Object.entries(OBRAS).map(([chave, o]) => {
       const prog = mundo.vila.obras[chave]?.progresso ?? {};
       const itens = Object.entries(o.custo).map(([rec, alvo]) => ({ recurso: rec, feito: Math.min(prog[rec] ?? 0, alvo), alvo }));
@@ -68,12 +78,12 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
     missao: missaoAtual(mundo),
     missoesDoDia: eu ? missoesDoDia(mundo).map((m, i) => ({
       indice: i, texto: m.texto, meta: m.meta, feito: Math.min(m.meta, eu.hoje?.[m.chave] ?? 0),
-      premio: m.premio, premioTexto: Object.entries(m.premio).map(([k, v]) => `+${v} ${k === 'moedas' ? 'G' : '⚡'}`).join(' '),
+      premio: m.premio, premioTexto: `+${m.premio.moedas} G`,
       cumprida: (eu.hoje?.[m.chave] ?? 0) >= m.meta, recebida: (eu.missoesFeitas ?? []).includes(i),
     })) : [],
     familia: Object.values(mundo.jogadores).map((p) => ({
       id: p.id, nome: p.nome, sprite: p.sprite, herdade: p.herdade,
-      energia: p.energia, energiaMax: p.energiaMax,
+      nivel: nivelDe(p.xp ?? 0),
       reputacao: eu ? (eu.reputacao[p.id] ?? 0) : 0,
       laco: laco(eu ? (eu.reputacao[p.id] ?? 0) : 0, p.id === jogadorId),
       feitos: p.feitos,
@@ -88,13 +98,14 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       impacto: impactoTexto(l.comuns),
     })),
     catalogo: {
-      culturas: Object.entries(CULTURAS).map(([k, c]) => ({ chave: k, ...c, icone: ICONE_CULTURA[k] })),
-      construcoes: Object.entries(CONSTRUCOES).map(([k, b]) => ({ chave: k, ...b, icone: ICONE_CONSTRUCAO[b.efeito] })),
+      culturas: Object.entries(CULTURAS).map(([k, c]) => ({ chave: k, ...c, icone: iconeDe(k), liberada: c.nivel <= nv, daEstacao: c.estacoes.includes(mundo.estacao) })),
+      construcoes: Object.entries(CONSTRUCOES).map(([k, b]) => ({ chave: k, ...b, icone: ICONE_CONSTRUCAO[b.efeito], liberada: b.nivel <= nv })),
+      produtos: Object.entries(PRODUTOS).map(([k, p]) => ({ chave: k, ...p, icone: iconeDe(k), entradaTexto: Object.entries(p.entrada).map(([i, q]) => `${q} ${nomeDe(i).toLowerCase()}`).join(' + ') })),
     },
   };
 }
 
-function herdadeView(mundo, h) {
+function herdadeView(mundo, h, eu) {
   return {
     id: h.id, nome: h.nome, fertilidade: h.fertilidade, poluicao: h.poluicao,
     construcoes: h.construcoes.map((e) => {
@@ -103,25 +114,47 @@ function herdadeView(mundo, h) {
     }),
     vagas: CONFIG.construcoesPorHerdade - h.construcoes.length,
     proximoCanteiro: h.tiles.length < CONFIG.canteirosMax ? CONFIG.precoCanteiro[h.tiles.length - CONFIG.tilesPorHerdade] : null,
-    canteiros: h.tiles.map((t, i) => {
-      if (!t) return { i, vazio: true };
-      const c = CULTURAS[t.cultura];
+    canteiros: h.tiles.map((t, i) => canteiroView(mundo, t, i)),
+    // As maquinas: o que esta fazendo, quando fica pronto, o que da pra por.
+    maquinas: ['moinho', 'forno'].filter((m) => h.construcoes.includes(m)).map((m) => {
+      const em = h.producao?.[m];
+      const receitas = Object.entries(PRODUTOS).filter(([, p]) => p.maquina === m).map(([k, p]) => ({
+        chave: k, nome: p.nome, icone: iconeDe(k), minutos: p.minutos, preco: p.preco,
+        entradaTexto: Object.entries(p.entrada).map(([i, q]) => `${q} ${nomeDe(i).toLowerCase()}`).join(' + '),
+        podeFazer: Object.entries(p.entrada).every(([i, q]) => (eu.colheita[i] ?? 0) >= q),
+      }));
       return {
-        i, vazio: false, cultura: t.cultura, nome: c.nome, icone: ICONE_CULTURA[t.cultura],
-        horas: c.horas,
-        progresso: Math.min(100, Math.round((t.progresso / duracaoCultura(t.cultura)) * 100)),
-        pronto: estaMadura(t),
-        molhada: estaMolhada(t, mundo.agora),
-        sede: !estaMadura(t) && !estaMolhada(t, mundo.agora) && !choveu(mundo.clima),
-        aguaAte: t.regadoAte,
-        aguaRestante: Math.max(0, t.regadoAte - mundo.agora),
-        prontaEm: prontaEm(t, mundo.agora),
-        faltaMs: Math.max(0, duracaoCultura(t.cultura) - t.progresso),
-        estresse: estresseDe(t),
-        rotulo: estaMadura(t) ? 'pronta!' : prontaEm(t, mundo.agora) ? `pronta em ${rotuloDuracao(prontaEm(t, mundo.agora) - mundo.agora)}` : estaMolhada(t, mundo.agora) ? `água por ${rotuloDuracao(t.regadoAte - mundo.agora)}` : choveu(mundo.clima) ? 'na chuva ☔' : 'com sede',
-        plantadoPor: t.plantadoPor,
+        maquina: m, nome: CONSTRUCOES[m].nome, icone: ICONE_CONSTRUCAO[m],
+        ocupada: !!em,
+        produto: em ? { chave: em.produto, nome: nomeDe(em.produto), icone: iconeDe(em.produto) } : null,
+        pronta: !!em && em.prontoEm <= mundo.agora,
+        prontaEm: em ? Math.max(0, em.prontoEm - mundo.agora) : null,
+        rotulo: !em ? 'livre' : em.prontoEm <= mundo.agora ? `${nomeDe(em.produto)} pronto!` : `${nomeDe(em.produto)} em ${rotuloDuracao(em.prontoEm - mundo.agora)}`,
+        receitas,
       };
     }),
+  };
+}
+
+function canteiroView(mundo, t, i) {
+  if (!t) return { i, vazio: true };
+  const c = CULTURAS[t.cultura];
+  const total = duracaoCultura(t.cultura);
+  const pronta = estaMadura(t);
+  const quando = prontaEm(t, mundo);
+  const prob = t.problema ? PROBLEMAS[t.problema] : null;
+  return {
+    i, vazio: false, cultura: t.cultura, nome: c.nome, icone: iconeDe(t.cultura),
+    minutos: c.minutos,
+    progresso: Math.min(100, Math.round((t.progresso / total) * 100)),
+    pronto: pronta,
+    problema: t.problema,
+    problemaIcone: prob?.icone ?? null,
+    prontaEm: quando,
+    rotulo: pronta ? 'pronta!'
+      : prob ? `pede ${prob.nome} ${prob.icone}`
+      : quando ? `pronta em ${rotuloDuracao(quando - mundo.agora)}` : 'crescendo',
+    plantadoPor: t.plantadoPor,
   };
 }
 
@@ -132,14 +165,13 @@ function pedidos(mundo, jogadorId) {
   const out = [];
   const perto = new Set(vizinhas(mundo, minha.id).map((v) => v.id));
   const todas = Object.values(mundo.herdades).sort((a, b) => (perto.has(b.id) ? 1 : 0) - (perto.has(a.id) ? 1 : 0));
-  const chovendo = choveu(mundo.clima);
   for (const v of todas) {
     if (!v.dono || v.dono === jogadorId) continue;
     v.tiles.forEach((t, i) => {
       if (!t) return;
       const c = CULTURAS[t.cultura];
-      if (estaMadura(t)) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', motivo: `${c.nome} passando do ponto em ${v.nome}` });
-      else if (!estaMolhada(t, mundo.agora) && !chovendo) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'REGAR', motivo: `${c.nome} com sede em ${v.nome}` });
+      if (t.problema) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'CUIDAR', icone: PROBLEMAS[t.problema].icone, motivo: `${c.nome} com ${PROBLEMAS[t.problema].nome} em ${v.nome}` });
+      else if (estaMadura(t)) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', icone: '🌾', motivo: `${c.nome} passando do ponto em ${v.nome}` });
     });
   }
   return out.slice(0, 8);
@@ -193,18 +225,12 @@ function impactoTexto(comuns) {
   return partes.length ? partes.join(' · ') : null;
 }
 
-/** Nivel do familiar: sai do que a pessoa fez, nao de XP inventado. */
-function nivel(p) {
-  const total = Object.values(p.feitos).reduce((s, n) => s + n, 0);
-  return { nivel: 1 + Math.floor(total / 8), xp: total % 8, xpMax: 8, feitosTotal: total };
-}
-
-/** O medidor de Sinergia Familiar do topo. */
+/** O medidor de Sinergia Familiar do topo: agora e a velocidade de tudo. */
 function sinergia(mundo) {
   const h = mundo.comuns.harmonia;
-  let bonus = 'A vila esta em paz.';
-  if (h >= LIMIARES.harmoniaAlta) bonus = '★ Todo mundo acorda com +1 de energia!';
-  else if (h <= LIMIARES.harmoniaBaixa) bonus = 'Anda todo mundo emburrado: o dia rende menos.';
+  const v = Math.round((velocidade(mundo) - 1) * 100);
+  let bonus = v > 0 ? `★ Tudo cresce ${v}% mais rapido para todo mundo!` : v < 0 ? `Tudo cresce ${-v}% mais devagar. Abraço e ajuda resolvem.` : 'A vila esta em paz.';
+  if (mundo.comuns.agua < LIMIARES.secaAgua) bonus = 'Rio seco: tudo murcha. Replantem a mata.';
   return { valor: h, pct: h, nivel: 1 + Math.floor(h / 20), bonus, estado: estadoComum('harmonia', h) };
 }
 

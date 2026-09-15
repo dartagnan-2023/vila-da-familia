@@ -1,5 +1,6 @@
 import { CONFIG } from './conteudo.js';
 import { limita } from './mundo.js';
+import { gerarEncomenda } from './regras.js';
 
 // ---------------------------------------------------------------------------
 // O reducer. Evento -> mutacao do mundo. Unico lugar do motor que altera estado.
@@ -10,9 +11,9 @@ import { limita } from './mundo.js';
 const j = (mundo, id) => mundo.jogadores[id];
 const h = (mundo, id) => mundo.herdades[id];
 
-function gastaEnergia(mundo, id, custo) {
+function xp(mundo, id, n) {
   const p = j(mundo, id);
-  if (p) p.energia = Math.max(0, p.energia - (custo ?? 0));
+  if (p && n) p.xp = (p.xp ?? 0) + n;
 }
 
 // Contadores do dia (missoes). Jogadores de vilas antigas podem nao ter `hoje`.
@@ -31,30 +32,45 @@ function creditaReputacao(mundo, de, para, n) {
   b.reputacao[de] = (b.reputacao[de] ?? 0) + n;
 }
 
+/** Jogadores de versoes anteriores ganham os campos novos na primeira mexida. */
+export function garantirJogador(mundo, p) {
+  if (!p) return;
+  p.xp ??= Object.values(p.feitos ?? {}).reduce((s, n) => s + n, 0) * 2; // o que ja fez vale alguma coisa
+  p.descanso ??= { machado: 0, picareta: 0 };
+  p.hoje ??= {};
+  p.missoesFeitas ??= [];
+  p.encomendasGeradas ??= 0;
+  p.encomendas ??= [];
+  while (p.encomendas.length < CONFIG.encomendasAbertas) {
+    p.encomendas.push(gerarEncomenda(mundo, p, p.encomendasGeradas++));
+  }
+  const her = h(mundo, p.herdade);
+  if (her && !her.producao) her.producao = {};
+}
+
 const REDUCERS = {
   JOGADOR_ENTROU(mundo, ev, d) {
     mundo.jogadores[d.jogador.id] = d.jogador;
     const her = h(mundo, d.jogador.herdade);
     her.dono = d.jogador.id;
     her.nome = d.nomeHerdade;
+    garantirJogador(mundo, d.jogador);
   },
 
   PLANTOU(mundo, ev, d) {
     const her = h(mundo, d.herdade);
-    // Plantou na chuva? Nasce molhada ate a chuva passar.
-    const chuva = (mundo.chuvaAte ?? 0) > mundo.agora ? mundo.chuvaAte : 0;
-    her.tiles[d.tile] = { cultura: d.cultura, progresso: 0, regadoAte: chuva, seco: 0, plantadoEm: mundo.agora, plantadoPor: ev.ator };
+    her.tiles[d.tile] = { cultura: d.cultura, progresso: 0, pedidos: d.pedidos ?? [], problema: null, plantadoEm: mundo.agora, plantadoPor: ev.ator };
     j(mundo, d.dono).inventario.moedas -= d.custoSemente;
     j(mundo, ev.ator).feitos.plantios++;
     conta(mundo, ev.ator, 'plantios');
-    gastaEnergia(mundo, ev.ator, d.energia);
+    xp(mundo, ev.ator, d.xp);
   },
 
-  REGOU(mundo, ev, d) {
+  CUIDOU(mundo, ev, d) {
     const t = h(mundo, d.herdade).tiles[d.tile];
-    if (t) t.regadoAte = Math.max(t.regadoAte ?? 0, d.regadoAte ?? mundo.agora);
-    conta(mundo, ev.ator, 'regas');
-    gastaEnergia(mundo, ev.ator, d.energia);
+    if (t) t.problema = null;
+    conta(mundo, ev.ator, 'cuidados');
+    xp(mundo, ev.ator, d.xp);
   },
 
   COLHEU(mundo, ev, d) {
@@ -65,7 +81,7 @@ const REDUCERS = {
     dono.colheita[d.cultura] = (dono.colheita[d.cultura] ?? 0) + d.quantidade;
     dono.feitos.colheitas++;
     conta(mundo, ev.ator, 'colheitas');
-    gastaEnergia(mundo, ev.ator, d.energia);
+    xp(mundo, d.dono, d.xp);
   },
 
   VENDEU(mundo, ev, d) {
@@ -80,8 +96,9 @@ const REDUCERS = {
     const p = j(mundo, ev.ator);
     p.inventario.madeira += d.madeira;
     p.feitos.cortes++;
+    (p.descanso ??= {}).machado = d.descansaAte ?? 0;
     conta(mundo, ev.ator, 'cortes');
-    gastaEnergia(mundo, ev.ator, d.energia);
+    xp(mundo, ev.ator, d.xp);
   },
 
   PLANTOU_ARVORE(mundo, ev, d) {
@@ -89,25 +106,56 @@ const REDUCERS = {
     p.inventario.madeira -= d.custoMadeira;
     p.feitos.arvores++;
     conta(mundo, ev.ator, 'arvores');
-    gastaEnergia(mundo, ev.ator, d.energia);
+    xp(mundo, ev.ator, d.xp);
   },
 
   MINEROU(mundo, ev, d) {
-    j(mundo, ev.ator).inventario.pedra += d.pedra;
-    gastaEnergia(mundo, ev.ator, d.energia);
+    const p = j(mundo, ev.ator);
+    p.inventario.pedra += d.pedra;
+    (p.descanso ??= {}).picareta = d.descansaAte ?? 0;
+    xp(mundo, ev.ator, d.xp);
   },
 
   CONSTRUIU(mundo, ev, d) {
     h(mundo, d.herdade).construcoes.push(d.efeito);
     const p = j(mundo, ev.ator);
     for (const [rec, qtd] of Object.entries(d.custo)) p.inventario[rec] -= qtd;
-    gastaEnergia(mundo, ev.ator, d.energia);
+    xp(mundo, ev.ator, d.xp);
+  },
+
+  PRODUZINDO(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    for (const [k, q] of Object.entries(d.entrada)) {
+      p.colheita[k] -= q;
+      if (p.colheita[k] <= 0) delete p.colheita[k];
+    }
+    (h(mundo, d.herdade).producao ??= {})[d.maquina] = { produto: d.produto, prontoEm: d.prontoEm };
+  },
+
+  PRODUZIU(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    p.colheita[d.produto] = (p.colheita[d.produto] ?? 0) + 1;
+    delete h(mundo, d.herdade).producao[d.maquina];
+    conta(mundo, ev.ator, 'producoes');
+    xp(mundo, ev.ator, d.xp);
+  },
+
+  ENCOMENDA_ENTREGUE(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    for (const [k, q] of Object.entries(d.itens)) {
+      p.colheita[k] -= q;
+      if (p.colheita[k] <= 0) delete p.colheita[k];
+    }
+    p.inventario.moedas += d.moedas;
+    p.encomendas[d.indice] = d.nova;
+    p.encomendasGeradas = (p.encomendasGeradas ?? 0) + 1;
+    conta(mundo, ev.ator, 'encomendas');
+    xp(mundo, ev.ator, d.xp);
   },
 
   CANTEIRO_COMPRADO(mundo, ev, d) {
     h(mundo, d.herdade).tiles.push(null);
     j(mundo, ev.ator).inventario.moedas -= d.preco;
-    gastaEnergia(mundo, ev.ator, d.energia);
   },
 
   DEMOLIU(mundo, ev, d) {
@@ -115,7 +163,6 @@ const REDUCERS = {
     her.construcoes = her.construcoes.filter((e) => e !== d.efeito);
     const p = j(mundo, ev.ator);
     for (const [rec, qtd] of Object.entries(d.devolve)) p.inventario[rec] += qtd;
-    gastaEnergia(mundo, ev.ator, d.energia);
   },
 
   PRESENTEOU(mundo, ev, d) {
@@ -130,6 +177,7 @@ const REDUCERS = {
     }
     de.feitos.presentes++;
     creditaReputacao(mundo, ev.ator, d.para, 1);
+    xp(mundo, ev.ator, d.xp);
   },
 
   ABRACOU(mundo, ev, d) {
@@ -138,17 +186,19 @@ const REDUCERS = {
     de.feitos.abracos++;
     conta(mundo, ev.ator, 'abracos');
     creditaReputacao(mundo, ev.ator, d.para, 1);
+    xp(mundo, ev.ator, d.xp);
   },
 
   RECADO(mundo, ev, d) {
-    conta(mundo, ev.ator, 'recados'); // so para a missao do dia
+    conta(mundo, ev.ator, 'recados');
+    xp(mundo, ev.ator, d.xp);
   },
 
   AJUDOU(mundo, ev, d) {
     j(mundo, ev.ator).feitos.ajudas++;
     conta(mundo, ev.ator, 'ajudas');
     creditaReputacao(mundo, ev.ator, d.dono, 2);
-    gastaEnergia(mundo, ev.ator, d.energia);
+    xp(mundo, ev.ator, d.xp);
   },
 
   DOOU(mundo, ev, d) {
@@ -161,11 +211,19 @@ const REDUCERS = {
     }
     p.feitos.doacoes++;
     conta(mundo, ev.ator, 'doacoes');
+    xp(mundo, ev.ator, d.xp);
   },
 
   OBRA_CONCLUIDA(mundo, ev, d) {
     mundo.vila.concluidas.push(d.bonus);
     mundo.destino.marcos.push({ tick: ev.tick, texto: ev.texto });
+  },
+
+  MISSAO_CUMPRIDA(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    (p.missoesFeitas ??= []).push(d.indice);
+    if (d.premio.moedas) p.inventario.moedas += d.premio.moedas;
+    xp(mundo, ev.ator, d.xp);
   },
 
   DIA_PASSOU(mundo, ev, d) {
@@ -177,17 +235,11 @@ const REDUCERS = {
   },
 
   CHUVA_MOLHOU(mundo, ev, d) {
+    // Chuva do dia: resolve toda sede pendente e marca ate quando chove.
     mundo.chuvaAte = d.ate;
     for (const her of Object.values(mundo.herdades)) {
-      for (const t of her.tiles) if (t) t.regadoAte = Math.max(t.regadoAte ?? 0, d.ate);
+      for (const t of her.tiles) if (t && t.problema === 'sede') t.problema = null;
     }
-  },
-
-  MISSAO_CUMPRIDA(mundo, ev, d) {
-    const p = j(mundo, ev.ator);
-    p.missoesFeitas.push(d.indice);
-    if (d.premio.moedas) p.inventario.moedas += d.premio.moedas;
-    if (d.premio.energia) p.energia = Math.min(p.energiaMax + 2, p.energia + d.premio.energia);
   },
 
   SOLO_MUDOU(mundo, ev, d) {
@@ -196,12 +248,12 @@ const REDUCERS = {
     her.poluicao = limita(her.poluicao + (d.poluicao ?? 0), 0, 100);
   },
 
+  // Virada do dia: zera os contadores das missoes. (Energia e legado.)
   ENERGIA_RENOVADA(mundo, ev, d) {
-    for (const [id, valor] of Object.entries(d.energias)) {
+    for (const id of Object.keys(d.energias)) {
       const p = j(mundo, id);
       if (!p) continue;
-      p.energiaMax = valor; p.energia = valor; p.regenResto = 0;
-      // Novo dia, novas missoes.
+      p.energia = p.energiaMax = CONFIG.energiaMax;
       for (const k of Object.keys(p.hoje ?? {})) p.hoje[k] = 0;
       p.missoesFeitas = [];
     }
@@ -216,6 +268,10 @@ const REDUCERS = {
       }
     }
   },
+
+  // Legado: eventos de versoes anteriores que ainda podem estar no log.
+  REGOU() {},
+  CRESCEU() {},
 };
 
 export function aplicar(mundo, ev) {

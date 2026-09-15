@@ -10,7 +10,7 @@ Sem dependências. Node 20+.
 
 ```bash
 npm start    # abre o jogo em http://localhost:5173
-npm test     # 30 testes do motor + 8 do transporte
+npm test     # 31 testes do motor + 8 do transporte
 npm run demo # simula 2 famílias com a MESMA semente e compara o destino
 ```
 
@@ -51,57 +51,59 @@ Consequências práticas:
 - quem entra depois reproduz o log e alcança a vila (tem teste pra isso);
 - se dois primos exibem hashes diferentes, deu dessincronia — dá pra detectar.
 
+## O loop (depois do estudo — ver `docs/ESTUDO-JOGABILIDADE.md`)
+
+Hay Day não tem energia e começa com trigo em 2 minutos. Colheita Feliz
+prendia porque a planta *pede* coisas e o amigo resolve. A Vila copiou os dois:
+
+- **Sem energia.** O limite é tempo, semente, canteiro e o descanso do machado
+  (3 min) e da picareta (5 min).
+- **Timers em minutos, por nível:** trigo 2 min (nv 1, rende 2 por 1), flor 3,
+  milho 5, cenoura 10, abóbora 30, arroz 1h, café 4h (nv 10).
+- **XP e nível** (`XP`, `xpParaNivel` em `conteudo.js`): toda ação dá XP;
+  nível abre culturas, máquinas e benfeitorias. Subir de nível é festa na tela.
+- **A planta pede ajuda:** culturas de 10 min ou mais param em pontos
+  determinísticos (40%, às vezes 75%) pedindo 💧 sede, 🐛 praga ou 🌿 mato.
+  O dono resolve com `CUIDAR`; um parente resolve com `AJUDAR` e leva XP e laço.
+- **Encomendas** (`gerarEncomenda`): 3 por pessoa, pedem o que ela já produz,
+  pagam 50% acima do balcão + XP. Entregou, entra outra.
+- **Produção:** Moinho (2 trigo → farinha, 3 min), Forno (farinha → pão 5 min,
+  bolo 12 min). Com fila; "sempre tem algo no forno".
+- **Harmonia → velocidade:** o destino compartilhado virou o multiplicador de
+  crescimento de todo mundo (0.8× a 1.2×; ponte +10%; rio seco −15%).
+
 ## Comandos
 
 | Comando | O que faz | Custa | Mexe no comum |
 |---|---|---|---|
-| `ENTRAR` | ocupa uma herdade livre | — | harmonia +3 |
-| `PLANTAR` | semeia um canteiro | 1 energia + semente | — |
-| `REGAR` | rega o canteiro | 1 energia | **água −** |
-| `COLHER` | colhe pro celeiro | 1 energia | solo − |
-| `VENDER` | vira moeda | — | — |
-| `CORTAR` | pega madeira | 2 energia | **mata −3** |
-| `PLANTAR_ARVORE` | repõe a mata | 2 energia + 2 madeira | mata +4, harmonia +1 |
-| `MINERAR` | pega pedra | 2 energia | solo −1 |
-| `CONSTRUIR` | benfeitoria na herdade | 3 energia + materiais | harmonia ±1 |
-| `PRESENTEAR` | dá recurso a alguém | — | harmonia +1 |
-| `ABRACAR` | abraça um parente (1x/dia cada) | — | harmonia +1 |
-| `RECADO` | deixa um recado no mural | — | — |
-| **`AJUDAR`** | rega/colhe **na terra do outro** | 2 energia | **harmonia +2** |
+| `ENTRAR` | ocupa uma herdade livre, abre 3 encomendas | — | harmonia +3 |
+| `PLANTAR` | semeia (cultura do seu nível) | semente | — |
+| `CUIDAR` | atende o pedido da planta (sede gasta água comum) | — | água − (sede) |
+| `COLHER` | colhe pro celeiro, dá XP da cultura ao dono | — | solo − |
+| `VENDER` | vira moeda (culturas e produtos) | — | — |
+| `PRODUZIR` / `RECOLHER` | põe insumo na máquina / tira o produto | insumos | — |
+| `CUMPRIR_ENCOMENDA` | entrega itens do celeiro, recebe G + XP | itens | harmonia +1 |
+| `CORTAR` | pega madeira; machado descansa 3 min | — | **mata −3** |
+| `PLANTAR_ARVORE` | repõe a mata | 2 madeira | mata +4, harmonia +1 |
+| `MINERAR` | pega pedra; picareta descansa 5 min | — | solo −1 |
+| `CONSTRUIR` / `DEMOLIR` | benfeitoria (por nível) / desmancha, devolve metade | materiais | harmonia ±1 |
+| `COMPRAR_CANTEIRO` | abre o 10º, 11º, 12º canteiro | 60/90/120 G | — |
+| `PRESENTEAR` / `ABRACAR` / `RECADO` | gestos | — | harmonia +1 |
+| **`AJUDAR`** | cuida/colhe **na terra do outro**; XP e laço pra quem ajuda | — | **harmonia +2** |
 | `DOAR` | material pra obra da vila | — | harmonia +1 |
-| `COMPRAR_CANTEIRO` | abre o 10º, 11º, 12º canteiro | 1 energia + 60/90/120 G | — |
-| `CUMPRIR_MISSAO` | recebe o prêmio de uma missão do dia | — | harmonia +1 |
-| `DEMOLIR` | desmancha benfeitoria, devolve metade | 1 energia | — |
-| `ACORDAR` | não faz nada: carimba a data no log | — | — |
-| `PASSAR_DIA` | vira o dia (pelo log) | — | clima, destino |
-
-`AJUDAR` é o comando que define o jogo: você gasta a **sua** energia e a
-colheita vai pro **celeiro do outro** — o que volta pra você é reputação,
-harmonia e, por tabela, energia extra todo dia.
+| `CUMPRIR_MISSAO` | prêmio de uma missão do dia | — | harmonia +1 |
+| `ACORDAR` / `PASSAR_DIA` | carimba data/hora / vira o dia (clima, estação, destino) | — | — |
 
 ### O jogo roda em tempo real
 
-`src/engine/tempo.js`. Todo comando leva `em` (ms). Antes de aplicar um
-comando, o motor avança o mundo de `mundo.agora` até `em`: plantas crescem
-enquanto molhadas (trigo 2h, flor 1h, milho 4h, arroz 6h, abóbora 8h), uma
-rega hidrata por 4h, sem água a planta para e acumula estresse (3h = 1 ponto),
-energia volta 1 a cada 10 min. Como os `em` vêm do log, todo cliente reproduz
-o mesmo avanço. A tela usa `projetar(mundo, Date.now())` para mostrar o estado
-de agora sem esperar comando ("pronta em 1h20", "+1 energia em 4 min").
+`src/engine/tempo.js`. Todo comando leva `em` (ms). Antes de aplicar, o motor
+avança o mundo de `mundo.agora` até `em`: plantas crescem (× velocidade da
+vila), máquinas terminam. Como os `em` vêm do log, todo cliente reproduz o
+mesmo avanço. A tela usa `projetar(mundo, Date.now())` para mostrar o estado
+de agora ("pronta em 1 min", "Farinha em 2 min").
 
-**Missões do dia** (`MISSOES` em `conteudo.js`): 3 sorteadas por semente + dia,
-iguais para todos; `jogador.hoje` conta o que cada um fez; `CUMPRIR_MISSAO`
-paga o prêmio uma vez. Zeram na virada do dia.
-
-### O dia vira com o relógio
-
-Não há botão de dormir. `src/engine/calendario.js`: todo comando leva a data
-local (fuso de Brasília); a primeira vira a data de fundação. Quem abre o jogo
-depois da meia-noite compara a data do mundo com a de hoje e envia um
-`PASSAR_DIA` por dia que falta, com id `dia:AAAA-MM-DD` — único por vila, então
-dois primos abrindo juntos não viram o mesmo dia duas vezes. Sumiu uma semana?
-Passam até 7 dias e o calendário pula pra hoje. Sem cron, sem servidor extra: é
-o log de comandos fazendo o serviço.
+**Missões do dia** (`MISSOES`): 3 sorteadas por semente + dia, iguais para
+todos; `jogador.hoje` conta; `CUMPRIR_MISSAO` paga uma vez. Zeram à meia-noite.
 
 ## Como uma atitude vira o destino do outro
 
@@ -112,8 +114,8 @@ Cinco vetores, todos já implementados e testados:
    joga fumaça na terra do vizinho.
 3. **Clima encadeado** — mata em pé alimenta a nascente e puxa chuva. Mata rala
    = seca + enxurrada que leva a terra boa.
-4. **Harmonia** — ajudar e presentear enchem; o tempo esvazia. Cheia, todo mundo
-   acorda com +1 energia; vazia, todo mundo rende menos.
+4. **Harmonia** — ajudar e presentear enchem; o tempo esvazia. Ela é o
+   multiplicador de velocidade de TODAS as plantas da vila (0.8× a 1.2×).
 5. **Obras coletivas** — ponte, praça, açude, escola. Ninguém termina sozinho, e
    o bônus é pra vila inteira.
 

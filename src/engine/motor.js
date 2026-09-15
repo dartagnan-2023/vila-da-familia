@@ -1,6 +1,6 @@
 import { criarMundo } from './mundo.js';
 import { REGRAS } from './regras.js';
-import { aplicar, registrarFeed } from './aplicar.js';
+import { aplicar, registrarFeed, garantirJogador } from './aplicar.js';
 import { passarDia } from './simular.js';
 import { rngPara, hashMundo } from './rng.js';
 import { avancarTempo } from './tempo.js';
@@ -44,6 +44,8 @@ export class Motor {
     if (cmd.data && (!this.mundo.dataDoDia || cmd.tipo === 'PASSAR_DIA')) this.mundo.dataDoDia = cmd.data;
     // O relogio anda antes do comando: plantas crescem, energia volta.
     if (cmd.em) avancarTempo(this.mundo, cmd.em);
+    // Jogador de versao anterior ganha os campos novos (encomendas, xp...).
+    if (cmd.por && this.mundo.jogadores[cmd.por]) garantirJogador(this.mundo, this.mundo.jogadores[cmd.por]);
 
     if (cmd.tipo === 'PASSAR_DIA') {
       const eventos = passarDia(this.mundo).map((e) => this.#registra(e));

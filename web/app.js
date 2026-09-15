@@ -6,8 +6,9 @@ import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js
 import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
 import { VilaCanvas } from './vila-canvas.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
-import { choveu } from '../src/engine/simular.js';
 import { projetar, estaMadura, rotuloDuracao } from '../src/engine/tempo.js';
+import { PRODUTOS, PROBLEMAS, nivelDe, xpParaNivel, nomeDe } from '../src/engine/conteudo.js';
+import { iconeDe } from '../src/engine/apresentador.js';
 
 // Se houver web/config.js com o projeto Supabase, o jogo e entre casas.
 // Sem ele, tudo fica no aparelho (revezamento). A tela e a mesma.
@@ -63,11 +64,11 @@ const app = {
 window.vila = app; // para inspecionar no console: vila.motor.mundo, vila.cena
 
 const SLOTS = [
-  { tecla: '1', chave: 'regador',  nome: 'Regar tudo',     icone: 'water_drop', dica: 'Rega todos os seus canteiros com sede (1 energia cada).', acao: 'regar-tudo' },
-  { tecla: '2', chave: 'foice',    nome: 'Colher tudo',    icone: 'agriculture', dica: 'Colhe todos os seus canteiros maduros (1 energia cada).', acao: 'colher-tudo' },
+  { tecla: '1', chave: 'regador',  nome: 'Cuidar tudo',    icone: 'water_drop', dica: 'Atende tudo que estiver pedindo (sede, praga, mato) na sua horta.', acao: 'cuidar-tudo' },
+  { tecla: '2', chave: 'foice',    nome: 'Colher tudo',    icone: 'agriculture', dica: 'Colhe todos os seus canteiros prontos.', acao: 'colher-tudo' },
   { tecla: '3', chave: 'semente',  nome: 'Semente',        icone: 'spa', dica: 'Escolher o que plantar nos canteiros vazios.' },
-  { tecla: '4', chave: 'machado',  nome: 'Madeira',        icone: 'carpenter', dica: 'Machado: +3 a 5 de madeira por 2 de energia. Tira 3 da mata comum.', cmd: { tipo: 'CORTAR' } },
-  { tecla: '5', chave: 'picareta', nome: 'Pedra',          icone: 'construction', dica: 'Picareta: +2 a 4 de pedra por 2 de energia.', cmd: { tipo: 'MINERAR' } },
+  { tecla: '4', chave: 'machado',  nome: 'Madeira',        icone: 'carpenter', dica: 'Machado: +3 a 5 de madeira, depois descansa 3 min. Tira 3 da mata comum.', cmd: { tipo: 'CORTAR' } },
+  { tecla: '5', chave: 'picareta', nome: 'Pedra',          icone: 'construction', dica: 'Picareta: +2 a 4 de pedra, depois descansa 5 min.', cmd: { tipo: 'MINERAR' } },
   { tecla: '6', chave: 'muda',     nome: 'Replantar',      icone: 'park', dica: 'Gasta 2 de madeira e devolve +4 de mata comum.', cmd: { tipo: 'PLANTAR_ARVORE' } },
   { tecla: '7', chave: 'martelo',  nome: 'Construir',      icone: 'handyman', dica: 'Benfeitoria na sua herdade (custa madeira, pedra, moedas).', abre: 'construir' },
   { tecla: '8', chave: 'presente', nome: 'Presente',       icone: 'redeem', dica: 'Dar recurso para um parente.', abre: 'presentear' },
@@ -219,7 +220,8 @@ function novidadesDesde(seqVisto) {
     const r = l.ref ?? {};
     if (l.tipo === 'DIA_PASSOU') dias++;
     else if (l.tipo === 'AJUDOU' && r.para === app.eu) linhas.push(`🤝 ${nomeDe(l.ator)} foi cuidar da sua horta`);
-    else if ((l.tipo === 'REGOU' || l.tipo === 'COLHEU') && r.herdade === minha) linhas.push(`${l.tipo === 'REGOU' ? '💧' : '🌾'} ${nomeDe(l.ator)} ${l.tipo === 'REGOU' ? 'regou' : 'colheu'} um canteiro seu`);
+    else if ((l.tipo === 'CUIDOU' || l.tipo === 'COLHEU') && r.herdade === minha) linhas.push(`${l.tipo === 'CUIDOU' ? '🤲' : '🌾'} ${nomeDe(l.ator)} ${l.tipo === 'CUIDOU' ? 'cuidou de' : 'colheu'} um canteiro seu`);
+    else if (l.tipo === 'ENCOMENDA_ENTREGUE' || l.tipo === 'PRODUZIU') {}
     else if (l.tipo === 'ABRACOU' && r.para === app.eu) linhas.push(`❤️ ${nomeDe(l.ator)} te mandou um abraço`);
     else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push(`🎁 ${l.texto}`);
     else if (l.tipo === 'RECADO') linhas.push(`💬 ${l.texto}`);
@@ -264,7 +266,7 @@ async function virarDiasPendentes() {
   return virando;
 }
 setInterval(() => { if (!document.hidden) virarDiasPendentes(); }, 60000);
-setInterval(() => { if (!document.hidden && app.eu && document.getElementById('modal').hidden) pinta(); }, 30000);
+setInterval(() => { if (!document.hidden && app.eu && document.getElementById('modal').hidden) pinta(); }, 10000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) virarDiasPendentes(); });
 
 async function entrarComoFamiliar(nome) {
@@ -386,7 +388,7 @@ function hud(v) {
     </div>
 
     <div class="flex items-center gap-gutter-md bg-surface-container-high px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08]">
-      <div class="flex flex-col">${medidor('EN', 'bolt', 'text-tertiary-container', v.hud.energia, v.hud.energiaMax, 'bg-tertiary')}${v.hud.proximaEnergiaEm != null ? `<span class="font-label-sm text-[9px] text-on-surface-variant">+1 em ${rotuloDuracao(v.hud.proximaEnergiaEm)}</span>` : ''}</div>
+      ${medidor(`NV ${v.hud.nivel}`, 'bolt', 'text-tertiary-container', v.hud.xp, v.hud.xpMax, 'bg-tertiary')}
       ${medidor('TERRA', 'yard', 'text-primary', v.hud.terra, 100, 'bg-primary')}
     </div>
 
@@ -470,6 +472,26 @@ function painel(v) {
     <p class="font-body-sm text-[11px] text-on-surface-variant mt-gutter-xs leading-tight">
       Tudo aqui é de todo mundo. Cada rega, cada machadada e cada abraço mexe nesses números.
     </p>
+  </div>
+
+  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
+    <div class="bg-primary-container text-on-primary-container px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#245107] flex items-center justify-between mb-panel-pad-sm">
+      <span class="font-headline-md text-[13px] uppercase font-bold">🚚 Encomendas</span>
+      <span class="font-label-sm text-[10px]">pagam +50%</span>
+    </div>
+    <div class="space-y-1">
+      ${v.encomendas.map((e) => `
+        <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">
+          <div class="flex items-center justify-between gap-gutter-xs">
+            <span class="font-label-sm text-[10px] uppercase text-on-surface-variant">${esc(e.cliente)}</span>
+            <span class="font-label-sm text-[10px] text-primary font-bold">+${e.moedas} G · +${e.xp} XP</span>
+          </div>
+          <div class="flex flex-wrap gap-1 mt-1">
+            ${e.itens.map((i) => `<span class="font-label-sm text-[10px] px-pixel-step py-pixel-unit shadow-[1px_1px_0_0_#221b08] ${i.ok ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-dim text-on-surface-variant'}">${i.icone} ${i.qtd} ${esc(i.nome)} <span class="opacity-70">(${i.tenho})</span></span>`).join('')}
+          </div>
+          ${e.pronta ? `<button class="w-full mt-1 bg-primary text-on-primary font-label-sm text-[10px] uppercase py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="cumprir-encomenda" data-indice="${e.indice}">Entregar</button>` : ''}
+        </div>`).join('')}
+    </div>
   </div>
 
   <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
@@ -579,6 +601,19 @@ function palcoHerdade(v) {
             : `<p class="font-body-sm text-[12px] text-on-surface-variant">Nenhuma ainda. Construir (7) na barra de baixo.</p>`}
           <p class="font-label-sm text-[10px] uppercase text-on-surface-variant">${h.vagas > 0 ? `${h.vagas} vaga(s) livre(s)` : 'herdade cheia — demolir uma pra trocar'}</p>
         </div>
+        ${h.maquinas.length ? `<p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Máquinas</p>
+        <div class="space-y-1 mb-gutter-md">
+          ${h.maquinas.map((mq) => `
+            <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">
+              <div class="flex items-center justify-between">
+                <span class="font-label-sm text-label-sm uppercase">${mq.icone} ${esc(mq.nome)}</span>
+                <span class="font-label-sm text-[10px] ${mq.pronta ? 'text-primary' : 'text-on-surface-variant'}">${esc(mq.rotulo)}</span>
+              </div>
+              ${mq.pronta ? `<button class="w-full mt-1 bg-primary text-on-primary font-label-sm text-[10px] uppercase py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="recolher" data-maquina="${mq.maquina}">Recolher ${mq.produto.icone} ${esc(mq.produto.nome)}</button>`
+                : mq.ocupada ? `<div class="w-full h-1.5 bg-surface-dim mt-1"><div class="h-full bg-tertiary" style="width:${Math.max(4, 100 - Math.round(mq.prontaEm / (PRODUTOS[mq.produto.chave].minutos * 60000) * 100))}%"></div></div>`
+                : `<div class="flex flex-wrap gap-1 mt-1">${mq.receitas.map((r) => `<button class="bg-surface-dim font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press ${r.podeFazer ? '' : 'opacity-50'}" data-acao="produzir" data-produto="${r.chave}" title="${esc(r.entradaTexto)} · ${r.minutos} min · vende ${r.preco} G">${r.icone} ${esc(r.nome)} <span class="normal-case opacity-70">(${esc(r.entradaTexto)})</span></button>`).join('')}</div>`}
+            </div>`).join('')}
+        </div>` : ''}
         <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Celeiro</p>
         <div class="space-y-1">
           ${v.hud.colheita.length ? v.hud.colheita.map((c) => `
@@ -605,12 +640,11 @@ function canteiroGrande(c) {
     return `<button class="${base} bg-surface-dim" data-acao="canteiro" data-tile="${c.i}">
       <span class="text-[10px] text-on-surface-variant">vazio</span></button>`;
   }
-  return `<button class="${base} ${c.pronto ? 'bg-tertiary-fixed' : c.sede ? 'bg-error-container' : 'bg-primary-fixed'}" data-acao="canteiro" data-tile="${c.i}" title="${esc(c.nome)} — ${c.progresso}% · ${esc(c.rotulo)}">
+  return `<button class="${base} ${c.pronto ? 'bg-tertiary-fixed' : c.problema ? 'bg-error-container' : 'bg-primary-fixed'}" data-acao="canteiro" data-tile="${c.i}" title="${esc(c.nome)} — ${c.progresso}% · ${esc(c.rotulo)}">
     <span class="text-[22px] leading-none">${c.icone}</span>
-    <span class="font-label-sm text-[8px] uppercase text-center leading-none">${c.pronto ? 'colher!' : esc(c.rotulo.replace('pronta em ', '').replace('água por ', '💧 '))}</span>
+    <span class="font-label-sm text-[8px] uppercase text-center leading-none">${c.pronto ? 'colher!' : c.problema ? `pede ${c.problema}` : esc(c.rotulo.replace('pronta em ', ''))}</span>
     <span class="absolute left-1 right-1 bottom-0.5 h-1 bg-surface-dim"><span class="block h-full ${c.pronto ? 'bg-tertiary' : 'bg-primary'}" style="width:${c.progresso}%"></span></span>
-    ${c.sede && !c.pronto ? `<span class="absolute top-0.5 right-0.5 text-[10px] pisca">💧</span>` : ''}
-    ${c.estresse ? `<span class="absolute bottom-0.5 left-0.5 text-[10px]" title="estresse ${c.estresse}">⚠</span>` : ''}
+    ${c.problema ? `<span class="absolute top-0.5 right-0.5 text-[12px] pisca">${c.problemaIcone}</span>` : ''}
   </button>`;
 }
 
@@ -690,7 +724,7 @@ function palcoFamilia(v) {
             <div class="w-9 h-9 bg-secondary flex items-center justify-center text-[18px]">${f.sprite}</div>
             <div class="flex-1">
               <span class="font-label-md text-label-md uppercase">${esc(f.nome)}${f.id === app.eu ? ' (você)' : ''}</span>
-              <p class="font-body-sm text-[11px] text-on-surface-variant">Laço: ${esc(f.laco)} · ⚡${f.energia}/${f.energiaMax}</p>
+              <p class="font-body-sm text-[11px] text-on-surface-variant">Laço: ${esc(f.laco)} · Nv.${f.nivel}</p>
             </div>
             ${f.id === app.eu ? `<span class="font-label-sm text-[10px] uppercase text-primary">jogando</span>` : `
               <div class="flex flex-col gap-1">
@@ -736,8 +770,8 @@ function hotbar(v) {
         </button>`).join('')}
     </div>
     <div class="flex items-center gap-gutter-md font-label-sm text-label-sm text-on-surface-variant uppercase flex-wrap justify-center">
-      <span>${v.hud.sprite} ${esc(v.hud.nome)} · ⚡${v.hud.energia}/${v.hud.energiaMax} · Nv.${v.hud.nivel} (${v.hud.xp}/${v.hud.xpMax})</span>
-      ${v.hud.energia === 0 ? `<span class="bg-tertiary-fixed text-on-tertiary-fixed px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] normal-case">Sem energia — +1 em ${rotuloDuracao(v.hud.proximaEnergiaEm ?? 0)}. Abraço e recado ainda valem!</span>` : ''}
+      <span>${v.hud.sprite} ${esc(v.hud.nome)} · Nv.${v.hud.nivel} (${v.hud.xp}/${v.hud.xpMax} XP) · 🪵${v.hud.madeira} 🪨${v.hud.pedra}</span>
+      ${v.vila.velocidade !== 100 ? `<span class="${v.vila.velocidade > 100 ? 'text-primary' : 'text-error'}">crescimento ${v.vila.velocidade}%</span>` : ''}
       <span class="w-2 h-2 bg-primary"></span>
       <span>${app.online ? '● entre casas' : '○ só neste aparelho'} · hash ${app.motor.hash}</span>
     </div>
@@ -760,10 +794,10 @@ function abreModal(qual) {
     tutorial: () => caixa('Bem-vindo(a) à vila', `
       <div class="space-y-gutter-xs font-body-sm text-[12px] text-on-surface">
         <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌱</span><div><strong class="uppercase font-label-sm">1. Planta</strong><br>Na aba <em>Minha Herdade</em>, toque num canteiro vazio. Trigo é bom pra começar: 2 G, fica pronto em 3 dias.</div></div>
-        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">💧</span><div><strong class="uppercase font-label-sm">2. Rega todo dia</strong><br>Toque de novo no canteiro (ou em <em>Regar tudo</em>). A água sai do rio de <strong>todo mundo</strong>. Se chover, a chuva rega por você.</div></div>
-        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌙</span><div><strong class="uppercase font-label-sm">3. Volta daqui a pouco</strong><br>Trigo fica pronto em 2h, abóbora em 8h — só enquanto molhada (a rega dura 4h). A energia volta 1 a cada 10 min. Missões do dia dão prêmio.</div></div>
-        <div class="flex gap-gutter-xs bg-primary-fixed p-gutter-xs shadow-[inset_1px_1px_0_0_#245107]"><span class="text-[22px]">🤝</span><div><strong class="uppercase font-label-sm">4. Cuida de alguém</strong><br>Toque na herdade de um parente no mapa e rega pra ele. A colheita é dele; o que volta pra você é harmonia — e harmonia alta dá energia extra pra <strong>todo mundo</strong>.</div></div>
-        <p class="font-label-sm text-[10px] uppercase text-on-surface-variant">Madeira vem do Machado (4). Ouro vem de colher e Vender (0). Dúvida? O ❔ no topo reabre isto.</p>
+        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">💧</span><div><strong class="uppercase font-label-sm">2. Entrega encomendas</strong><br>O painel da direita pede coisas ("4 trigo + 2 milho"). Entregou, ganha 50% a mais que vender no balcão, e mais XP.</div></div>
+        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌙</span><div><strong class="uppercase font-label-sm">3. Dois minutos</strong><br>Trigo fica pronto em 2 min e rende o dobro. Colhe, vende, replanta. Cada colheita dá XP; subir de nível abre culturas, moinho, forno.</div></div>
+        <div class="flex gap-gutter-xs bg-primary-fixed p-gutter-xs shadow-[inset_1px_1px_0_0_#245107]"><span class="text-[22px]">🤝</span><div><strong class="uppercase font-label-sm">4. Cuida de alguém</strong><br>Plantas maiores pedem 💧 sede, 🐛 praga ou 🌿 mato — e param até alguém resolver. Toque na herdade de um parente e resolve pra ele: você ganha XP e a vila ganha harmonia, que faz <strong>tudo crescer mais rápido pra todo mundo</strong>.</div></div>
+        <p class="font-label-sm text-[10px] uppercase text-on-surface-variant">Sem energia, sem esperar o dia virar. Madeira vem do Machado (4). Dúvida? O ❔ no topo reabre isto.</p>
       </div>
       <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="fecha-tutorial">Bora plantar</button>`),
 
@@ -778,17 +812,17 @@ function abreModal(qual) {
     },
 
     semente: () => caixa('Escolher semente', `<div class="grid grid-cols-2 gap-gutter-xs">
-      ${Object.entries(CULTURAS).map(([k, c]) => `
-        <button class="bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press text-left ${app.cultura === k ? 'ring-2 ring-tertiary-fixed-dim' : ''}" data-acao="escolhe-cultura" data-cultura="${k}">
-          <span class="font-label-md text-label-md uppercase">${esc(c.nome)}</span>
-          <p class="font-body-sm text-[11px] text-on-surface-variant">${c.dias} dias · ${c.semente} G · vende ${c.preco} G<br>água ${c.agua} · ${c.estacoes.join(', ')}</p>
+      ${v.catalogo.culturas.map((c) => `
+        <button class="bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press text-left ${app.cultura === c.chave ? 'ring-2 ring-tertiary-fixed-dim' : ''} ${c.liberada ? '' : 'opacity-50'}" data-acao="escolhe-cultura" data-cultura="${c.chave}" ${c.liberada ? '' : 'disabled'}>
+          <span class="font-label-md text-label-md uppercase">${c.icone} ${esc(c.nome)} ${c.liberada ? '' : `🔒 nv ${c.nivel}`}</span>
+          <p class="font-body-sm text-[11px] text-on-surface-variant">${c.minutos} min · ${c.semente} G → ${c.rende}× ${c.preco} G · +${c.xp} XP${c.daEstacao ? '' : ' · <span class="text-error">fora de estação (−30%)</span>'}</p>
         </button>`).join('')}</div>`),
 
     construir: () => caixa('Construir na sua herdade', `<div class="space-y-gutter-xs">
       ${Object.entries(CONSTRUCOES).map(([k, b]) => {
         const [r] = acoesPossiveis(app.motor.mundo, app.eu, [{ tipo: 'CONSTRUIR', construcao: k }]);
         return `<button class="w-full text-left bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press ${r.habilitado ? '' : 'opacity-50'}" data-acao="construir" data-construcao="${k}">
-          <span class="font-label-md text-label-md uppercase">${esc(b.nome)}</span>
+          <span class="font-label-md text-label-md uppercase">${esc(b.nome)} <span class="text-on-surface-variant">nv ${b.nivel}</span></span>
           <p class="font-body-sm text-[11px] text-on-surface-variant">${esc(b.texto)}</p>
           <p class="font-label-sm text-[10px] ${r.habilitado ? 'text-primary' : 'text-error'} uppercase">${r.habilitado ? Object.entries(b.custo).map(([x, q]) => `${q} ${x}`).join(' · ') : esc(r.motivo)}</p>
         </button>`;
@@ -836,11 +870,12 @@ function abreModal(qual) {
       return caixa(`Ajudar ${esc(dono.nome)}`, tiles.length ? `<div class="grid grid-cols-3 gap-gutter-xs">
         ${tiles.map(({ t, i }) => {
           const pronto = estaMadura(t);
-          const acao = pronto ? 'COLHER' : 'REGAR';
+          const acao = pronto ? 'COLHER' : 'CUIDAR';
           const [r] = acoesPossiveis(app.motor.mundo, app.eu, [{ tipo: 'AJUDAR', herdade: h.id, tile: i, acao }]);
+          const prob = t.problema ? PROBLEMAS[t.problema] : null;
           return `<button class="bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press ${r.habilitado ? '' : 'opacity-40'}" data-acao="ajudar" data-herdade="${h.id}" data-tile="${i}" data-sub="${acao}" title="${esc(r.motivo ?? '')}">
-            <span class="text-[20px]">${pronto ? '🌾' : '💧'}</span>
-            <p class="font-label-sm text-[10px] uppercase">${pronto ? 'colher' : 'regar'}</p>
+            <span class="text-[20px]">${pronto ? '🌾' : prob ? prob.icone : '🌱'}</span>
+            <p class="font-label-sm text-[10px] uppercase">${pronto ? 'colher' : prob ? `tirar ${prob.nome}` : 'está bem'}</p>
             <p class="font-body-sm text-[10px] text-on-surface-variant">${esc(CULTURAS[t.cultura].nome)}</p></button>`;
         }).join('')}</div>
         <p class="font-body-sm text-[11px] text-on-surface-variant mt-gutter-xs">A colheita vai para o celeiro de ${esc(dono.nome)}. Você leva o laço e a harmonia.</p>`
@@ -865,18 +900,29 @@ function aviso(texto, ruim = false) {
 // --- comandos --------------------------------------------------------------
 
 async function manda(cmd) {
+  const nivelAntes = nivelDe(app.motor.mundo.jogadores[app.eu]?.xp ?? 0);
   const r = await app.sessao.executar({ ...cmd, data: dataLocal() });
   if (!r.ok) return aviso(r.erro, true);
   pinta();
   confirma();
+  festejaNivel(nivelAntes);
 }
 
 // "✓ regou trigo · −1 agua": o ultimo ato meu, com o que ele custou/deu pra vila.
 function confirma() {
   const l = visao(app.motor.mundo, app.eu, Date.now()).feed.find((x) => x.ator === app.eu);
   if (!l) return;
-  const verbo = l.texto.replace(/^.*? (plantou|regou|colheu|derrubou|tirou|construiu|desmanchou|deu|mandou|foi ajudar|doou|vendeu)/, '$1').split(' em ')[0].split(' (')[0];
+  const verbo = l.texto.replace(/^.*? (plantou|regou|capinou|tirou a praga de|colheu|derrubou|tirou|construiu|desmanchou|deu|mandou|foi ajudar|doou|vendeu|pos|entregou|cumpriu|abriu)/, '$1').split(' em ')[0].split(' (')[0];
   aviso(`✓ ${verbo}${l.impacto ? ` · ${l.impacto}` : ''}`);
+}
+
+// Subiu de nivel? Festa. Compara antes/depois de cada comando.
+function festejaNivel(antes) {
+  const p = app.motor.mundo.jogadores[app.eu];
+  const depois = nivelDe(p?.xp ?? 0);
+  if (depois <= antes) return;
+  const novidades = [...Object.entries(CULTURAS).filter(([, c]) => c.nivel === depois).map(([, c]) => c.nome), ...Object.entries(CONSTRUCOES).filter(([, b]) => b.nivel === depois).map(([, b]) => b.nome)];
+  aviso(`⬆ NÍVEL ${depois}!${novidades.length ? ` Desbloqueou: ${novidades.join(', ')}` : ''}`);
 }
 
 // Canteiro vazio planta a semente escolhida, maduro colhe, o resto rega.
@@ -885,7 +931,8 @@ function usaFerramentaNoCanteiro(tile) {
   const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros[tile];
   if (c.vazio) return manda({ tipo: 'PLANTAR', tile, cultura: app.cultura });
   if (c.pronto) return manda({ tipo: 'COLHER', tile });
-  return manda({ tipo: 'REGAR', tile });
+  if (c.problema) return manda({ tipo: 'CUIDAR', tile });
+  aviso(`${c.nome}: ${c.rotulo}`);
 }
 
 // --- eventos ---------------------------------------------------------------
@@ -945,12 +992,15 @@ document.addEventListener('click', async (e) => {
     construir: async () => { fechaModal(); await manda({ tipo: 'CONSTRUIR', construcao: d.construcao }); },
     doar: async () => { fechaModal(); await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); },
     vender: () => manda({ tipo: 'VENDER', cultura: d.cultura, quantidade: Number(d.qtd) }),
-    'regar-tudo': async () => {
-      const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => !x.vazio && x.sede);
-      if (!c.length) return aviso(choveu(app.motor.mundo.clima) ? 'esta chovendo — a chuva rega por voce' : 'nada com sede', true);
-      for (const x of c) { const r = await app.sessao.executar({ tipo: 'REGAR', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
+    'cuidar-tudo': async () => {
+      const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => x.problema);
+      if (!c.length) return aviso('ninguém está pedindo nada', true);
+      for (const x of c) { const r = await app.sessao.executar({ tipo: 'CUIDAR', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
       pinta(); confirma();
     },
+    produzir: () => manda({ tipo: 'PRODUZIR', produto: d.produto }),
+    recolher: () => manda({ tipo: 'RECOLHER', maquina: d.maquina }),
+    'cumprir-encomenda': () => manda({ tipo: 'CUMPRIR_ENCOMENDA', indice: Number(d.indice) }),
     'colher-tudo': async () => {
       const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => x.pronto);
       if (!c.length) return aviso('nada maduro ainda', true);

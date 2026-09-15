@@ -1,7 +1,7 @@
 import { Motor } from '../src/engine/motor.js';
 import { visao } from '../src/engine/apresentador.js';
 import { CULTURAS, OBRAS } from '../src/engine/conteudo.js';
-import { estaMadura, estaMolhada } from '../src/engine/tempo.js';
+import { estaMadura } from '../src/engine/tempo.js';
 const H = 3600e3; let relogio = Date.parse('2026-09-15T08:00:00Z');
 
 // ---------------------------------------------------------------------------
@@ -30,10 +30,10 @@ function candidatos(motor, id, estilo) {
   }
 
   her.tiles.forEach((t, i) => {
-    if (t && !estaMadura(t) && !estaMolhada(t, mundo.agora)) lista.push({ tipo: 'REGAR', tile: i });
+    if (t && t.problema) lista.push({ tipo: 'CUIDAR', tile: i });
   });
 
-  const cultura = estilo === 'junto' && mundo.comuns.harmonia < 70 ? 'flor' : 'trigo';
+  const cultura = 'trigo';
   her.tiles.forEach((t, i) => { if (!t) lista.push({ tipo: 'PLANTAR', tile: i, cultura }); });
 
   // Cada estilo constroi o que combina com ele.
@@ -53,7 +53,6 @@ function candidatos(motor, id, estilo) {
 function jogaDia(motor, id, estilo) {
   for (let passo = 0; passo < 14; passo++) {
     const eu = motor.mundo.jogadores[id];
-    if (eu.energia <= 0) break;
     const cmd = candidatos(motor, id, estilo).find(
       (c) => motor.executar({ ...c, por: id, id: `${id}:${motor.mundo.seq + 1}`, em: relogio }).ok
     );
