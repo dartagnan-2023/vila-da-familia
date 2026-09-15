@@ -27,6 +27,7 @@ export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l:
     diaDaEstacao: 1,
     clima: 'sol',
     dataDoDia: null, // 'AAAA-MM-DD' do ultimo dia virado (vem do log)
+    agora: 0,        // relogio do mundo (ms), avancado pelo `em` de cada comando
     grade,
     herdades,
     jogadores: {},
@@ -49,6 +50,9 @@ export function criarJogador({ id, nome, sprite, herdade }) {
     colheita: {},
     reputacao: {},
     gestos: {}, // ultimo dia em que abracou cada parente
+    regenResto: 0,
+    hoje: { regas: 0, plantios: 0, colheitas: 0, ajudas: 0, abracos: 0, cortes: 0, arvores: 0, doacoes: 0, vendas: 0, recados: 0 },
+    missoesFeitas: [],
     feitos: { plantios: 0, colheitas: 0, ajudas: 0, presentes: 0, doacoes: 0, arvores: 0, cortes: 0, abracos: 0 },
   };
 }

@@ -1,7 +1,9 @@
 import { CULTURAS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG } from './conteudo.js';
 import { vizinhas, temConstrucao } from './mundo.js';
 import { choveu } from './simular.js';
-import { REGRAS } from './regras.js';
+import { REGRAS, missoesDoDia } from './regras.js';
+import { projetar, estaMadura, estaMolhada, estresseDe, prontaEm, duracaoCultura, rotuloDuracao } from './tempo.js';
+import { TEMPO } from './conteudo.js';
 
 // ---------------------------------------------------------------------------
 // Camada de vitrine: transforma o estado cru no que a TELA precisa mostrar.
@@ -12,7 +14,9 @@ const ICONE_CULTURA = { trigo: '🌾', milho: '🌽', abobora: '🎃', arroz: '�
 const ICONE_CONSTRUCAO = { agua: '🪣', poliniza: '🐝', solo: '♻️', estoque: '🏚️', ferramenta: '🔨' };
 const ICONE_CLIMA = { sol: '☀️', sol_forte: '🔥', chuva: '🌧️', tempestade: '⛈️' };
 
-export function visao(mundo, jogadorId) {
+export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
+  // A tela ve o mundo COMO ESTA AGORA, sem esperar o proximo comando.
+  const mundo = projetar(mundoCru, agora);
   const eu = mundo.jogadores[jogadorId] ?? null;
   const minha = eu ? mundo.herdades[eu.herdade] : null;
 
@@ -27,6 +31,7 @@ export function visao(mundo, jogadorId) {
       id: eu.id, nome: eu.nome, sprite: eu.sprite,
       energia: eu.energia, energiaMax: eu.energiaMax,
       moedas: eu.inventario.moedas, madeira: eu.inventario.madeira, pedra: eu.inventario.pedra,
+      proximaEnergiaEm: eu.energia < eu.energiaMax ? TEMPO.regenEnergia - (eu.regenResto ?? 0) : null,
       // O layout pede um segundo medidor ao lado da energia: usamos a saude da terra.
       terra: minha ? Math.max(0, minha.fertilidade - minha.poluicao) : 0,
       ...nivel(eu),
@@ -48,7 +53,8 @@ export function visao(mundo, jogadorId) {
       fertilidade: h.fertilidade,
       poluicao: h.poluicao,
       plantados: h.tiles.filter(Boolean).length,
-      maduros: h.tiles.filter((t) => t && t.idade >= CULTURAS[t.cultura].dias).length,
+      maduros: h.tiles.filter((t) => estaMadura(t)).length,
+      sedentos: h.tiles.filter((t) => t && !estaMadura(t) && !estaMolhada(t, mundo.agora)).length,
       construcoes: h.construcoes.map((e) => ({ efeito: e, icone: ICONE_CONSTRUCAO[e] })),
     })),
     // O convite social: onde a sua mao faz falta agora.
@@ -60,6 +66,11 @@ export function visao(mundo, jogadorId) {
       return { chave, nome: o.nome, texto: o.texto, itens, pct, concluida: mundo.vila.concluidas.includes(o.bonus) };
     }),
     missao: missaoAtual(mundo),
+    missoesDoDia: eu ? missoesDoDia(mundo).map((m, i) => ({
+      indice: i, texto: m.texto, meta: m.meta, feito: Math.min(m.meta, eu.hoje?.[m.chave] ?? 0),
+      premio: m.premio, premioTexto: Object.entries(m.premio).map(([k, v]) => `+${v} ${k === 'moedas' ? 'G' : '⚡'}`).join(' '),
+      cumprida: (eu.hoje?.[m.chave] ?? 0) >= m.meta, recebida: (eu.missoesFeitas ?? []).includes(i),
+    })) : [],
     familia: Object.values(mundo.jogadores).map((p) => ({
       id: p.id, nome: p.nome, sprite: p.sprite, herdade: p.herdade,
       energia: p.energia, energiaMax: p.energiaMax,
@@ -97,11 +108,17 @@ function herdadeView(mundo, h) {
       const c = CULTURAS[t.cultura];
       return {
         i, vazio: false, cultura: t.cultura, nome: c.nome, icone: ICONE_CULTURA[t.cultura],
-        idade: t.idade, dias: c.dias,
-        progresso: Math.min(100, Math.round((t.idade / c.dias) * 100)),
-        pronto: t.idade >= c.dias,
-        sede: t.regadoEm !== mundo.tick && !choveu(mundo.clima) && t.idade < c.dias,
-        estresse: t.estresse,
+        horas: c.horas,
+        progresso: Math.min(100, Math.round((t.progresso / duracaoCultura(t.cultura)) * 100)),
+        pronto: estaMadura(t),
+        molhada: estaMolhada(t, mundo.agora),
+        sede: !estaMadura(t) && !estaMolhada(t, mundo.agora) && !choveu(mundo.clima),
+        aguaAte: t.regadoAte,
+        aguaRestante: Math.max(0, t.regadoAte - mundo.agora),
+        prontaEm: prontaEm(t, mundo.agora),
+        faltaMs: Math.max(0, duracaoCultura(t.cultura) - t.progresso),
+        estresse: estresseDe(t),
+        rotulo: estaMadura(t) ? 'pronta!' : prontaEm(t, mundo.agora) ? `pronta em ${rotuloDuracao(prontaEm(t, mundo.agora) - mundo.agora)}` : estaMolhada(t, mundo.agora) ? `água por ${rotuloDuracao(t.regadoAte - mundo.agora)}` : choveu(mundo.clima) ? 'na chuva ☔' : 'com sede',
         plantadoPor: t.plantadoPor,
       };
     }),
@@ -121,8 +138,8 @@ function pedidos(mundo, jogadorId) {
     v.tiles.forEach((t, i) => {
       if (!t) return;
       const c = CULTURAS[t.cultura];
-      if (t.idade >= c.dias) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', motivo: `${c.nome} passando do ponto em ${v.nome}` });
-      else if (t.regadoEm !== mundo.tick && !chovendo) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'REGAR', motivo: `${c.nome} com sede em ${v.nome}` });
+      if (estaMadura(t)) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', motivo: `${c.nome} passando do ponto em ${v.nome}` });
+      else if (!estaMolhada(t, mundo.agora) && !chovendo) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'REGAR', motivo: `${c.nome} com sede em ${v.nome}` });
     });
   }
   return out.slice(0, 8);

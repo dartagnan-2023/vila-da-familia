@@ -1,6 +1,8 @@
 import { Motor } from '../src/engine/motor.js';
 import { visao } from '../src/engine/apresentador.js';
 import { CULTURAS, OBRAS } from '../src/engine/conteudo.js';
+import { estaMadura, estaMolhada } from '../src/engine/tempo.js';
+const H = 3600e3; let relogio = Date.parse('2026-09-15T08:00:00Z');
 
 // ---------------------------------------------------------------------------
 // Duas familias, a MESMA semente, o mesmo numero de dias.
@@ -18,7 +20,7 @@ function candidatos(motor, id, estilo) {
   const lista = [];
 
   her.tiles.forEach((t, i) => {
-    if (t && t.idade >= CULTURAS[t.cultura].dias) lista.push({ tipo: 'COLHER', tile: i });
+    if (estaMadura(t)) lista.push({ tipo: 'COLHER', tile: i });
   });
 
   if (estilo === 'junto') {
@@ -28,7 +30,7 @@ function candidatos(motor, id, estilo) {
   }
 
   her.tiles.forEach((t, i) => {
-    if (t && t.regadoEm !== mundo.tick && t.idade < CULTURAS[t.cultura].dias) lista.push({ tipo: 'REGAR', tile: i });
+    if (t && !estaMadura(t) && !estaMolhada(t, mundo.agora)) lista.push({ tipo: 'REGAR', tile: i });
   });
 
   const cultura = estilo === 'junto' && mundo.comuns.harmonia < 70 ? 'flor' : 'trigo';
@@ -53,7 +55,7 @@ function jogaDia(motor, id, estilo) {
     const eu = motor.mundo.jogadores[id];
     if (eu.energia <= 0) break;
     const cmd = candidatos(motor, id, estilo).find(
-      (c) => motor.executar({ ...c, por: id, id: `${id}:${motor.mundo.seq + 1}` }).ok
+      (c) => motor.executar({ ...c, por: id, id: `${id}:${motor.mundo.seq + 1}`, em: relogio }).ok
     );
     if (!cmd) break;
   }
@@ -73,11 +75,16 @@ function jogaDia(motor, id, estilo) {
 function roda(estilo) {
   const motor = Motor.criar({ semente: 'natal-2026', nome: estilo === 'junto' ? 'Vila Junto' : 'Vila Cada-Um' });
   FAMILIA.forEach((n, i) => motor.executar({
-    id: `entra-${i}`, tipo: 'ENTRAR', por: chave(n), nome: n, nomeHerdade: `Sitio d${n.endsWith('a') ? 'a' : 'o'} ${n.split(' ').pop()}`,
+    id: `entra-${i}`, tipo: 'ENTRAR', por: chave(n), nome: n, em: relogio, nomeHerdade: `Sitio d${n.endsWith('a') ? 'a' : 'o'} ${n.split(' ').pop()}`,
   }));
   for (let d = 0; d < DIAS; d++) {
-    for (const n of FAMILIA) jogaDia(motor, chave(n), estilo);
-    motor.passarDia();
+    // Tres visitas por dia: manha, tarde e noite — e o ritmo que o jogo pede.
+    for (let visita = 0; visita < 3; visita++) {
+      for (const n of FAMILIA) jogaDia(motor, chave(n), estilo);
+      relogio += 5 * H;
+    }
+    relogio += 9 * H;
+    motor.executar({ tipo: 'PASSAR_DIA', id: `dia-${d}`, em: relogio });
   }
   return motor;
 }

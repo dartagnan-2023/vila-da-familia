@@ -2,6 +2,7 @@ import { Motor } from '../src/engine/motor.js';
 import { visao, acoesPossiveis } from '../src/engine/apresentador.js';
 import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
+import { CULTURAS } from '../src/engine/conteudo.js';
 
 let passou = 0, falhou = 0;
 const teste = async (nome, fn) => {
@@ -12,17 +13,30 @@ const ok = (cond, msg) => { if (!cond) throw new Error(msg ?? 'esperado verdadei
 const igual = (a, b, msg) => { if (a !== b) throw new Error(`${msg ?? ''} esperado ${b}, veio ${a}`); };
 
 const OPC = { semente: 'familia-2026', nome: 'Vila do Riacho' };
+const T0 = Date.parse('2026-09-15T08:00:00Z');
+const H = 3600e3, MIN = 60e3;
 
+// O relogio do mundo anda pelo `em` dos comandos. Nos testes, cada motor
+// carrega um relogio proprio e `espera()` manda um comando mudo com a hora nova.
 function vilaCom(...nomes) {
   const m = Motor.criar(OPC);
-  nomes.forEach((n, i) => m.executar({ id: `entrar-${i}`, tipo: 'ENTRAR', por: n.toLowerCase(), nome: n, nomeHerdade: `Sitio ${n}` }));
+  m.relogio = T0;
+  nomes.forEach((n, i) => m.executar({ id: `entrar-${i}`, tipo: 'ENTRAR', por: n.toLowerCase(), nome: n, nomeHerdade: `Sitio ${n}`, em: T0 }));
   return m;
 }
+function espera(m, ms) {
+  m.relogio += ms;
+  return m.executar({ tipo: 'ACORDAR', por: Object.keys(m.mundo.jogadores)[0], id: `t${m.relogio}`, em: m.relogio });
+}
+const agora = (m, cmd) => ({ ...cmd, em: m.relogio });
 
-function amadurece(m, por, tile, dias) {
-  for (let d = 0; d < dias; d++) {
-    m.executar({ id: `rega-${por}-${tile}-${d}`, tipo: 'REGAR', por, tile });
-    m.passarDia();
+/** Rega e espera o tempo da cultura (regando de novo se a agua nao bastar). */
+function amadurece(m, por, tile) {
+  const her = m.mundo.herdades[m.mundo.jogadores[por].herdade];
+  let guarda = 0;
+  while (!(her.tiles[tile].progresso >= CULTURAS[her.tiles[tile].cultura].horas * H) && guarda++ < 10) {
+    m.executar(agora(m, { tipo: 'REGAR', por, tile, id: `rega-${por}-${tile}-${m.relogio}` }));
+    espera(m, 4 * H);
   }
 }
 
@@ -53,22 +67,29 @@ await teste('plantar cobra semente, energia e recusa canteiro ocupado', () => {
   ok(!r.ok && /ocupado/.test(r.erro), r.erro);
 });
 
-await teste('regar tira agua do bem comum e nao repete no mesmo dia', () => {
+await teste('regar tira agua do bem comum e so repete quando a agua esta acabando', () => {
   const m = vilaCom('Ana');
-  m.executar({ tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'trigo' });
+  m.executar({ tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'abobora' });
   const antes = m.mundo.comuns.agua;
-  m.executar({ id: 'r1', tipo: 'REGAR', por: 'ana', tile: 0 });
+  m.executar(agora(m, { id: 'r1', tipo: 'REGAR', por: 'ana', tile: 0 }));
   ok(m.mundo.comuns.agua < antes, 'agua comum deveria cair');
-  const r = m.executar({ id: 'r2', tipo: 'REGAR', por: 'ana', tile: 0 });
-  ok(!r.ok && /hoje/.test(r.erro), r.erro);
+  const r = m.executar(agora(m, { id: 'r2', tipo: 'REGAR', por: 'ana', tile: 0 }));
+  ok(!r.ok && /molhada/.test(r.erro), r.erro);
+  espera(m, 3 * H + 10 * MIN); // falta menos de 1h de agua: pode reforcar
+  ok(m.executar(agora(m, { id: 'r3', tipo: 'REGAR', por: 'ana', tile: 0 })).ok, 'quase seca, pode regar');
 });
 
-await teste('lavoura regada amadurece e a colheita cansa o solo', () => {
+await teste('lavoura regada amadurece em tempo real (trigo: 2h molhada)', () => {
   const m = vilaCom('Ana');
-  m.executar({ tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'trigo' });
-  amadurece(m, 'ana', 0, 3);
+  m.executar(agora(m, { tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'trigo' }));
+  m.executar(agora(m, { tipo: 'REGAR', por: 'ana', tile: 0 }));
+  espera(m, 1 * H);
+  ok(!m.executar(agora(m, { tipo: 'COLHER', por: 'ana', tile: 0 })).ok, 'com 1h ainda nao');
+  igual(visao(m.mundo, 'ana').minhaHerdade.canteiros[0].progresso, 50, 'metade do caminho');
+  ok(/pronta em 1h/.test(visao(m.mundo, 'ana').minhaHerdade.canteiros[0].rotulo), 'a tela diz quando fica pronta');
+  espera(m, 1 * H);
   const t = m.mundo.herdades.h00.tiles[0];
-  igual(t.idade, 3);
+  igual(t.progresso, 2 * H);
   const fertAntes = m.mundo.herdades.h00.fertilidade;
   const r = m.executar({ tipo: 'COLHER', por: 'ana', tile: 0 });
   ok(r.ok, r.erro);
@@ -77,14 +98,19 @@ await teste('lavoura regada amadurece e a colheita cansa o solo', () => {
   igual(m.mundo.herdades.h00.tiles[0], null);
 });
 
-await teste('lavoura sem agua acumula estresse e nao cresce', () => {
+await teste('sem agua a planta nao cresce e acumula estresse; a agua acaba em 4h', () => {
   const m = vilaCom('Ana');
-  m.executar({ tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'abobora' });
-  m.mundo.comuns.floresta = 0; // mata derrubada = quase sem chuva
-  for (let d = 0; d < 4; d++) m.passarDia();
+  m.executar(agora(m, { tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'abobora' }));
+  espera(m, 6 * H);
   const t = m.mundo.herdades.h00.tiles[0];
-  ok(t.estresse > 0, 'deveria ter estresse');
-  ok(t.idade < 4, `nao deveria estar madura (idade ${t.idade})`);
+  igual(t.progresso, 0, 'seca nao cresce');
+  igual(t.seco, 6 * H);
+  igual(visao(m.mundo, 'ana').minhaHerdade.canteiros[0].estresse, 2, '3h sem agua = 1 de estresse');
+  m.executar(agora(m, { tipo: 'REGAR', por: 'ana', tile: 0 }));
+  espera(m, 6 * H); // 4h de agua + 2h seca
+  igual(m.mundo.herdades.h00.tiles[0].progresso, 4 * H, 'cresce so enquanto molhada');
+  igual(m.mundo.herdades.h00.tiles[0].seco, 8 * H);
+  ok(/sede/.test(visao(m.mundo, 'ana').minhaHerdade.canteiros[0].rotulo));
 });
 
 await teste('chuva rega por voce: a planta cresce e regar e recusado', () => {
@@ -94,17 +120,23 @@ await teste('chuva rega por voce: a planta cresce e regar e recusado', () => {
   const r = m.executar({ tipo: 'REGAR', por: 'ana', tile: 0 });
   ok(!r.ok && /chovendo/.test(r.erro), r.erro);
   igual(visao(m.mundo, 'ana').minhaHerdade.canteiros[0].sede, false, 'na chuva nao tem sede');
-  m.passarDia();
-  igual(m.mundo.herdades.h00.tiles[0].idade, 1, 'cresceu com a chuva');
-  igual(m.mundo.herdades.h00.tiles[0].estresse, 0);
+  // Um dia que nasce chuvoso molha todo canteiro ate o dia seguinte.
+  let guarda = 0;
+  do { espera(m, 24 * H); m.executar({ tipo: 'PASSAR_DIA', id: `d${m.mundo.tick + 1}`, em: m.relogio }); }
+  while (!/chuva|tempestade/.test(m.mundo.clima) && guarda++ < 30);
+  ok(guarda < 30, 'em 30 dias deveria chover');
+  const t = m.mundo.herdades.h00.tiles[0];
+  ok(t.regadoAte >= m.mundo.agora + 23 * H, 'a chuva molhou por 24h');
+  m.executar(agora(m, { tipo: 'PLANTAR', por: 'ana', tile: 1, cultura: 'flor' }));
+  ok(m.mundo.herdades.h00.tiles[1].regadoAte > m.mundo.agora, 'plantou na chuva: nasce molhada');
 });
 
 await teste('ajudar o vizinho: a colheita e dele, o laco e dos dois', () => {
   const m = vilaCom('Ana', 'Beto');
-  m.executar({ tipo: 'PLANTAR', por: 'beto', tile: 0, cultura: 'trigo' });
-  amadurece(m, 'beto', 0, 3);
+  m.executar(agora(m, { tipo: 'PLANTAR', por: 'beto', tile: 0, cultura: 'trigo' }));
+  amadurece(m, 'beto', 0);
   const harmoniaAntes = m.mundo.comuns.harmonia;
-  const r = m.executar({ tipo: 'AJUDAR', por: 'ana', herdade: 'h10', tile: 0, acao: 'COLHER' });
+  const r = m.executar(agora(m, { tipo: 'AJUDAR', por: 'ana', herdade: 'h10', tile: 0, acao: 'COLHER' }));
   ok(r.ok, r.erro);
   ok((m.mundo.jogadores.beto.colheita.trigo ?? 0) > 0, 'a colheita e do dono');
   igual(m.mundo.jogadores.ana.colheita.trigo, undefined);
@@ -113,7 +145,7 @@ await teste('ajudar o vizinho: a colheita e dele, o laco e dos dois', () => {
   ok(m.mundo.comuns.harmonia > harmoniaAntes, 'harmonia deveria subir');
   igual(m.mundo.jogadores.ana.feitos.ajudas, 1);
   igual(m.mundo.jogadores.ana.energia, 8, 'ajudar custa a SUA energia');
-  igual(m.mundo.jogadores.beto.energia, 10, 'e nao custa a energia de quem recebeu');
+  igual(m.mundo.jogadores.beto.energia, 10, 'e nao custa a energia de quem recebeu (ja regenerou)');
 });
 
 await teste('nao da para ajudar na propria terra nem mexer na do outro sem ser convidado', () => {
@@ -135,9 +167,9 @@ await teste('cortar derruba a mata comum; replantar devolve', () => {
 
 await teste('colmeia do vizinho aumenta a colheita da herdade ao lado', () => {
   const semear = (m, por) => {
-    m.executar({ tipo: 'PLANTAR', por, tile: 0, cultura: 'trigo' });
-    amadurece(m, por, 0, 3);
-    return m.executar({ tipo: 'COLHER', por, tile: 0 }).eventos.find((e) => e.tipo === 'COLHEU').dados.quantidade;
+    m.executar(agora(m, { tipo: 'PLANTAR', por, tile: 0, cultura: 'trigo' }));
+    amadurece(m, por, 0);
+    return m.executar(agora(m, { tipo: 'COLHER', por, tile: 0 })).eventos.find((e) => e.tipo === 'COLHEU').dados.quantidade;
   };
   const semColmeia = semear(vilaCom('Ana', 'Beto'), 'ana');
 
@@ -340,6 +372,47 @@ await teste('comprar canteiro: a herdade cresce ate 12, o preco sobe', () => {
   r = m.executar({ tipo: 'COMPRAR_CANTEIRO', por: 'ana' });
   ok(!r.ok && /maximo/.test(r.erro), r.erro);
   igual(visao(m.mundo, 'ana').minhaHerdade.canteiros.length, 12);
+});
+
+await teste('energia volta 1 ponto a cada 10 min, ate o maximo', () => {
+  const m = vilaCom('Ana');
+  m.executar(agora(m, { tipo: 'CORTAR', por: 'ana' }));
+  m.executar(agora(m, { tipo: 'CORTAR', por: 'ana' }));
+  igual(m.mundo.jogadores.ana.energia, 6);
+  espera(m, 25 * MIN);
+  igual(m.mundo.jogadores.ana.energia, 8);
+  igual(visao(m.mundo, 'ana').hud.proximaEnergiaEm, 5 * MIN, 'a tela sabe quando vem o proximo');
+  espera(m, 3 * H);
+  igual(m.mundo.jogadores.ana.energia, 10, 'nao passa do maximo');
+  igual(m.mundo.jogadores.ana.regenResto, 0);
+  // a tela projeta sem esperar comando
+  m.executar(agora(m, { tipo: 'CORTAR', por: 'ana' }));
+  igual(visao(m.mundo, 'ana', m.relogio + 10 * MIN).hud.energia, 9, 'projecao 10 min depois');
+  igual(m.mundo.jogadores.ana.energia, 8, 'sem mexer no mundo de verdade');
+});
+
+await teste('missoes do dia: 3 iguais para todos, premio uma vez por dia, zera a meia-noite', () => {
+  const m = vilaCom('Ana', 'Beto');
+  const v = visao(m.mundo, 'ana');
+  igual(v.missoesDoDia.length, 3);
+  const cortes = v.missoesDoDia.find((x) => x.texto.includes('lenha'));
+  const plantios = v.missoesDoDia.find((x) => x.texto.includes('Plante'));
+  const alvo = cortes ?? plantios;
+  ok(alvo, 'esperava uma missao de lenha ou de plantio hoje: ' + v.missoesDoDia.map((x) => x.texto).join(' / '));
+  ok(!m.executar(agora(m, { tipo: 'CUMPRIR_MISSAO', por: 'ana', indice: alvo.indice })).ok, 'ainda nao cumpriu');
+  for (let i = 0; i < alvo.meta; i++) {
+    m.executar(agora(m, cortes ? { tipo: 'CORTAR', por: 'ana' } : { tipo: 'PLANTAR', por: 'ana', tile: i, cultura: 'flor' }));
+    espera(m, 30 * MIN);
+  }
+  ok(visao(m.mundo, 'ana').missoesDoDia[alvo.indice].cumprida);
+  const moedas = m.mundo.jogadores.ana.inventario.moedas;
+  ok(m.executar(agora(m, { tipo: 'CUMPRIR_MISSAO', por: 'ana', indice: alvo.indice })).ok);
+  igual(m.mundo.jogadores.ana.inventario.moedas, moedas + (alvo.premio.moedas ?? 0));
+  ok(!m.executar(agora(m, { tipo: 'CUMPRIR_MISSAO', por: 'ana', indice: alvo.indice })).ok, 'nao recebe duas vezes');
+  ok(!m.executar(agora(m, { tipo: 'CUMPRIR_MISSAO', por: 'beto', indice: alvo.indice })).ok, 'Beto nao fez nada');
+  m.executar({ tipo: 'PASSAR_DIA', id: 'd1', em: m.relogio });
+  igual(m.mundo.jogadores.ana.missoesFeitas.length, 0, 'novo dia, novas missoes');
+  igual(m.mundo.jogadores.ana.hoje.cortes, 0);
 });
 
 await teste('demolir libera a vaga e devolve metade do material', () => {

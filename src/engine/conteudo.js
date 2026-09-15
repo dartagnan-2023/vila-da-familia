@@ -16,13 +16,40 @@ export const CONFIG = {
 
 export const ESTACOES = ['Primavera', 'Verao', 'Outono', 'Inverno'];
 
+// O jogo roda em tempo real: `horas` e quanto tempo MOLHADA a planta precisa
+// para ficar pronta. `dias` fica so como referencia legada (vilas antigas).
 export const CULTURAS = {
-  trigo:   { nome: 'Trigo',   dias: 3, agua: 2, solo: 1, semente: 2,  preco: 7,  estacoes: ['Primavera', 'Verao'] },
-  milho:   { nome: 'Milho',   dias: 4, agua: 3, solo: 2, semente: 3,  preco: 11, estacoes: ['Verao'] },
-  abobora: { nome: 'Abobora', dias: 6, agua: 4, solo: 3, semente: 5,  preco: 20, estacoes: ['Outono'] },
-  arroz:   { nome: 'Arroz',   dias: 5, agua: 7, solo: 2, semente: 4,  preco: 16, estacoes: ['Primavera', 'Verao'] },
-  flor:    { nome: 'Flor',    dias: 2, agua: 1, solo: 0, semente: 1,  preco: 4,  estacoes: ESTACOES, poliniza: true, harmonia: 1 },
+  trigo:   { nome: 'Trigo',   horas: 2, dias: 3, agua: 2, solo: 1, semente: 2,  preco: 7,  estacoes: ['Primavera', 'Verao'] },
+  milho:   { nome: 'Milho',   horas: 4, dias: 4, agua: 3, solo: 2, semente: 3,  preco: 11, estacoes: ['Verao'] },
+  abobora: { nome: 'Abobora', horas: 8, dias: 6, agua: 4, solo: 3, semente: 5,  preco: 20, estacoes: ['Outono'] },
+  arroz:   { nome: 'Arroz',   horas: 6, dias: 5, agua: 7, solo: 2, semente: 4,  preco: 16, estacoes: ['Primavera', 'Verao'] },
+  flor:    { nome: 'Flor',    horas: 1, dias: 2, agua: 1, solo: 0, semente: 1,  preco: 4,  estacoes: ESTACOES, poliniza: true, harmonia: 1 },
 };
+
+const MIN = 60_000, HORA = 60 * MIN;
+export const TEMPO = {
+  hora: HORA,
+  aguaDura: 4 * HORA,          // uma rega hidrata por 4h
+  regenEnergia: 10 * MIN,      // +1 de energia a cada 10 min (alem da recarga cheia a meia-noite)
+  secoParaEstresse: 3 * HORA,  // cada 3h sem agua = 1 ponto de estresse (menos colheita)
+  remolharAntes: 60 * MIN,     // so deixa regar de novo quando falta menos de 1h de agua
+};
+
+// Missoes do dia: 3 sorteadas por dia (semente + dia), iguais para todos.
+// `chave` e o contador em `jogador.hoje`.
+export const MISSOES = [
+  { chave: 'regas',     meta: 4, texto: 'Regue 4 canteiros',           premio: { moedas: 8 } },
+  { chave: 'plantios',  meta: 3, texto: 'Plante 3 canteiros',          premio: { moedas: 6 } },
+  { chave: 'colheitas', meta: 3, texto: 'Colha 3 canteiros',           premio: { moedas: 10 } },
+  { chave: 'ajudas',    meta: 1, texto: 'Ajude um parente',            premio: { moedas: 10, energia: 2 } },
+  { chave: 'ajudas',    meta: 3, texto: 'Ajude 3 vezes',               premio: { moedas: 20, energia: 3 } },
+  { chave: 'abracos',   meta: 2, texto: 'Abrace 2 pessoas',            premio: { energia: 2 } },
+  { chave: 'cortes',    meta: 2, texto: 'Corte lenha 2 vezes',         premio: { moedas: 8 } },
+  { chave: 'arvores',   meta: 1, texto: 'Replante a mata',             premio: { moedas: 12 } },
+  { chave: 'doacoes',   meta: 1, texto: 'Doe para a obra da vila',     premio: { moedas: 10, energia: 1 } },
+  { chave: 'vendas',    meta: 1, texto: 'Venda a colheita',            premio: { energia: 2 } },
+  { chave: 'recados',   meta: 1, texto: 'Deixe um recado no mural',    premio: { energia: 1 } },
+];
 
 export const CONSTRUCOES = {
   poco:        { nome: 'Poco',        custo: { madeira: 8,  moedas: 20 }, efeito: 'agua',      texto: 'Consome metade da agua comum ao regar.' },

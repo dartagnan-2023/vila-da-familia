@@ -3,6 +3,7 @@ import { REGRAS } from './regras.js';
 import { aplicar, registrarFeed } from './aplicar.js';
 import { passarDia } from './simular.js';
 import { rngPara, hashMundo } from './rng.js';
+import { avancarTempo } from './tempo.js';
 
 // ---------------------------------------------------------------------------
 // Fachada do motor.
@@ -41,6 +42,8 @@ export class Motor {
     // Todo comando pode trazer a data local de quem enviou. A primeira vira a
     // data de fundacao; um PASSAR_DIA com data avanca o calendario da vila.
     if (cmd.data && (!this.mundo.dataDoDia || cmd.tipo === 'PASSAR_DIA')) this.mundo.dataDoDia = cmd.data;
+    // O relogio anda antes do comando: plantas crescem, energia volta.
+    if (cmd.em) avancarTempo(this.mundo, cmd.em);
 
     if (cmd.tipo === 'PASSAR_DIA') {
       const eventos = passarDia(this.mundo).map((e) => this.#registra(e));

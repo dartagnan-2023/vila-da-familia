@@ -50,7 +50,7 @@ export class Sessao {
 
   /** Valida localmente (feedback imediato) e so entao publica na fila. */
   async executar(cmd) {
-    const completo = { ...cmd, por: cmd.por ?? this.jogadorId, id: cmd.id ?? novoId(this.jogadorId) };
+    const completo = { ...cmd, por: cmd.por ?? this.jogadorId, id: cmd.id ?? novoId(this.jogadorId), em: cmd.em ?? Date.now() };
     const previa = simulaValidacao(this.motor, completo);
     if (!previa.ok) return previa;
     this.pendentes++;

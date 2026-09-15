@@ -10,7 +10,7 @@ Sem dependências. Node 20+.
 
 ```bash
 npm start    # abre o jogo em http://localhost:5173
-npm test     # 22 testes do motor + 8 do transporte
+npm test     # 30 testes do motor + 8 do transporte
 npm run demo # simula 2 famílias com a MESMA semente e compara o destino
 ```
 
@@ -70,6 +70,7 @@ Consequências práticas:
 | **`AJUDAR`** | rega/colhe **na terra do outro** | 2 energia | **harmonia +2** |
 | `DOAR` | material pra obra da vila | — | harmonia +1 |
 | `COMPRAR_CANTEIRO` | abre o 10º, 11º, 12º canteiro | 1 energia + 60/90/120 G | — |
+| `CUMPRIR_MISSAO` | recebe o prêmio de uma missão do dia | — | harmonia +1 |
 | `DEMOLIR` | desmancha benfeitoria, devolve metade | 1 energia | — |
 | `ACORDAR` | não faz nada: carimba a data no log | — | — |
 | `PASSAR_DIA` | vira o dia (pelo log) | — | clima, destino |
@@ -77,6 +78,20 @@ Consequências práticas:
 `AJUDAR` é o comando que define o jogo: você gasta a **sua** energia e a
 colheita vai pro **celeiro do outro** — o que volta pra você é reputação,
 harmonia e, por tabela, energia extra todo dia.
+
+### O jogo roda em tempo real
+
+`src/engine/tempo.js`. Todo comando leva `em` (ms). Antes de aplicar um
+comando, o motor avança o mundo de `mundo.agora` até `em`: plantas crescem
+enquanto molhadas (trigo 2h, flor 1h, milho 4h, arroz 6h, abóbora 8h), uma
+rega hidrata por 4h, sem água a planta para e acumula estresse (3h = 1 ponto),
+energia volta 1 a cada 10 min. Como os `em` vêm do log, todo cliente reproduz
+o mesmo avanço. A tela usa `projetar(mundo, Date.now())` para mostrar o estado
+de agora sem esperar comando ("pronta em 1h20", "+1 energia em 4 min").
+
+**Missões do dia** (`MISSOES` em `conteudo.js`): 3 sorteadas por semente + dia,
+iguais para todos; `jogador.hoje` conta o que cada um fez; `CUMPRIR_MISSAO`
+paga o prêmio uma vez. Zeram na virada do dia.
 
 ### O dia vira com o relógio
 

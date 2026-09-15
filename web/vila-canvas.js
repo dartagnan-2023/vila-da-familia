@@ -1,4 +1,5 @@
 import { CULTURAS } from '../src/engine/conteudo.js';
+import { estaMadura, estaMolhada, duracaoCultura } from '../src/engine/tempo.js';
 
 // ---------------------------------------------------------------------------
 // O mundo desenhado. Tudo aqui e pixel art feita em codigo: nenhuma imagem
@@ -353,13 +354,13 @@ export class VilaCanvas {
   #canteiro(x, y, t, h, mundo) {
     const { ctx } = this;
     const fert = h.fertilidade;
-    ctx.fillStyle = t && t.regadoEm === mundo.tick ? P.terraMolhada : fert < 40 ? P.terraSeca : P.terra;
+    ctx.fillStyle = t && estaMolhada(t, mundo.agora) ? P.terraMolhada : fert < 40 ? P.terraSeca : P.terra;
     ctx.fillRect(x + 1, y + 1, 14, 14);
     ctx.fillStyle = 'rgba(0,0,0,.15)';
     for (let s = 3; s < 14; s += 4) ctx.fillRect(x + 1, y + s, 14, 1);
     if (!t) return;
     const c = CULTURAS[t.cultura];
-    const prog = Math.min(1, t.idade / c.dias);
+    const prog = Math.min(1, (t.progresso ?? 0) / duracaoCultura(t.cultura));
     const cor = { trigo: '#f4b83f', milho: '#f9bc43', abobora: '#fea776', arroz: '#a0d57e', flor: '#ffdbca' }[t.cultura];
     const balanco = Math.round(Math.sin((this.frame + x) / 14));
     if (prog < 0.34) {
@@ -372,7 +373,7 @@ export class VilaCanvas {
       ctx.fillStyle = cor; ctx.fillRect(x + 4 + balanco, y + 2, 8, 6);
       ctx.fillStyle = P.ouro; ctx.fillRect(x + 12, y + 1 + ((this.frame >> 4) % 2), 2, 2);
     }
-    if (t.regadoEm !== mundo.tick && prog < 1 && (this.frame >> 5) % 2 === 0) {
+    if (!estaMolhada(t, mundo.agora) && prog < 1 && (this.frame >> 5) % 2 === 0) {
       ctx.fillStyle = P.agua; ctx.fillRect(x + 12, y + 2, 2, 3); ctx.fillRect(x + 11, y + 4, 4, 2);
     }
   }

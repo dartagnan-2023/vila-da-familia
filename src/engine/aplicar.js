@@ -15,6 +15,15 @@ function gastaEnergia(mundo, id, custo) {
   if (p) p.energia = Math.max(0, p.energia - (custo ?? 0));
 }
 
+// Contadores do dia (missoes). Jogadores de vilas antigas podem nao ter `hoje`.
+function conta(mundo, id, chave) {
+  const p = j(mundo, id);
+  if (!p) return;
+  p.hoje ??= {};
+  p.hoje[chave] = (p.hoje[chave] ?? 0) + 1;
+  p.missoesFeitas ??= [];
+}
+
 function creditaReputacao(mundo, de, para, n) {
   const a = j(mundo, de), b = j(mundo, para);
   if (!a || !b || de === para) return;
@@ -32,15 +41,19 @@ const REDUCERS = {
 
   PLANTOU(mundo, ev, d) {
     const her = h(mundo, d.herdade);
-    her.tiles[d.tile] = { cultura: d.cultura, idade: 0, regas: 0, estresse: 0, regadoEm: -1, plantadoPor: ev.ator };
+    // Plantou na chuva? Nasce molhada ate a chuva passar.
+    const chuva = (mundo.chuvaAte ?? 0) > mundo.agora ? mundo.chuvaAte : 0;
+    her.tiles[d.tile] = { cultura: d.cultura, progresso: 0, regadoAte: chuva, seco: 0, plantadoEm: mundo.agora, plantadoPor: ev.ator };
     j(mundo, d.dono).inventario.moedas -= d.custoSemente;
     j(mundo, ev.ator).feitos.plantios++;
+    conta(mundo, ev.ator, 'plantios');
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
   REGOU(mundo, ev, d) {
     const t = h(mundo, d.herdade).tiles[d.tile];
-    if (t) { t.regas++; t.regadoEm = mundo.tick; }
+    if (t) t.regadoAte = Math.max(t.regadoAte ?? 0, d.regadoAte ?? mundo.agora);
+    conta(mundo, ev.ator, 'regas');
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
@@ -51,6 +64,7 @@ const REDUCERS = {
     const dono = j(mundo, d.dono);
     dono.colheita[d.cultura] = (dono.colheita[d.cultura] ?? 0) + d.quantidade;
     dono.feitos.colheitas++;
+    conta(mundo, ev.ator, 'colheitas');
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
@@ -59,12 +73,14 @@ const REDUCERS = {
     p.colheita[d.cultura] -= d.quantidade;
     if (p.colheita[d.cultura] <= 0) delete p.colheita[d.cultura];
     p.inventario.moedas += d.moedas;
+    conta(mundo, ev.ator, 'vendas');
   },
 
   CORTOU_ARVORE(mundo, ev, d) {
     const p = j(mundo, ev.ator);
     p.inventario.madeira += d.madeira;
     p.feitos.cortes++;
+    conta(mundo, ev.ator, 'cortes');
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
@@ -72,6 +88,7 @@ const REDUCERS = {
     const p = j(mundo, ev.ator);
     p.inventario.madeira -= d.custoMadeira;
     p.feitos.arvores++;
+    conta(mundo, ev.ator, 'arvores');
     gastaEnergia(mundo, ev.ator, d.energia);
   },
 
@@ -119,15 +136,17 @@ const REDUCERS = {
     const de = j(mundo, ev.ator);
     de.gestos[d.para] = mundo.tick;
     de.feitos.abracos++;
+    conta(mundo, ev.ator, 'abracos');
     creditaReputacao(mundo, ev.ator, d.para, 1);
   },
 
   RECADO(mundo, ev, d) {
-    // O recado nao muda numero nenhum: ele existe para virar feed.
+    conta(mundo, ev.ator, 'recados'); // so para a missao do dia
   },
 
   AJUDOU(mundo, ev, d) {
     j(mundo, ev.ator).feitos.ajudas++;
+    conta(mundo, ev.ator, 'ajudas');
     creditaReputacao(mundo, ev.ator, d.dono, 2);
     gastaEnergia(mundo, ev.ator, d.energia);
   },
@@ -141,6 +160,7 @@ const REDUCERS = {
       mundo.vila.doado[rec] = (mundo.vila.doado[rec] ?? 0) + qtd;
     }
     p.feitos.doacoes++;
+    conta(mundo, ev.ator, 'doacoes');
   },
 
   OBRA_CONCLUIDA(mundo, ev, d) {
@@ -156,11 +176,18 @@ const REDUCERS = {
     mundo.clima = d.clima;
   },
 
-  CRESCEU(mundo, ev, d) {
-    const t = h(mundo, d.herdade).tiles[d.tile];
-    if (!t) return;
-    t.idade += d.crescimento;
-    t.estresse += d.estresse;
+  CHUVA_MOLHOU(mundo, ev, d) {
+    mundo.chuvaAte = d.ate;
+    for (const her of Object.values(mundo.herdades)) {
+      for (const t of her.tiles) if (t) t.regadoAte = Math.max(t.regadoAte ?? 0, d.ate);
+    }
+  },
+
+  MISSAO_CUMPRIDA(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    p.missoesFeitas.push(d.indice);
+    if (d.premio.moedas) p.inventario.moedas += d.premio.moedas;
+    if (d.premio.energia) p.energia = Math.min(p.energiaMax + 2, p.energia + d.premio.energia);
   },
 
   SOLO_MUDOU(mundo, ev, d) {
@@ -172,7 +199,11 @@ const REDUCERS = {
   ENERGIA_RENOVADA(mundo, ev, d) {
     for (const [id, valor] of Object.entries(d.energias)) {
       const p = j(mundo, id);
-      if (p) { p.energiaMax = valor; p.energia = valor; }
+      if (!p) continue;
+      p.energiaMax = valor; p.energia = valor; p.regenResto = 0;
+      // Novo dia, novas missoes.
+      for (const k of Object.keys(p.hoje ?? {})) p.hoje[k] = 0;
+      p.missoesFeitas = [];
     }
   },
 

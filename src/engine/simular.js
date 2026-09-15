@@ -51,28 +51,11 @@ export function passarDia(mundo) {
     texto: `Dia ${diaDaEstacao} de ${estacao} (ano ${ano}) — ${rotuloClima(clima)}.`,
   });
 
-  // 2. Lavouras. Regada hoje ou choveu hoje = cresce; senao acumula estresse.
-  // "Hoje" e o dia que esta acabando: a chuva que a familia viu na tela.
+  // 2. Lavouras crescem em tempo real (tempo.js). O dia so cuida da chuva:
+  // se o dia que nasce e de chuva, todo canteiro fica molhado ate amanha.
   const seca = mundo.comuns.agua < LIMIARES.secaAgua;
-  const chovendo = choveu(mundo.clima);
-  for (const her of Object.values(mundo.herdades)) {
-    her.tiles.forEach((t, i) => {
-      if (!t) return;
-      const molhado = chovendo || t.regadoEm === mundo.tick;
-      const madura = t.idade >= CULTURAS[t.cultura].dias;
-      if (madura) return;
-      eventos.push({
-        tipo: 'CRESCEU',
-        ator: null,
-        dados: {
-          herdade: her.id,
-          tile: i,
-          crescimento: molhado ? 1 : 0,
-          estresse: molhado ? 0 : seca ? 2 : 1,
-        },
-        texto: null,
-      });
-    });
+  if (choveu(clima) && mundo.agora) {
+    eventos.push({ tipo: 'CHUVA_MOLHOU', ator: null, dados: { ate: mundo.agora + 24 * 3600e3 }, texto: null });
   }
 
   // 3. Terra: composteira cura, forja do vizinho contamina, pousio descansa.

@@ -7,6 +7,7 @@ import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
 import { VilaCanvas } from './vila-canvas.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 import { choveu } from '../src/engine/simular.js';
+import { projetar, estaMadura, rotuloDuracao } from '../src/engine/tempo.js';
 
 // Se houver web/config.js com o projeto Supabase, o jogo e entre casas.
 // Sem ele, tudo fica no aparelho (revezamento). A tela e a mesma.
@@ -263,6 +264,7 @@ async function virarDiasPendentes() {
   return virando;
 }
 setInterval(() => { if (!document.hidden) virarDiasPendentes(); }, 60000);
+setInterval(() => { if (!document.hidden && app.eu && document.getElementById('modal').hidden) pinta(); }, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) virarDiasPendentes(); });
 
 async function entrarComoFamiliar(nome) {
@@ -285,7 +287,7 @@ function trocarDeFamiliar(id) {
 
 function pinta() {
   if (!app.motor || !app.eu) return;
-  const v = visao(app.motor.mundo, app.eu);
+  const v = visao(app.motor.mundo, app.eu, Date.now());
   $('topo').innerHTML = topo(v);
   $('hud').innerHTML = hud(v);
   $('ecos').innerHTML = ecos(v);
@@ -296,7 +298,7 @@ function pinta() {
       $('palco').innerHTML = palcoVila(v);
       app.cena = new VilaCanvas($('cena'), { aoClicar: cliqueNoMundo });
     }
-    app.cena.atualizar(v, app.motor.mundo);
+    app.cena.atualizar(v, projetar(app.motor.mundo, Date.now()));
     $('legenda').innerHTML = legendaVila(v);
   } else {
     $('palco').innerHTML = { herdade: palcoHerdade, destino: palcoDestino, familia: palcoFamilia }[app.aba](v);
@@ -379,12 +381,12 @@ function hud(v) {
           <span class="w-1.5 h-1.5 bg-primary"></span>
           <span class="font-label-md text-label-md text-secondary">Ano ${v.vila.ano}</span>
         </div>
-        <span class="font-label-sm text-label-sm text-on-surface-variant">${esc(v.vila.rotuloClima)} · vira à meia-noite</span>
+        <span class="font-label-sm text-label-sm text-on-surface-variant">${esc(v.vila.rotuloClima)}</span>
       </div>
     </div>
 
     <div class="flex items-center gap-gutter-md bg-surface-container-high px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08]">
-      ${medidor('EN', 'bolt', 'text-tertiary-container', v.hud.energia, v.hud.energiaMax, 'bg-tertiary')}
+      <div class="flex flex-col">${medidor('EN', 'bolt', 'text-tertiary-container', v.hud.energia, v.hud.energiaMax, 'bg-tertiary')}${v.hud.proximaEnergiaEm != null ? `<span class="font-label-sm text-[9px] text-on-surface-variant">+1 em ${rotuloDuracao(v.hud.proximaEnergiaEm)}</span>` : ''}</div>
       ${medidor('TERRA', 'yard', 'text-primary', v.hud.terra, 100, 'bg-primary')}
     </div>
 
@@ -468,6 +470,26 @@ function painel(v) {
     <p class="font-body-sm text-[11px] text-on-surface-variant mt-gutter-xs leading-tight">
       Tudo aqui é de todo mundo. Cada rega, cada machadada e cada abraço mexe nesses números.
     </p>
+  </div>
+
+  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
+    <div class="bg-secondary text-on-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
+      <span class="font-headline-md text-[13px] uppercase font-bold">📋 Missões de hoje</span>
+      <span class="font-label-sm text-[10px]">${v.missoesDoDia.filter((m) => m.recebida).length}/${v.missoesDoDia.length}</span>
+    </div>
+    <div class="space-y-1">
+      ${v.missoesDoDia.map((m) => `
+        <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b] ${m.recebida ? 'opacity-60' : ''}">
+          <div class="flex items-center justify-between gap-gutter-xs">
+            <span class="font-label-sm text-label-sm uppercase ${m.recebida ? 'line-through' : ''}">${esc(m.texto)}</span>
+            ${m.recebida ? `<span class="font-label-sm text-[10px] text-primary uppercase">✓ feito</span>`
+              : m.cumprida ? `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="cumprir-missao" data-indice="${m.indice}">Receber ${esc(m.premioTexto)}</button>`
+              : `<span class="font-label-sm text-[10px] text-on-surface-variant whitespace-nowrap">${m.feito}/${m.meta} · ${esc(m.premioTexto)}</span>`}
+          </div>
+          <div class="w-full h-1.5 bg-surface-dim shadow-[inset_1px_1px_0_0_#221b08] mt-1"><div class="h-full ${m.cumprida ? 'bg-primary' : 'bg-secondary-container'}" style="width:${Math.round((m.feito / m.meta) * 100)}%"></div></div>
+        </div>`).join('')}
+    </div>
+    <p class="font-body-sm text-[10px] text-on-surface-variant mt-1">Novas missões à meia-noite.</p>
   </div>
 
   <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
@@ -583,10 +605,11 @@ function canteiroGrande(c) {
     return `<button class="${base} bg-surface-dim" data-acao="canteiro" data-tile="${c.i}">
       <span class="text-[10px] text-on-surface-variant">vazio</span></button>`;
   }
-  return `<button class="${base} ${c.pronto ? 'bg-tertiary-fixed' : 'bg-primary-fixed'}" data-acao="canteiro" data-tile="${c.i}" title="${esc(c.nome)} — ${c.progresso}%">
+  return `<button class="${base} ${c.pronto ? 'bg-tertiary-fixed' : c.sede ? 'bg-error-container' : 'bg-primary-fixed'}" data-acao="canteiro" data-tile="${c.i}" title="${esc(c.nome)} — ${c.progresso}% · ${esc(c.rotulo)}">
     <span class="text-[22px] leading-none">${c.icone}</span>
-    <span class="font-label-sm text-[9px] uppercase">${c.pronto ? 'colher!' : `${c.idade}/${c.dias}`}</span>
-    ${c.sede && !c.pronto ? `<span class="absolute top-0.5 right-0.5 text-[10px]">💧</span>` : ''}
+    <span class="font-label-sm text-[8px] uppercase text-center leading-none">${c.pronto ? 'colher!' : esc(c.rotulo.replace('pronta em ', '').replace('água por ', '💧 '))}</span>
+    <span class="absolute left-1 right-1 bottom-0.5 h-1 bg-surface-dim"><span class="block h-full ${c.pronto ? 'bg-tertiary' : 'bg-primary'}" style="width:${c.progresso}%"></span></span>
+    ${c.sede && !c.pronto ? `<span class="absolute top-0.5 right-0.5 text-[10px] pisca">💧</span>` : ''}
     ${c.estresse ? `<span class="absolute bottom-0.5 left-0.5 text-[10px]" title="estresse ${c.estresse}">⚠</span>` : ''}
   </button>`;
 }
@@ -714,7 +737,7 @@ function hotbar(v) {
     </div>
     <div class="flex items-center gap-gutter-md font-label-sm text-label-sm text-on-surface-variant uppercase flex-wrap justify-center">
       <span>${v.hud.sprite} ${esc(v.hud.nome)} · ⚡${v.hud.energia}/${v.hud.energiaMax} · Nv.${v.hud.nivel} (${v.hud.xp}/${v.hud.xpMax})</span>
-      ${v.hud.energia === 0 ? `<span class="bg-tertiary-fixed text-on-tertiary-fixed px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] normal-case">Por hoje é isso — a energia volta à meia-noite. Abraço e recado ainda valem!</span>` : ''}
+      ${v.hud.energia === 0 ? `<span class="bg-tertiary-fixed text-on-tertiary-fixed px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] normal-case">Sem energia — +1 em ${rotuloDuracao(v.hud.proximaEnergiaEm ?? 0)}. Abraço e recado ainda valem!</span>` : ''}
       <span class="w-2 h-2 bg-primary"></span>
       <span>${app.online ? '● entre casas' : '○ só neste aparelho'} · hash ${app.motor.hash}</span>
     </div>
@@ -724,7 +747,7 @@ function hotbar(v) {
 // --- modais ----------------------------------------------------------------
 
 function abreModal(qual) {
-  const v = visao(app.motor.mundo, app.eu);
+  const v = visao(app.motor.mundo, app.eu, Date.now());
   const outros = v.familia.filter((f) => f.id !== app.eu);
   const caixa = (titulo, corpo) => `
     <div class="bg-surface-container-low p-panel-pad-md shadow-[6px_6px_0_0_#221b08] w-full max-w-md">
@@ -738,7 +761,7 @@ function abreModal(qual) {
       <div class="space-y-gutter-xs font-body-sm text-[12px] text-on-surface">
         <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌱</span><div><strong class="uppercase font-label-sm">1. Planta</strong><br>Na aba <em>Minha Herdade</em>, toque num canteiro vazio. Trigo é bom pra começar: 2 G, fica pronto em 3 dias.</div></div>
         <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">💧</span><div><strong class="uppercase font-label-sm">2. Rega todo dia</strong><br>Toque de novo no canteiro (ou em <em>Regar tudo</em>). A água sai do rio de <strong>todo mundo</strong>. Se chover, a chuva rega por você.</div></div>
-        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌙</span><div><strong class="uppercase font-label-sm">3. Volta amanhã</strong><br>O dia vira à meia-noite. Sua energia volta, as plantas crescem — as regadas, pelo menos.</div></div>
+        <div class="flex gap-gutter-xs bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]"><span class="text-[22px]">🌙</span><div><strong class="uppercase font-label-sm">3. Volta daqui a pouco</strong><br>Trigo fica pronto em 2h, abóbora em 8h — só enquanto molhada (a rega dura 4h). A energia volta 1 a cada 10 min. Missões do dia dão prêmio.</div></div>
         <div class="flex gap-gutter-xs bg-primary-fixed p-gutter-xs shadow-[inset_1px_1px_0_0_#245107]"><span class="text-[22px]">🤝</span><div><strong class="uppercase font-label-sm">4. Cuida de alguém</strong><br>Toque na herdade de um parente no mapa e rega pra ele. A colheita é dele; o que volta pra você é harmonia — e harmonia alta dá energia extra pra <strong>todo mundo</strong>.</div></div>
         <p class="font-label-sm text-[10px] uppercase text-on-surface-variant">Madeira vem do Machado (4). Ouro vem de colher e Vender (0). Dúvida? O ❔ no topo reabre isto.</p>
       </div>
@@ -812,7 +835,7 @@ function abreModal(qual) {
       const tiles = h.tiles.map((t, i) => ({ t, i })).filter((x) => x.t);
       return caixa(`Ajudar ${esc(dono.nome)}`, tiles.length ? `<div class="grid grid-cols-3 gap-gutter-xs">
         ${tiles.map(({ t, i }) => {
-          const pronto = t.idade >= CULTURAS[t.cultura].dias;
+          const pronto = estaMadura(t);
           const acao = pronto ? 'COLHER' : 'REGAR';
           const [r] = acoesPossiveis(app.motor.mundo, app.eu, [{ tipo: 'AJUDAR', herdade: h.id, tile: i, acao }]);
           return `<button class="bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press ${r.habilitado ? '' : 'opacity-40'}" data-acao="ajudar" data-herdade="${h.id}" data-tile="${i}" data-sub="${acao}" title="${esc(r.motivo ?? '')}">
@@ -850,7 +873,7 @@ async function manda(cmd) {
 
 // "✓ regou trigo · −1 agua": o ultimo ato meu, com o que ele custou/deu pra vila.
 function confirma() {
-  const l = visao(app.motor.mundo, app.eu).feed.find((x) => x.ator === app.eu);
+  const l = visao(app.motor.mundo, app.eu, Date.now()).feed.find((x) => x.ator === app.eu);
   if (!l) return;
   const verbo = l.texto.replace(/^.*? (plantou|regou|colheu|derrubou|tirou|construiu|desmanchou|deu|mandou|foi ajudar|doou|vendeu)/, '$1').split(' em ')[0].split(' (')[0];
   aviso(`✓ ${verbo}${l.impacto ? ` · ${l.impacto}` : ''}`);
@@ -859,7 +882,7 @@ function confirma() {
 // Canteiro vazio planta a semente escolhida, maduro colhe, o resto rega.
 // A hotbar so muda QUAL semente; ninguem precisa "equipar regador".
 function usaFerramentaNoCanteiro(tile) {
-  const c = visao(app.motor.mundo, app.eu).minhaHerdade.canteiros[tile];
+  const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros[tile];
   if (c.vazio) return manda({ tipo: 'PLANTAR', tile, cultura: app.cultura });
   if (c.pronto) return manda({ tipo: 'COLHER', tile });
   return manda({ tipo: 'REGAR', tile });
@@ -923,23 +946,24 @@ document.addEventListener('click', async (e) => {
     doar: async () => { fechaModal(); await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); },
     vender: () => manda({ tipo: 'VENDER', cultura: d.cultura, quantidade: Number(d.qtd) }),
     'regar-tudo': async () => {
-      const c = visao(app.motor.mundo, app.eu).minhaHerdade.canteiros.filter((x) => !x.vazio && x.sede);
+      const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => !x.vazio && x.sede);
       if (!c.length) return aviso(choveu(app.motor.mundo.clima) ? 'esta chovendo — a chuva rega por voce' : 'nada com sede', true);
       for (const x of c) { const r = await app.sessao.executar({ tipo: 'REGAR', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
       pinta(); confirma();
     },
     'colher-tudo': async () => {
-      const c = visao(app.motor.mundo, app.eu).minhaHerdade.canteiros.filter((x) => x.pronto);
+      const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => x.pronto);
       if (!c.length) return aviso('nada maduro ainda', true);
       for (const x of c) { const r = await app.sessao.executar({ tipo: 'COLHER', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
       pinta(); confirma();
     },
     'vender-tudo': async () => {
-      const c = visao(app.motor.mundo, app.eu).hud.colheita;
+      const c = visao(app.motor.mundo, app.eu, Date.now()).hud.colheita;
       if (!c.length) return aviso('celeiro vazio — nada pra vender', true);
       for (const item of c) await manda({ tipo: 'VENDER', cultura: item.cultura, quantidade: item.qtd });
     },
     'comprar-canteiro': () => manda({ tipo: 'COMPRAR_CANTEIRO' }),
+    'cumprir-missao': () => manda({ tipo: 'CUMPRIR_MISSAO', indice: Number(d.indice) }),
     demolir: () => { if (confirm('Desmanchar? Volta metade do material.')) manda({ tipo: 'DEMOLIR', construcao: d.construcao }); },
   };
   acoes[d.acao]?.();

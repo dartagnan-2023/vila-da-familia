@@ -1,6 +1,9 @@
 import { CULTURAS, CONSTRUCOES, OBRAS, CUSTO_ENERGIA, CONFIG, SPRITES } from './conteudo.js';
 import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida } from './mundo.js';
+import { rngPara } from './rng.js';
 import { choveu } from './simular.js';
+import { estaMadura, estaMolhada, estresseDe, rotuloDuracao } from './tempo.js';
+import { TEMPO, MISSOES } from './conteudo.js';
 
 // ---------------------------------------------------------------------------
 // Regras: comando -> (validacao) -> lista de eventos.
@@ -35,7 +38,7 @@ function rendimento(mundo, her, tile) {
   let mult = 0.6 + 0.4 * (her.fertilidade / 100);
   if (vizinhas(mundo, her.id).some((v) => temConstrucao(v, 'poliniza'))) mult += 0.15;
   mult -= her.poluicao / 200;
-  mult -= Math.min(0.5, tile.estresse * 0.1);
+  mult -= Math.min(0.5, estresseDe(tile) * 0.1);
   mult += c.estacoes.includes(mundo.estacao) ? 0.2 : -0.2;
   mult += (mundo.comuns.harmonia - 50) / 250;
   return Math.max(1, Math.round(base * Math.max(0.2, mult)));
@@ -47,6 +50,15 @@ function custoAgua(her, cultura) {
   return Math.max(1, Math.round(c.agua * fator * 0.6));
 }
 
+/** Regar so faz sentido se a planta esta (quase) seca e nao esta chovendo. */
+function precisaRegar(mundo, t) {
+  if (estaMadura(t)) return 'ja esta pronta — e so colher';
+  if (choveu(mundo.clima)) return 'esta chovendo — a chuva rega por voce';
+  const resta = t.regadoAte - mundo.agora;
+  if (resta > TEMPO.remolharAntes) return `ainda esta molhada (mais ${rotuloDuracao(resta)})`;
+  return null;
+}
+
 // --- acoes reutilizaveis (usadas direto ou via AJUDAR) ----------------------
 
 function eventoRegar(mundo, { her, tile, ator, energia }) {
@@ -55,7 +67,7 @@ function eventoRegar(mundo, { her, tile, ator, energia }) {
   return {
     tipo: 'REGOU',
     ator,
-    dados: { herdade: her.id, tile, energia },
+    dados: { herdade: her.id, tile, energia, regadoAte: mundo.agora + TEMPO.aguaDura },
     comuns: { agua: -gasto },
     texto: `${nome(mundo, ator)} regou ${CULTURAS[t.cultura].nome.toLowerCase()} em ${her.nome} (-${gasto} de agua comum).`,
   };
@@ -138,8 +150,8 @@ export const REGRAS = {
       if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
       const t = her.tiles[cmd.tile];
       if (!t) return 'nao ha nada plantado ai';
-      if (t.regadoEm === mundo.tick) return 'ja foi regado hoje';
-      if (choveu(mundo.clima)) return 'esta chovendo — a chuva rega por voce';
+      const erroAgua = precisaRegar(mundo, t);
+      if (erroAgua) return erroAgua;
       if (mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o poco comum secou';
       return null;
     },
@@ -157,7 +169,7 @@ export const REGRAS = {
       if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
       const t = her.tiles[cmd.tile];
       if (!t) return 'nao ha nada plantado ai';
-      if (t.idade < CULTURAS[t.cultura].dias) return 'ainda nao esta no ponto';
+      if (!estaMadura(t)) return 'ainda nao esta no ponto';
       return null;
     },
     emite(mundo, cmd) {
@@ -178,10 +190,9 @@ export const REGRAS = {
       if (!['REGAR', 'COLHER'].includes(cmd.acao)) return 'so da para ajudar regando ou colhendo';
       const t = her.tiles[cmd.tile];
       if (!t) return 'nao ha nada plantado ai';
-      if (cmd.acao === 'REGAR' && t.regadoEm === mundo.tick) return 'ja foi regado hoje';
-      if (cmd.acao === 'REGAR' && choveu(mundo.clima)) return 'esta chovendo — a chuva rega por voce';
+      if (cmd.acao === 'REGAR') { const e = precisaRegar(mundo, t); if (e) return e; }
       if (cmd.acao === 'REGAR' && mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o poco comum secou';
-      if (cmd.acao === 'COLHER' && t.idade < CULTURAS[t.cultura].dias) return 'ainda nao esta no ponto';
+      if (cmd.acao === 'COLHER' && !estaMadura(t)) return 'ainda nao esta no ponto';
       return null;
     },
     emite(mundo, cmd) {
@@ -362,6 +373,31 @@ export const REGRAS = {
     },
   },
 
+  // Missao do dia cumprida: o premio e o motivo de entrar hoje.
+  CUMPRIR_MISSAO: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      const missao = missoesDoDia(mundo)[cmd.indice];
+      if (!missao) return 'missao inexistente';
+      const p = mundo.jogadores[cmd.por];
+      if (p.missoesFeitas.includes(cmd.indice)) return 'premio ja recebido hoje';
+      if ((p.hoje[missao.chave] ?? 0) < missao.meta) return 'ainda nao cumpriu';
+      return null;
+    },
+    emite(mundo, cmd) {
+      const missao = missoesDoDia(mundo)[cmd.indice];
+      const premio = Object.entries(missao.premio).map(([k, v]) => `+${v} ${k}`).join(', ');
+      return [{
+        tipo: 'MISSAO_CUMPRIDA',
+        ator: cmd.por,
+        dados: { indice: cmd.indice, premio: missao.premio },
+        comuns: { harmonia: 1 },
+        texto: `${nome(mundo, cmd.por)} cumpriu a missao "${missao.texto}" (${premio}).`,
+      }];
+    },
+  },
+
   DEMOLIR: {
     valida(mundo, cmd) {
       const her = alvo(mundo, cmd);
@@ -482,5 +518,23 @@ export const REGRAS = {
 };
 
 const resumo = (rec) => Object.entries(rec).map(([k, v]) => `${v} de ${k}`).join(' e ');
+
+/** As 3 missoes de hoje: sorteio deterministico por semente + dia. */
+export function missoesDoDia(mundo) {
+  const rnd = rngPara(mundo.semente, mundo.tick, 'missoes');
+  const sorteadas = [...MISSOES];
+  for (let i = sorteadas.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [sorteadas[i], sorteadas[j]] = [sorteadas[j], sorteadas[i]];
+  }
+  const out = [];
+  for (const m of sorteadas) {
+    if (m.chave === 'regas' && choveu(mundo.clima)) continue; // ninguem rega na chuva
+    if (out.some((o) => o.chave === m.chave)) continue;
+    out.push(m);
+    if (out.length === 3) break;
+  }
+  return out;
+}
 
 export { rendimento, custoAgua, energiaDe };
