@@ -88,9 +88,9 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       laco: laco(eu ? (eu.reputacao[p.id] ?? 0) : 0, p.id === jogadorId),
       feitos: p.feitos,
     })),
-    presagios: mundo.destino.presagios.slice(-5).reverse(),
+    presagios: presagiosDoDia(mundo),
     marcos: mundo.destino.marcos,
-    feed: mundo.feed.slice(-25).reverse().map((l) => ({
+    feed: agruparFeed(mundo).slice(-25).reverse().map((l) => ({
       ...l,
       autor: mundo.jogadores[l.ator]?.nome ?? 'A vila',
       sprite: mundo.jogadores[l.ator]?.sprite ?? '📜',
@@ -253,4 +253,52 @@ export function acoesPossiveis(mundo, jogadorId, comandos) {
     const erro = regra ? regra.valida(mundo, c) : 'comando desconhecido';
     return { comando: c, habilitado: !erro, motivo: erro ?? null };
   });
+}
+
+// Nove "Pipo plantou trigo" seguidos viram "Pipo plantou 9x trigo". O mural
+// e para ler o dia da familia, nao para contar cliques.
+const AGRUPAVEIS = { PLANTOU: 'plantou', COLHEU: 'colheu', CUIDOU: 'cuidou de' };
+export function agruparFeed(mundo) {
+  const out = [];
+  for (const l of mundo.feed) {
+    if (l.tipo === 'AJUDOU') continue; // a linha seguinte (cuidou/colheu) ja diz onde
+    const ult = out[out.length - 1];
+    const mesmoBloco = ult && ult.tipo === l.tipo && ult.ator === l.ator && AGRUPAVEIS[l.tipo]
+      && ult.ref?.herdade && ult.ref.herdade === l.ref?.herdade;
+    if (!mesmoBloco) { out.push({ ...l, itens: [l] }); continue; }
+    ult.itens.push(l);
+    ult.seq = l.seq; ult.tick = l.tick;
+    ult.comuns = somaComuns(ult.comuns, l.comuns);
+    ult.texto = textoAgrupado(mundo, ult);
+  }
+  return out;
+}
+
+function textoAgrupado(mundo, l) {
+  const quem = mundo.jogadores[l.ator]?.nome ?? 'Alguem';
+  const onde = mundo.herdades[l.ref.herdade]?.nome ?? 'a horta';
+  const porCultura = {};
+  for (const i of l.itens) {
+    const c = i.ref?.cultura;
+    if (c) porCultura[c] = (porCultura[c] ?? 0) + (l.tipo === 'COLHEU' ? (i.ref.quantidade ?? 1) : 1);
+  }
+  const partes = Object.entries(porCultura).map(([c, n]) => `${n}x ${nomeDe(c).toLowerCase()}`);
+  const coisa = partes.length ? partes.join(' e ') : `${l.itens.length} canteiros`;
+  return `${quem} ${AGRUPAVEIS[l.tipo]} ${coisa} em ${onde}.`;
+}
+
+const somaComuns = (a, b) => {
+  if (!a && !b) return undefined;
+  const r = { ...(a ?? {}) };
+  for (const [k, v] of Object.entries(b ?? {})) r[k] = (r[k] ?? 0) + v;
+  return r;
+};
+
+// So o que o mundo disse na ULTIMA virada: presagio velho e noticia velha.
+function presagiosDoDia(mundo) {
+  const lista = mundo.destino.presagios;
+  if (!lista.length) return [];
+  const ultimoTick = lista[lista.length - 1].tick;
+  const vistos = new Set();
+  return lista.filter((p) => p.tick === ultimoTick && !vistos.has(p.chave) && vistos.add(p.chave)).reverse();
 }

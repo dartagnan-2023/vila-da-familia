@@ -69,7 +69,7 @@ const SLOTS = [
   { tecla: '3', chave: 'semente',  nome: 'Semente',        icone: 'spa', dica: 'Escolher o que plantar nos canteiros vazios.' },
   { tecla: '4', chave: 'machado',  nome: 'Madeira',        icone: 'carpenter', dica: 'Machado: +3 a 5 de madeira, depois descansa 3 min. Tira 3 da mata comum.', cmd: { tipo: 'CORTAR' } },
   { tecla: '5', chave: 'picareta', nome: 'Pedra',          icone: 'construction', dica: 'Picareta: +2 a 4 de pedra, depois descansa 5 min.', cmd: { tipo: 'MINERAR' } },
-  { tecla: '6', chave: 'muda',     nome: 'Replantar',      icone: 'park', dica: 'Gasta 2 de madeira e devolve +4 de mata comum.', cmd: { tipo: 'PLANTAR_ARVORE' } },
+  { tecla: '6', chave: 'muda',     nome: 'Reflorestar',    icone: 'park', dica: 'Planta uma muda na mata comum: gasta 2 de madeira e devolve +4 de mata.', cmd: { tipo: 'PLANTAR_ARVORE' } },
   { tecla: '7', chave: 'martelo',  nome: 'Construir',      icone: 'handyman', dica: 'Benfeitoria na sua herdade (custa madeira, pedra, moedas).', abre: 'construir' },
   { tecla: '8', chave: 'presente', nome: 'Presente',       icone: 'redeem', dica: 'Dar recurso para um parente.', abre: 'presentear' },
   { tecla: '9', chave: 'recado',   nome: 'Recado',         icone: 'campaign', dica: 'Deixar um recado no mural da família.', abre: 'recado' },
@@ -214,13 +214,18 @@ function novidadesDesde(seqVisto) {
   const minha = eu?.herdade;
   const nomeDe = (id) => m.jogadores[id]?.nome ?? 'alguém';
   const linhas = [];
+  const contagem = {};
   let dias = 0;
   for (const l of m.feed) {
     if (l.seq <= seqVisto || l.ator === app.eu) continue;
     const r = l.ref ?? {};
     if (l.tipo === 'DIA_PASSOU') dias++;
-    else if (l.tipo === 'AJUDOU' && r.para === app.eu) linhas.push(`🤝 ${nomeDe(l.ator)} foi cuidar da sua horta`);
-    else if ((l.tipo === 'CUIDOU' || l.tipo === 'COLHEU') && r.herdade === minha) linhas.push(`${l.tipo === 'CUIDOU' ? '🤲' : '🌾'} ${nomeDe(l.ator)} ${l.tipo === 'CUIDOU' ? 'cuidou de' : 'colheu'} um canteiro seu`);
+    else if (l.tipo === 'AJUDOU') {} // a linha seguinte (cuidou/colheu) ja conta
+    else if ((l.tipo === 'CUIDOU' || l.tipo === 'COLHEU') && r.herdade === minha) {
+      const k = `${l.tipo}:${l.ator}`;
+      contagem[k] = (contagem[k] ?? 0) + 1;
+      if (contagem[k] === 1) linhas.push({ k }); // guarda o lugar; o texto vem no fim
+    }
     else if (l.tipo === 'ENCOMENDA_ENTREGUE' || l.tipo === 'PRODUZIU') {}
     else if (l.tipo === 'ABRACOU' && r.para === app.eu) linhas.push(`❤️ ${nomeDe(l.ator)} te mandou um abraço`);
     else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push(`🎁 ${l.texto}`);
@@ -229,7 +234,14 @@ function novidadesDesde(seqVisto) {
     else if (l.tipo === 'OBRA_CONCLUIDA') linhas.push(`🏆 ${l.texto}`);
     else if (l.tipo === 'DESTINO') linhas.push(`🔮 ${l.texto}`);
   }
-  return { dias, linhas: linhas.slice(-10) };
+  const prontas = linhas.map((l) => {
+    if (typeof l === 'string') return l;
+    const [tipo, ator] = l.k.split(':');
+    const n = contagem[l.k];
+    const canteiros = n === 1 ? 'um canteiro seu' : `${n} canteiros seus`;
+    return tipo === 'CUIDOU' ? `🤲 ${nomeDe(ator)} cuidou de ${canteiros}` : `🌾 ${nomeDe(ator)} colheu ${canteiros}`;
+  });
+  return { dias, linhas: prontas.slice(-10) };
 }
 
 function mostrarNovidades() {
@@ -812,12 +824,19 @@ function abreModal(qual) {
         <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="fecha-modal">Ver a vila</button>`);
     },
 
-    semente: () => caixa('Escolher semente', `<div class="grid grid-cols-2 gap-gutter-xs">
+    semente: () => {
+      const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio).length;
+      const atual = v.catalogo.culturas.find((c) => c.chave === app.cultura);
+      return caixa('Escolher semente', `
+      ${vazios && atual ? `<button class="w-full mb-gutter-xs bg-primary text-on-primary font-label-md text-label-md uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="plantar-tudo">${atual.icone} Plantar ${esc(atual.nome)} nos ${vazios} vazios · ${vazios * atual.semente} G</button>` : ''}
+      <div class="grid grid-cols-2 gap-gutter-xs">
       ${v.catalogo.culturas.map((c) => `
         <button class="bg-surface-container p-gutter-xs shadow-[1px_1px_0_0_#221b08] press text-left ${app.cultura === c.chave ? 'ring-2 ring-tertiary-fixed-dim' : ''} ${c.liberada ? '' : 'opacity-50'}" data-acao="escolhe-cultura" data-cultura="${c.chave}" ${c.liberada ? '' : 'disabled'}>
           <span class="font-label-md text-label-md uppercase">${c.icone} ${esc(c.nome)} ${c.liberada ? '' : `🔒 nv ${c.nivel}`}</span>
           <p class="font-body-sm text-[11px] text-on-surface-variant">${c.minutos} min · ${c.semente} G → ${c.rende}× ${c.preco} G · +${c.xp} XP${c.daEstacao ? '' : ' · <span class="text-error">fora de estação (−30%)</span>'}</p>
-        </button>`).join('')}</div>`),
+        </button>`).join('')}</div>
+      <p class="font-body-sm text-[11px] text-on-surface-variant mt-1">Escolher uma semente e clicar num canteiro vazio planta uma. O botão de cima planta em todos.</p>`);
+    },
 
     construir: () => caixa('Construir na sua herdade', `<div class="space-y-gutter-xs">
       ${Object.entries(CONSTRUCOES).map(([k, b]) => {
@@ -868,7 +887,10 @@ function abreModal(qual) {
       const h = app.motor.mundo.herdades[app.herdadeAberta];
       const dono = app.motor.mundo.jogadores[h.dono];
       const tiles = h.tiles.map((t, i) => ({ t, i })).filter((x) => x.t);
-      return caixa(`Ajudar ${esc(dono.nome)}`, tiles.length ? `<div class="grid grid-cols-3 gap-gutter-xs">
+      const pendentes = tiles.filter(({ t }) => estaMadura(t) || t.problema).length;
+      return caixa(`Ajudar ${esc(dono.nome)}`, tiles.length ? `
+        ${pendentes > 1 ? `<button class="w-full mb-gutter-xs bg-primary text-on-primary font-label-md text-label-md uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="ajudar-tudo" data-herdade="${h.id}">🤝 Ajudar em tudo (${pendentes})</button>` : ''}
+        <div class="grid grid-cols-3 gap-gutter-xs">
         ${tiles.map(({ t, i }) => {
           const pronto = estaMadura(t);
           const acao = pronto ? 'COLHER' : 'CUIDAR';
@@ -907,6 +929,29 @@ async function manda(cmd) {
   pinta();
   confirma();
   festejaNivel(nivelAntes);
+}
+
+// Varios comandos de uma vez (colher tudo, plantar tudo): para no primeiro erro,
+// pinta uma vez so e festeja o nivel no fim.
+async function mandaVarios(cmds, seVazio) {
+  if (!cmds.length) return aviso(seVazio, true);
+  const nivelAntes = nivelDe(app.motor.mundo.jogadores[app.eu]?.xp ?? 0);
+  let feitos = 0;
+  for (const cmd of cmds) {
+    const r = await app.sessao.executar({ ...cmd, data: dataLocal() });
+    if (!r.ok) { aviso(r.erro, true); break; }
+    feitos++;
+  }
+  pinta();
+  if (feitos) confirma();
+  festejaNivel(nivelAntes);
+}
+
+// O modal de ajuda fica aberto enquanto tiver o que fazer na horta do parente.
+function reabreAjudar(herdade) {
+  const h = app.motor.mundo.herdades[herdade];
+  const resta = h.tiles.some((t) => t && (estaMadura(t) || t.problema));
+  if (resta) { app.herdadeAberta = herdade; abreModal('ajudar'); } else fechaModal();
 }
 
 // "✓ regou trigo · −1 agua": o ultimo ato meu, com o que ele custou/deu pra vila.
@@ -987,7 +1032,18 @@ document.addEventListener('click', async (e) => {
       app.herdadeAberta = d.herdade;
       abreModal('ajudar');
     },
-    ajudar: async () => { fechaModal(); await manda({ tipo: 'AJUDAR', herdade: d.herdade, tile: Number(d.tile), acao: d.sub }); },
+    ajudar: async () => { await manda({ tipo: 'AJUDAR', herdade: d.herdade, tile: Number(d.tile), acao: d.sub }); reabreAjudar(d.herdade); },
+    'ajudar-tudo': async () => {
+      const h = app.motor.mundo.herdades[d.herdade];
+      const cmds = h.tiles.map((t, i) => t && (estaMadura(t) || t.problema) ? { tipo: 'AJUDAR', herdade: h.id, tile: i, acao: estaMadura(t) ? 'COLHER' : 'CUIDAR' } : null).filter(Boolean);
+      await mandaVarios(cmds, 'nada pra ajudar aqui agora');
+      reabreAjudar(d.herdade);
+    },
+    'plantar-tudo': async () => {
+      const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => x.vazio);
+      fechaModal();
+      await mandaVarios(c.map((x) => ({ tipo: 'PLANTAR', tile: x.i, cultura: app.cultura })), 'nenhum canteiro vazio');
+    },
     abracar: async () => { fechaModal(); await manda({ tipo: 'ABRACAR', para: d.para }); },
     presentear: async () => { await manda({ tipo: 'PRESENTEAR', para: d.para, recurso: d.recurso, quantidade: 5 }); },
     recado: async () => { const t = $('in-recado').value; fechaModal(); await manda({ tipo: 'RECADO', texto: t }); },
@@ -996,18 +1052,14 @@ document.addEventListener('click', async (e) => {
     vender: () => manda({ tipo: 'VENDER', cultura: d.cultura, quantidade: Number(d.qtd) }),
     'cuidar-tudo': async () => {
       const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => x.problema);
-      if (!c.length) return aviso('ninguém está pedindo nada', true);
-      for (const x of c) { const r = await app.sessao.executar({ tipo: 'CUIDAR', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
-      pinta(); confirma();
+      await mandaVarios(c.map((x) => ({ tipo: 'CUIDAR', tile: x.i })), 'ninguém está pedindo nada');
     },
     produzir: () => manda({ tipo: 'PRODUZIR', produto: d.produto }),
     recolher: () => manda({ tipo: 'RECOLHER', maquina: d.maquina }),
     'cumprir-encomenda': () => manda({ tipo: 'CUMPRIR_ENCOMENDA', indice: Number(d.indice) }),
     'colher-tudo': async () => {
       const c = visao(app.motor.mundo, app.eu, Date.now()).minhaHerdade.canteiros.filter((x) => x.pronto);
-      if (!c.length) return aviso('nada maduro ainda', true);
-      for (const x of c) { const r = await app.sessao.executar({ tipo: 'COLHER', tile: x.i, data: dataLocal() }); if (!r.ok) { aviso(r.erro, true); break; } }
-      pinta(); confirma();
+      await mandaVarios(c.map((x) => ({ tipo: 'COLHER', tile: x.i })), 'nada maduro ainda');
     },
     'vender-tudo': async () => {
       const c = visao(app.motor.mundo, app.eu, Date.now()).hud.colheita;
