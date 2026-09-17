@@ -73,7 +73,7 @@ const SLOTS = [
   { tecla: '7', chave: 'martelo',  nome: 'Construir',      icone: 'handyman', dica: 'Benfeitoria na sua herdade (custa madeira, pedra, moedas).', abre: 'construir' },
   { tecla: '8', chave: 'presente', nome: 'Presente',       icone: 'redeem', dica: 'Dar recurso para um parente.', abre: 'presentear' },
   { tecla: '9', chave: 'recado',   nome: 'Recado',         icone: 'campaign', dica: 'Deixar um recado no mural da família.', abre: 'recado' },
-  { tecla: '0', chave: 'vender',   nome: 'Vender',         icone: 'monetization_on', dica: 'Vende tudo que esta no celeiro. O dia vira sozinho a meia-noite.', acao: 'vender-tudo' },
+  { tecla: '0', chave: 'vender',   nome: 'Vender',         icone: 'monetization_on', dica: 'Vende o celeiro pelo preco de feira. Guarda o que as encomendas pedem: elas pagam +50%.', acao: 'vender-tudo' },
 ];
 
 // --- entrada ---------------------------------------------------------------
@@ -1062,9 +1062,21 @@ document.addEventListener('click', async (e) => {
       await mandaVarios(c.map((x) => ({ tipo: 'COLHER', tile: x.i })), 'nada maduro ainda');
     },
     'vender-tudo': async () => {
-      const c = visao(app.motor.mundo, app.eu, Date.now()).hud.colheita;
-      if (!c.length) return aviso('celeiro vazio — nada pra vender', true);
-      for (const item of c) await manda({ tipo: 'VENDER', cultura: item.cultura, quantidade: item.qtd });
+      const v = visao(app.motor.mundo, app.eu, Date.now());
+      if (!v.hud.colheita.length) return aviso('celeiro vazio — nada pra vender', true);
+      // Encomenda pronta? Entregar vale mais que vender: avisa e nao mexe no celeiro.
+      const pronta = v.encomendas.find((e) => e.pronta);
+      if (pronta) return aviso(`📦 entrega a encomenda de ${pronta.cliente} primeiro (+${pronta.moedas} G, paga +50%)`, true);
+      // Reserva o que alguma encomenda ainda pede.
+      const reservado = {};
+      for (const e of v.encomendas) for (const i of e.itens) reservado[i.chave] = Math.max(reservado[i.chave] ?? 0, i.qtd);
+      let guardou = [];
+      for (const item of v.hud.colheita) {
+        const qtd = item.qtd - Math.min(item.qtd, reservado[item.cultura] ?? 0);
+        if (qtd < item.qtd) guardou.push(`${item.qtd - qtd} ${item.nome.toLowerCase()}`);
+        if (qtd > 0) await manda({ tipo: 'VENDER', cultura: item.cultura, quantidade: qtd });
+      }
+      if (guardou.length) aviso(`guardei ${guardou.join(', ')} pra encomenda`);
     },
     'comprar-canteiro': () => manda({ tipo: 'COMPRAR_CANTEIRO' }),
     'cumprir-missao': () => manda({ tipo: 'CUMPRIR_MISSAO', indice: Number(d.indice) }),

@@ -300,5 +300,8 @@ function presagiosDoDia(mundo) {
   if (!lista.length) return [];
   const ultimoTick = lista[lista.length - 1].tick;
   const vistos = new Set();
-  return lista.filter((p) => p.tick === ultimoTick && !vistos.has(p.chave) && vistos.add(p.chave)).reverse();
+  // Humor da vila e vivo: se a familia ja se acertou, o "emburrado" da manha caducou.
+  const aindaVale = (p) => (p.chave !== 'discordia' || mundo.comuns.harmonia <= LIMIARES.harmoniaBaixa)
+    && (p.chave !== 'festa' || mundo.comuns.harmonia >= LIMIARES.harmoniaAlta);
+  return lista.filter((p) => p.tick === ultimoTick && aindaVale(p) && !vistos.has(p.chave) && vistos.add(p.chave)).reverse();
 }
