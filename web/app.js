@@ -715,6 +715,7 @@ function palcoFamilia(v) {
         <button class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="copiar" data-texto="${chave}">Só a chave</button>
       </div>
       <p class="font-body-sm text-[11px] text-on-surface-variant mt-1">Manda o link: quem abre já cai na vila certa, só digita o nome.</p>
+      <button class="mt-gutter-xs bg-surface-container font-label-sm text-[10px] uppercase px-gutter-md py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="trocar-vila">↩ Trocar de vila</button>
     </div>
     <div>
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Na vila agora</p>
@@ -951,6 +952,7 @@ document.addEventListener('click', async (e) => {
       fundar(vila, nome);
     },
     'abrir-vila': () => abrirVila(d.chave, $('in-nome')?.value.trim() || null),
+    'trocar-vila': () => { app.transporte?.fechar?.(); telaEntrada(); window.scrollTo(0, 0); },
     'usar-chave': () => {
       const nome = $('in-nome').value.trim();
       if (!nome) return aviso('diga seu nome primeiro', true);
