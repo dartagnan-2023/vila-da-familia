@@ -228,21 +228,22 @@ function novidadesDesde(seqVisto) {
       if (contagem[k] === 1) linhas.push({ k }); // guarda o lugar; o texto vem no fim
     }
     else if (l.tipo === 'ENCOMENDA_ENTREGUE' || l.tipo === 'PRODUZIU') {}
-    else if (l.tipo === 'ABRACOU' && r.para === app.eu) linhas.push(`❤️ ${nomeDe(l.ator)} te mandou um abraço`);
-    else if (l.tipo === 'ANUNCIOU') linhas.push(`🏪 ${l.texto.replace(/\.$/, '')}`);
+    else if (l.tipo === 'ABRACOU' && r.para === app.eu) linhas.push({ t: `❤️ ${nomeDe(l.ator)} te mandou um abraço`, abre: { modal: 'abracar' }, dica: 'retribuir' });
+    else if (l.tipo === 'ANUNCIOU') linhas.push({ t: `🏪 ${l.texto.replace(/\.$/, '')}`, abre: { aba: 'vendinha' }, dica: 'ver na vendinha' });
     else if (l.tipo === 'COMPROU' && r.para === app.eu) linhas.push(`💰 ${l.texto.replace(/\.$/, '')} — o dinheiro já está com você`);
-    else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push(`🎁 ${l.texto}`);
-    else if (l.tipo === 'RECADO' && (!r.para || r.para === app.eu)) linhas.push(`💬 ${r.para ? l.texto.replace(/ → [^:]+:/, ' → você:') : l.texto}`);
+    else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push({ t: `🎁 ${l.texto}`, abre: { modal: 'recado', para: l.ator }, dica: 'agradecer' });
+    else if (l.tipo === 'RECADO' && (!r.para || r.para === app.eu)) linhas.push({ t: `💬 ${r.para ? l.texto.replace(/ → [^:]+:/, ' → você:') : l.texto}`, abre: { modal: 'recado', para: r.para ? l.ator : null }, dica: 'responder' });
     else if (l.tipo === 'JOGADOR_ENTROU') linhas.push(`🏠 ${nomeDe(l.ator)} chegou na vila!`);
     else if (l.tipo === 'OBRA_CONCLUIDA') linhas.push(`🏆 ${l.texto}`);
     else if (l.tipo === 'DESTINO') linhas.push(`🔮 ${l.texto}`);
   }
   const prontas = linhas.map((l) => {
-    if (typeof l === 'string') return l;
+    if (typeof l === 'string') return { t: l };
+    if (l.t) return l;
     const [tipo, ator] = l.k.split(':');
     const n = contagem[l.k];
     const canteiros = n === 1 ? 'um canteiro seu' : `${n} canteiros seus`;
-    return tipo === 'CUIDOU' ? `🤲 ${nomeDe(ator)} cuidou de ${canteiros}` : `🌾 ${nomeDe(ator)} colheu ${canteiros}`;
+    return { t: tipo === 'CUIDOU' ? `🤲 ${nomeDe(ator)} cuidou de ${canteiros}` : `🌾 ${nomeDe(ator)} colheu ${canteiros}`, abre: { modal: 'abracar' }, dica: 'agradecer com um abraço' };
   });
   return { dias, linhas: prontas.slice(-10) };
 }
@@ -899,7 +900,7 @@ function abreModal(qual) {
       return caixa('Enquanto você esteve fora', `
         ${n.dias ? `<p class="font-label-sm text-label-sm uppercase text-secondary mb-1">${n.dias === 1 ? 'passou 1 dia' : `passaram ${n.dias} dias`} na vila</p>` : ''}
         <div class="space-y-1 font-body-sm text-[12px]">
-          ${n.linhas.length ? n.linhas.map((l) => `<div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">${esc(l)}</div>`).join('') : `<p class="text-on-surface-variant">Tudo quieto por aqui.</p>`}
+          ${n.linhas.length ? n.linhas.map((l) => linhaPraVoce(l)).join('') : `<p class="text-on-surface-variant">Tudo quieto por aqui.</p>`}
         </div>
         <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="fecha-modal">Ver a vila</button>`);
     },
@@ -1045,17 +1046,24 @@ function abreModal(qual) {
 
 const fechaModal = () => { $('modal').hidden = true; };
 
-function aviso(texto, ruim = false) {
-  const d = document.createElement('div');
-  d.className = `${ruim ? 'bg-error text-on-error' : 'bg-primary text-on-primary'} font-label-sm text-label-sm uppercase px-gutter-md py-pixel-step shadow-[3px_3px_0_0_#221b08]`;
-  d.textContent = texto;
+function aviso(texto, ruim = false, aoClicar = null) {
+  const d = document.createElement(aoClicar ? 'button' : 'div');
+  d.className = `${ruim ? 'bg-error text-on-error' : 'bg-primary text-on-primary'} font-label-sm text-label-sm uppercase px-gutter-md py-pixel-step shadow-[3px_3px_0_0_#221b08] ${aoClicar ? 'press cursor-pointer' : ''}`;
+  d.textContent = aoClicar ? `${texto} → abrir` : texto;
+  if (aoClicar) d.onclick = () => { d.remove(); aoClicar(); };
   $('avisos').appendChild(d);
-  setTimeout(() => d.remove(), 2600);
+  setTimeout(() => d.remove(), aoClicar ? 8000 : 2600);
 }
 
 // --- "pra voce": o que a familia fez com voce, ate voce dizer que viu ---------
 // Toast some em 3 segundos; abraco de mae nao pode sumir. Fica na tela.
 const lidoChave = () => `vila:lido:${app.chave}`;
+// Cada linha do "pra voce" leva pra onde da pra responder: recado abre a conversa, abraco abre o abracar.
+function linhaPraVoce(l) {
+  if (!l.abre) return `<div>${esc(l.t)}</div>`;
+  const dados = Object.entries(l.abre).map(([k, v]) => `data-${k}="${esc(v ?? '')}"`).join(' ');
+  return `<button class="block w-full text-left hover:underline press" data-acao="abre-novidade" ${dados}>${esc(l.t)} <span class="font-label-sm text-[9px] uppercase opacity-70">→ ${esc(l.dica ?? 'abrir')}</span></button>`;
+}
 function caixaPraVoce() {
   if (!app.motor || !app.eu) return '';
   const lido = Number(localStorage.getItem(lidoChave()) ?? 0);
@@ -1068,7 +1076,7 @@ function caixaPraVoce() {
     <div class="bg-tertiary-fixed text-on-tertiary-fixed p-gutter-xs shadow-[4px_4px_0_0_#221b08] flex items-start gap-gutter-sm">
       <span class="font-headline-md text-[14px] uppercase whitespace-nowrap">📬 Pra você${n.linhas.length > 1 ? ` (${n.linhas.length})` : ''}</span>
       <div class="flex-1 font-body-sm text-[12px] leading-snug">
-        ${mostra.map((l) => `<div>${esc(l)}</div>`).join('')}
+        ${mostra.map((l) => linhaPraVoce(l)).join('')}
         ${resto > 0 ? `<div class="opacity-70">e mais ${resto}…</div>` : ''}
       </div>
       <button class="bg-surface-container-low text-secondary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press whitespace-nowrap" data-acao="lido">✓ vi</button>
@@ -1093,8 +1101,9 @@ function avisaChegada(r) {
     if (ev.ator === app.eu) continue;
     const d = ev.dados ?? {};
     let texto = null;
-    if (ev.tipo === 'RECADO') { if (d.para && d.para !== app.eu) continue; texto = `💬 ${d.para ? ev.texto.replace(/ → [^:]+:/, ' → você:') : ev.texto}`; }
-    else if (ev.tipo === 'ABRACOU' && d.para === app.eu) texto = `❤️ ${nomeDe(ev.ator)} te mandou um abraço`;
+    let abre = null;
+    if (ev.tipo === 'RECADO') { if (d.para && d.para !== app.eu) continue; texto = `💬 ${d.para ? ev.texto.replace(/ → [^:]+:/, ' → você:') : ev.texto}`; abre = { modal: 'recado', para: d.para ? ev.ator : null }; }
+    else if (ev.tipo === 'ABRACOU' && d.para === app.eu) { texto = `❤️ ${nomeDe(ev.ator)} te mandou um abraço`; abre = { modal: 'abracar' }; }
     else if (ev.tipo === 'PRESENTEOU' && d.para === app.eu) texto = `🎁 ${ev.texto}`;
     else if (ev.tipo === 'COMPROU' && d.de === app.eu) texto = `💰 ${ev.texto}`;
     else if (ev.tipo === 'ANUNCIOU') texto = `🏪 ${ev.texto}`;
@@ -1108,20 +1117,21 @@ function avisaChegada(r) {
       texto = `🤝 ${nomeDe(ev.ator)} está cuidando da sua horta`;
     }
     ultimoAviso.set(chave, Date.now());
-    notifica(texto);
+    notifica(texto, abre);
   }
 }
 const ultimoAviso = new Map();
 
-function notifica(texto) {
+function notifica(texto, abre = null) {
+  const abrir = () => { if (!abre) return; if (abre.modal === 'recado') app.recadoPara = abre.para ?? null; abreModal(abre.modal); };
   if (document.hidden) {
     naoLidos++;
     document.title = `(${naoLidos}) ${tituloBase}`;
     if (sinoLigado()) {
-      try { const n = new Notification(app.motor.mundo.nome ?? 'Vila Raízes', { body: texto, icon: ICONE_NOTIF, tag: 'vila' }); n.onclick = () => { window.focus(); n.close(); }; } catch {}
+      try { const n = new Notification(app.motor.mundo.nome ?? 'Vila Raízes', { body: `${texto}${abre ? ' — clique pra abrir' : ''}`, icon: ICONE_NOTIF, tag: 'vila' }); n.onclick = () => { window.focus(); n.close(); abrir(); }; } catch {}
     }
   } else {
-    aviso(texto);
+    aviso(texto, false, abre ? abrir : null);
   }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { naoLidos = 0; document.title = tituloBase; } });
@@ -1256,6 +1266,12 @@ document.addEventListener('click', async (e) => {
     'fecha-tutorial': () => { localStorage.setItem('vila:tutorial', '1'); fechaModal(); app.aba = 'herdade'; pinta(); },
     tutorial: () => abreModal('tutorial'),
     'painel-aba': () => { app.painelAba = d.aba; pinta(); },
+    'abre-novidade': () => {
+      fechaModal();
+      if (d.aba) { app.aba = 'vila'; app.painelAba = d.aba; pinta(); document.getElementById('painel')?.scrollIntoView({ block: 'nearest' }); }
+      if (d.modal === 'recado') { app.recadoPara = d.para || null; abreModal('recado'); }
+      else if (d.modal) abreModal(d.modal);
+    },
     lido: () => { localStorage.setItem(lidoChave(), String(app.motor.mundo.seq)); pinta(); },
     sino: async () => {
       // O navegador so deixa PEDIR permissao; desligar e escolha do jogo, guardada aqui.
