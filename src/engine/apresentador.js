@@ -101,7 +101,7 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
     })),
     presagios: presagiosDoDia(mundo),
     marcos: mundo.destino.marcos,
-    feed: agruparFeed(mundo).slice(-25).reverse().map((l) => ({
+    feed: agruparFeed(mundo).slice(-60).reverse().map((l) => ({
       ...l,
       autor: mundo.jogadores[l.ator]?.nome ?? 'A vila',
       sprite: mundo.jogadores[l.ator]?.sprite ?? '📜',

@@ -435,14 +435,31 @@ function hud(v) {
 // --- Ecos do Destino (feed) ------------------------------------------------
 
 function ecos(v) {
+  const ultimos = v.feed.slice(0, 6);
   return `
-  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08] flex flex-col h-[560px]">
-    <div class="bg-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
+  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08] flex flex-col gap-gutter-xs">
+    <div class="bg-surface-dim p-gutter-xs shadow-[inset_1px_1px_0_0_#221b08]">
+      <span class="font-label-sm text-[10px] uppercase text-on-surface-variant block mb-1">Ações de afeto:</span>
+      <div class="grid grid-cols-3 gap-1">
+        <button class="bg-surface-container hover:bg-secondary-fixed font-label-sm text-[11px] py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="abracar">❤️ Abraço</button>
+        <button class="bg-surface-container hover:bg-secondary-fixed font-label-sm text-[11px] py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="presentear">🍎 Presente</button>
+        <button class="bg-surface-container hover:bg-secondary-fixed font-label-sm text-[11px] py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="recado">💬 Recado</button>
+      </div>
+    </div>
+    <div class="bg-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between">
       <span class="font-headline-md text-[14px] text-on-secondary uppercase flex items-center gap-1">${ICO('history_edu', 'text-[16px]')} Ecos do Destino</span>
       <span class="w-2 h-2 bg-primary-fixed pisca"></span>
     </div>
-    <div class="flex-1 overflow-y-auto space-y-panel-pad-sm pr-1">
-      ${v.presagios.map((p) => p.chave === 'festa' ? `
+    ${v.presagios.map((p) => presagioHtml(p)).join('')}
+    <div class="space-y-1">
+      ${ultimos.map((l) => ecoHtml(l)).join('')}
+    </div>
+    <button class="w-full bg-surface-container font-label-sm text-[10px] uppercase py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="aba" data-aba="destino">ver o mural inteiro →</button>
+  </div>`;
+}
+
+function presagioHtml(p) {
+  return p.chave === 'festa' ? `
         <div class="bg-primary-container p-gutter-xs shadow-[inset_1px_1px_0_0_#1b3a0f]">
           <span class="font-label-sm text-[11px] font-bold uppercase text-on-primary-container">🎉 O mundo respondeu</span>
           <p class="font-body-sm text-[12px] text-on-primary-container mt-1 leading-snug">${esc(p.texto)}</p>
@@ -450,8 +467,11 @@ function ecos(v) {
         <div class="bg-error-container p-gutter-xs shadow-[inset_1px_1px_0_0_#93000a]">
           <span class="font-label-sm text-[11px] font-bold uppercase text-on-error-container">🔮 O mundo respondeu</span>
           <p class="font-body-sm text-[12px] text-on-error-container mt-1 leading-snug">${esc(p.texto)}</p>
-        </div>`).join('')}
-      ${v.feed.map((l) => l.tipo === 'DIA_PASSOU' ? `
+        </div>`;
+}
+
+function ecoHtml(l) {
+  return l.tipo === 'DIA_PASSOU' ? `
         <div class="flex items-center gap-1 text-on-surface-variant font-label-sm text-[10px] uppercase py-pixel-unit">
           <span class="flex-1 h-px bg-outline-variant"></span><span>${esc(l.texto.replace(/ \(ano \d+\)/, '').replace(' — ', ' · ').replace(/\.$/, ''))}</span><span class="flex-1 h-px bg-outline-variant"></span>
         </div>` : `
@@ -462,17 +482,7 @@ function ecos(v) {
           </div>
           <p class="font-body-sm text-[12px] text-on-surface mt-1 leading-snug">${esc(l.texto)}${
             l.impacto ? ` ➔ <strong class="${/−/.test(l.impacto) ? 'text-error' : 'text-primary'}">${esc(l.impacto)}</strong>` : ''}</p>
-        </div>`).join('')}
-    </div>
-    <div class="pt-gutter-xs mt-gutter-xs bg-surface-dim p-gutter-xs shadow-[inset_1px_1px_0_0_#221b08]">
-      <span class="font-label-sm text-[10px] uppercase text-on-surface-variant block mb-1">Ações de afeto:</span>
-      <div class="grid grid-cols-3 gap-1">
-        <button class="bg-surface-container hover:bg-secondary-fixed font-label-sm text-[11px] py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="abracar">❤️ Abraço</button>
-        <button class="bg-surface-container hover:bg-secondary-fixed font-label-sm text-[11px] py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="presentear">🍎 Presente</button>
-        <button class="bg-surface-container hover:bg-secondary-fixed font-label-sm text-[11px] py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="recado">💬 Recado</button>
-      </div>
-    </div>
-  </div>`;
+        </div>`;
 }
 
 // --- painel direito: bens comuns + missão ----------------------------------
@@ -738,6 +748,10 @@ function palcoDestino(v) {
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">O que o mundo andou mandando</p>
       ${v.presagios.length ? v.presagios.map((p) => `<div class="bg-error-container p-gutter-xs shadow-[inset_1px_1px_0_0_#93000a] mb-1"><p class="font-body-sm text-[12px] text-on-error-container">${esc(p.texto)}</p></div>`).join('')
         : `<p class="font-body-sm text-[12px] text-primary">Nada de mais. A vila está em ordem.</p>`}
+    </div>
+    <div>
+      <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Tudo que aconteceu (últimos ${v.feed.length})</p>
+      <div class="space-y-1 max-h-[60vh] overflow-y-auto pr-1">${v.feed.map((l) => ecoHtml(l)).join('')}</div>
     </div>
     <div>
       <p class="font-label-sm text-label-sm uppercase text-on-surface-variant mb-1">Marcos da família</p>
