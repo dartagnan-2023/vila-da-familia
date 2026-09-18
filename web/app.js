@@ -410,6 +410,13 @@ function hud(v) {
       ${medidor('TERRA', 'yard', 'text-primary', v.hud.terra, 100, 'bg-primary')}
     </div>
 
+    <div class="flex items-center gap-pixel-step bg-surface-container-low px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08]" title="Bens da vila: de todo mundo. Cada rega, machadada e abraço mexe aqui.">
+      ${v.comuns.map((c) => `
+        <div class="flex items-center gap-1 px-pixel-step py-pixel-unit ${COR_ESTADO[c.estado]} shadow-[1px_1px_0_0_#221b08] ${c.estado === 'critico' ? 'pisca' : ''}" title="${esc(c.rotulo)} ${c.valor}/100 (de todos)">
+          ${ICO(ICONE_COMUM[c.chave], 'text-[14px]')}<span class="font-label-sm text-[11px] font-bold">${c.valor}</span>
+        </div>`).join('')}
+    </div>
+
     <div class="flex items-center gap-gutter-sm bg-surface-container-low px-gutter-sm py-pixel-step shadow-[2px_2px_0_0_#221b08]">
       <div class="flex flex-col">
         <div class="flex items-center justify-between gap-gutter-sm">
@@ -507,69 +514,75 @@ function vendinhaHtml(v) {
 }
 
 function painel(v) {
-  const m = v.missao;
+  const prontas = v.encomendas.filter((e) => e.pronta).length;
+  const lotes = v.vendinha.filter((l) => !l.minha).length;
+  const receber = v.missoesDoDia.filter((m) => m.cumprida && !m.recebida).length;
+  const pedidos = v.pedidosDeAjuda.length;
+  const abas = [
+    ['encomendas', '🚚', 'Encomendas', prontas, 'pronta(s) pra entregar'],
+    ['vendinha', '🏪', 'Vendinha', lotes, 'lote(s) da família à venda'],
+    ['missoes', '📋', 'Missões', receber, 'prêmio(s) pra receber'],
+    ['ajuda', '🤝', 'Ajuda', pedidos, 'pedido(s) de ajuda'],
+  ];
+  if (!abas.some(([k]) => k === app.painelAba)) app.painelAba = 'encomendas';
+  const atual = app.painelAba;
+  const corpo = { encomendas: painelEncomendas, vendinha: painelVendinha, missoes: painelMissoes, ajuda: painelAjuda }[atual](v);
   return `
   <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
-    <div class="bg-tertiary-container text-on-tertiary-container px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
-      <span class="font-headline-md text-[13px] uppercase flex items-center gap-1 font-bold">${ICO('inventory_2', 'text-[16px]')} Bens da Vila</span>
-      <span class="font-label-sm text-[10px]">de todos</span>
+    <div class="grid grid-cols-4 gap-pixel-step mb-panel-pad-sm">
+      ${abas.map(([k, ico, nome, n, dica]) => `
+        <button class="relative flex flex-col items-center py-pixel-step shadow-[2px_2px_0_0_#221b08] press ${k === atual ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'}" data-acao="painel-aba" data-aba="${k}" title="${n ? `${n} ${dica}` : nome}">
+          <span class="text-[16px] leading-none">${ico}</span>
+          <span class="font-label-sm text-[9px] uppercase mt-0.5">${nome}</span>
+          ${n ? `<span class="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-[10px] font-bold flex items-center justify-center shadow-[1px_1px_0_0_#221b08] ${k === atual ? '' : 'pisca'}">${n}</span>` : ''}
+        </button>`).join('')}
     </div>
-    <div class="grid grid-cols-2 gap-gutter-xs">
-      ${v.comuns.map((c) => `
-        <div class="bg-surface-dim p-pixel-step shadow-[inset_1px_1px_0_0_#221b08] flex items-center gap-2" title="${c.pct}%">
-          <div class="w-7 h-7 ${COR_ESTADO[c.estado]} flex items-center justify-center shadow-[1px_1px_0_0_#221b08] ${c.estado === 'critico' ? 'pisca' : ''}">${ICO(ICONE_COMUM[c.chave], 'text-[16px]')}</div>
-          <div class="flex flex-col">
-            <span class="font-label-sm text-[10px] text-on-surface-variant uppercase">${esc(c.rotulo)}</span>
-            <span class="font-label-md text-label-md text-on-surface font-bold">${c.valor}</span>
-          </div>
-        </div>`).join('')}
-    </div>
-    <p class="font-body-sm text-[11px] text-on-surface-variant mt-gutter-xs leading-tight">
-      Tudo aqui é de todo mundo. Cada rega, cada machadada e cada abraço mexe nesses números.
-    </p>
-  </div>
+    ${corpo}
+  </div>`;
+}
 
-  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
-    <div class="bg-primary-container text-on-primary-container px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#245107] flex items-center justify-between mb-panel-pad-sm">
-      <span class="font-headline-md text-[13px] uppercase font-bold">🚚 Encomendas</span>
-      <span class="font-label-sm text-[10px]">pagam +50%</span>
+function painelEncomendas(v) {
+  return `
+    <div class="flex items-center justify-between mb-1">
+      <span class="font-label-md text-label-md uppercase font-bold text-secondary">🚚 Encomendas</span>
+      <span class="font-label-sm text-[10px] text-on-surface-variant">pagam +50%</span>
     </div>
     <div class="space-y-1">
       ${v.encomendas.map((e) => encomendaHtml(e)).join('')}
-    </div>
-  </div>
+    </div>`;
+}
 
-  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]" id="vendinha">
-    <div class="bg-tertiary-container text-on-tertiary-container px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
-      <span class="font-headline-md text-[13px] uppercase font-bold">🏪 Vendinha da vila</span>
-      <span class="font-label-sm text-[10px]">${v.minhaVendinha ? `${v.minhaVendinha.lotes}/${v.minhaVendinha.maximo} lotes meus` : ''}</span>
+function painelVendinha(v) {
+  return `
+    <div class="flex items-center justify-between mb-1" id="vendinha">
+      <span class="font-label-md text-label-md uppercase font-bold text-secondary">🏪 Vendinha da vila</span>
+      <span class="font-label-sm text-[10px] text-on-surface-variant">${v.minhaVendinha ? `${v.minhaVendinha.lotes}/${v.minhaVendinha.maximo} lotes meus` : ''}</span>
     </div>
     ${vendinhaHtml(v)}
-  </div>
+    <p class="font-body-sm text-[10px] text-on-surface-variant mt-1">Pra anunciar: Minha Herdade → Celeiro → 🏪.</p>`;
+}
 
-
-  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
-    <div class="bg-secondary text-on-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
-      <span class="font-headline-md text-[13px] uppercase font-bold">📋 Missões de hoje</span>
-      <span class="font-label-sm text-[10px]">${v.missoesDoDia.filter((m) => m.recebida).length}/${v.missoesDoDia.length}</span>
+function painelMissoes(v) {
+  const m = v.missao;
+  return `
+    <div class="flex items-center justify-between mb-1">
+      <span class="font-label-md text-label-md uppercase font-bold text-secondary">📋 Missões de hoje</span>
+      <span class="font-label-sm text-[10px] text-on-surface-variant">${v.missoesDoDia.filter((x) => x.recebida).length}/${v.missoesDoDia.length} · novas à meia-noite</span>
     </div>
     <div class="space-y-1">
-      ${v.missoesDoDia.map((m) => `
-        <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b] ${m.recebida ? 'opacity-60' : ''}">
+      ${v.missoesDoDia.map((x) => `
+        <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b] ${x.recebida ? 'opacity-60' : ''}">
           <div class="flex items-center justify-between gap-gutter-xs">
-            <span class="font-label-sm text-label-sm uppercase ${m.recebida ? 'line-through' : ''}">${esc(m.texto)}</span>
-            ${m.recebida ? `<span class="font-label-sm text-[10px] text-primary uppercase">✓ feito</span>`
-              : m.cumprida ? `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="cumprir-missao" data-indice="${m.indice}">Receber ${esc(m.premioTexto)}</button>`
-              : `<span class="font-label-sm text-[10px] text-on-surface-variant whitespace-nowrap">${m.feito}/${m.meta} · ${esc(m.premioTexto)}</span>`}
+            <span class="font-label-sm text-label-sm uppercase ${x.recebida ? 'line-through' : ''}">${esc(x.texto)}</span>
+            ${x.recebida ? `<span class="font-label-sm text-[10px] text-primary uppercase">✓ feito</span>`
+              : x.cumprida ? `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="cumprir-missao" data-indice="${x.indice}">Receber ${esc(x.premioTexto)}</button>`
+              : `<span class="font-label-sm text-[10px] text-on-surface-variant whitespace-nowrap">${x.feito}/${x.meta} · ${esc(x.premioTexto)}</span>`}
           </div>
-          <div class="w-full h-1.5 bg-surface-dim shadow-[inset_1px_1px_0_0_#221b08] mt-1"><div class="h-full ${m.cumprida ? 'bg-primary' : 'bg-secondary-container'}" style="width:${Math.round((m.feito / m.meta) * 100)}%"></div></div>
+          <div class="w-full h-1.5 bg-surface-dim shadow-[inset_1px_1px_0_0_#221b08] mt-1"><div class="h-full ${x.cumprida ? 'bg-primary' : 'bg-secondary-container'}" style="width:${Math.round((x.feito / x.meta) * 100)}%"></div></div>
         </div>`).join('')}
     </div>
-    <p class="font-body-sm text-[10px] text-on-surface-variant mt-1">Novas missões à meia-noite.</p>
-  </div>
 
-  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
-    <div class="flex items-center gap-1.5 text-secondary mb-1">
+    <div class="flex items-center gap-1.5 text-secondary mt-gutter-sm mb-1">
       ${ICO('assignment', 'text-[16px]')}<span class="font-label-md text-label-md font-bold uppercase">Missão Familiar</span>
     </div>
     ${m ? `
@@ -584,22 +597,31 @@ function painel(v) {
         <p class="font-label-sm text-[10px] text-error mt-1">${esc(m.chamada)}</p>
       </div>
       <button class="w-full mt-2 bg-primary text-on-primary font-label-sm text-label-sm uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="modal" data-modal="doar">Doar recursos</button>
-    ` : `<p class="font-body-sm text-[12px] text-primary">Todas as obras da vila estão prontas. Isso é raro.</p>`}
-  </div>
+    ` : `<p class="font-body-sm text-[12px] text-primary">Todas as obras da vila estão prontas. Isso é raro.</p>`}`;
+}
 
-  ${v.pedidosDeAjuda.length ? `
-  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
-    <div class="flex items-center gap-1.5 text-secondary mb-1">
-      ${ICO('volunteer_activism', 'text-[16px]')}<span class="font-label-md text-label-md font-bold uppercase">Sua mão faz falta</span>
+function painelAjuda(v) {
+  const porHerdade = new Map();
+  for (const p of v.pedidosDeAjuda) { if (!porHerdade.has(p.herdade)) porHerdade.set(p.herdade, []); porHerdade.get(p.herdade).push(p); }
+  const nomeH = (id) => (app.motor.mundo.herdades[id]?.nome ?? '').replace(/^Herdade /, '');
+  return `
+    <div class="flex items-center justify-between mb-1">
+      <span class="font-label-md text-label-md uppercase font-bold text-secondary">🤝 Sua mão faz falta</span>
+      <span class="font-label-sm text-[10px] text-on-surface-variant">ajudar dá XP, laço e harmonia</span>
     </div>
-    <div class="space-y-1">
-      ${v.pedidosDeAjuda.slice(0, 4).map((p) => `
-        <button class="w-full text-left bg-surface-container px-gutter-xs py-pixel-step shadow-[1px_1px_0_0_#221b08] press font-body-sm text-[11px]"
-          data-acao="ajudar" data-herdade="${p.herdade}" data-tile="${p.tile}" data-sub="${p.acao}">
-          ${p.acao === 'REGAR' ? '💧' : '🌾'} ${esc(p.motivo)}
-        </button>`).join('')}
-    </div>
-  </div>` : ''}`;
+    ${porHerdade.size ? [...porHerdade.entries()].map(([h, lista]) => `
+      <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b] mb-1">
+        <div class="flex items-center justify-between gap-gutter-xs mb-1">
+          <span class="font-label-sm text-label-sm uppercase font-bold">${esc(nomeH(h))}</span>
+          ${lista.length > 1 ? `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="ajudar-tudo" data-herdade="${h}">Ajudar em tudo (${lista.length})</button>` : ''}
+        </div>
+        <div class="space-y-1">
+          ${lista.slice(0, 6).map((p) => `
+            <button class="w-full text-left bg-surface-dim px-gutter-xs py-pixel-step shadow-[1px_1px_0_0_#221b08] press font-body-sm text-[11px]"
+              data-acao="ajudar" data-herdade="${p.herdade}" data-tile="${p.tile}" data-sub="${p.acao}">${p.icone} ${esc(p.motivo.replace(/ em Herdade .*$/, ''))}</button>`).join('')}
+        </div>
+      </div>`).join('')
+    : `<p class="font-body-sm text-[12px] text-on-surface-variant">Ninguém precisa de nada agora. Quando uma planta de parente pedir água, praga ou passar do ponto, aparece aqui — e no mapa.</p>`}`;
 }
 
 // --- palcos ----------------------------------------------------------------
@@ -1195,6 +1217,7 @@ document.addEventListener('click', async (e) => {
     'fecha-modal': fechaModal,
     'fecha-tutorial': () => { localStorage.setItem('vila:tutorial', '1'); fechaModal(); app.aba = 'herdade'; pinta(); },
     tutorial: () => abreModal('tutorial'),
+    'painel-aba': () => { app.painelAba = d.aba; pinta(); },
     lido: () => { localStorage.setItem(lidoChave(), String(app.motor.mundo.seq)); pinta(); },
     sino: async () => {
       const p = await Notification.requestPermission();
