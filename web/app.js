@@ -1051,9 +1051,9 @@ function aviso(texto, ruim = false, aoClicar = null) {
   const d = document.createElement(aoClicar ? 'button' : 'div');
   d.className = `${ruim ? 'bg-error text-on-error' : 'bg-primary text-on-primary'} font-label-sm text-label-sm uppercase px-gutter-md py-pixel-step shadow-[3px_3px_0_0_#221b08] ${aoClicar ? 'press cursor-pointer' : ''}`;
   d.textContent = aoClicar ? `${texto} → abrir` : texto;
-  if (aoClicar) d.onclick = () => { d.remove(); aoClicar(); };
+  if (aoClicar) { d.onclick = () => { d.remove(); aoClicar(); }; d.classList.add('text-[13px]', 'normal-case', 'border-4', 'border-tertiary-fixed-dim'); }
   $('avisos').appendChild(d);
-  setTimeout(() => d.remove(), aoClicar ? 8000 : 2600);
+  setTimeout(() => d.remove(), aoClicar ? 12000 : 2600);
 }
 
 // --- "pra voce": o que a familia fez com voce, ate voce dizer que viu ---------
@@ -1063,7 +1063,7 @@ const lidoChave = () => `vila:lido:${app.chave}`;
 function linhaPraVoce(l) {
   if (!l.abre) return `<div>${esc(l.t)}</div>`;
   const dados = Object.entries(l.abre).map(([k, v]) => `data-${k}="${esc(v ?? '')}"`).join(' ');
-  return `<button class="block w-full text-left hover:underline press" data-acao="abre-novidade" ${dados}>${esc(l.t)} <span class="font-label-sm text-[9px] uppercase opacity-70">→ ${esc(l.dica ?? 'abrir')}</span></button>`;
+  return `<button class="block w-full text-left hover:underline press" data-acao="abre-novidade" ${dados}>${esc(l.t)} <span class="font-label-sm text-[10px] uppercase bg-tertiary-fixed text-on-tertiary-fixed px-pixel-step ml-1">→ ${esc(l.dica ?? 'abrir')}</span></button>`;
 }
 function caixaPraVoce() {
   if (!app.motor || !app.eu) return '';
@@ -1074,13 +1074,13 @@ function caixaPraVoce() {
   const resto = n.linhas.length - mostra.length;
   return `
   <div class="max-w-[1600px] mx-auto px-gutter-md pt-gutter-xs">
-    <div class="bg-tertiary-fixed text-on-tertiary-fixed p-gutter-xs shadow-[4px_4px_0_0_#221b08] flex items-start gap-gutter-sm">
-      <span class="font-headline-md text-[14px] uppercase whitespace-nowrap">📬 Pra você${n.linhas.length > 1 ? ` (${n.linhas.length})` : ''}</span>
-      <div class="flex-1 font-body-sm text-[12px] leading-snug">
+    <div class="bg-secondary text-on-secondary p-gutter-sm shadow-[6px_6px_0_0_#221b08] border-4 border-tertiary-fixed-dim flex items-start gap-gutter-sm chama" id="pra-voce">
+      <span class="font-headline-md text-[15px] uppercase whitespace-nowrap"><span class="balanca">📬</span> Pra você${n.linhas.length > 1 ? ` (${n.linhas.length})` : ''}</span>
+      <div class="flex-1 font-body-md text-[13px] leading-snug">
         ${mostra.map((l) => linhaPraVoce(l)).join('')}
         ${resto > 0 ? `<div class="opacity-70">e mais ${resto}…</div>` : ''}
       </div>
-      <button class="bg-surface-container-low text-secondary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press whitespace-nowrap" data-acao="lido">✓ vi</button>
+      <button class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-[11px] uppercase px-gutter-sm py-pixel-step shadow-[2px_2px_0_0_#221b08] press whitespace-nowrap" data-acao="lido">✓ vi</button>
     </div>
   </div>`;
 }
@@ -1158,7 +1158,20 @@ function notifica(texto, abre = null) {
     }
   } else {
     aviso(texto, false, abre ? abrir : null);
+    if (sinoLigado()) plim();
   }
+}
+
+// Um "plim" curto, sem arquivo: dois tons de onda quadrada, bem 8-bit.
+function plim() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [[660, 0], [990, 0.09]].forEach(([f, t]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'square'; o.frequency.value = f; g.gain.value = 0.04;
+      o.connect(g); g.connect(ac.destination); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.08);
+    });
+  } catch {}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { naoLidos = 0; document.title = tituloBase; } });
 

@@ -28,6 +28,10 @@ tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-dim":"#e7d9b
   .press:active{transform:translateY(4px)}
   .pisca{animation:pisca 1s steps(2,start) infinite}
   @keyframes pisca{to{opacity:.35}}
+  .chama{animation:chama .6s steps(2,start) 6}
+  @keyframes chama{to{outline:4px solid #f4b83f;outline-offset:-4px}}
+  .balanca{display:inline-block;animation:balanca .8s ease-in-out infinite}
+  @keyframes balanca{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
   [hidden]{display:none !important}
   #topo nav{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   #topo nav::-webkit-scrollbar{display:none}
