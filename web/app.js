@@ -362,7 +362,7 @@ function topo(v) {
     </nav>
     <div class="flex items-center gap-gutter-md">
       <button class="bg-surface-container-low text-secondary font-label-lg px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="tutorial" title="Como jogar">❔</button>
-      ${'Notification' in window && Notification.permission !== 'denied' ? `<button class="bg-surface-container-low text-secondary font-label-lg px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press ${Notification.permission === 'granted' ? '' : 'pisca'}" data-acao="sino" title="${Notification.permission === 'granted' ? 'Você é avisado(a) quando a família fala com você ou uma planta fica pronta' : 'Quer ser avisado(a) quando a família falar com você? Clique.'}">${Notification.permission === 'granted' ? '🔔' : '🔕'}</button>` : ''}
+      ${'Notification' in window && Notification.permission !== 'denied' ? `<button class="bg-surface-container-low text-secondary font-label-lg px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press ${sinoLigado() ? '' : 'pisca'}" data-acao="sino" title="${sinoLigado() ? 'Avisos ligados: recado, abraço, presente, planta pronta. Clique pra desligar.' : 'Quer ser avisado(a) quando a família falar com você? Clique.'}">${sinoLigado() ? '🔔' : '🔕'}</button>` : ''}
       <div class="flex items-center gap-gutter-xs bg-tertiary-fixed px-panel-pad-sm py-pixel-step shadow-[2px_2px_0_0_#221b08]">
         ${ICO('monetization_on', 'text-tertiary text-[18px]')}
         <span class="font-label-md text-label-md text-on-tertiary-fixed">${v.hud.moedas} G</span>
@@ -1059,6 +1059,7 @@ function caixaPraVoce() {
 const ICONE_NOTIF = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#39671d"/><text x="32" y="46" font-size="40" text-anchor="middle">🌳</text></svg>');
 let naoLidos = 0;
 const tituloBase = document.title;
+const sinoLigado = () => 'Notification' in window && Notification.permission === 'granted' && localStorage.getItem('vila:sino') !== 'off';
 
 function avisaChegada(r) {
   if (!r?.eventos?.length || !app.eu) return;
@@ -1093,7 +1094,7 @@ function notifica(texto) {
   if (document.hidden) {
     naoLidos++;
     document.title = `(${naoLidos}) ${tituloBase}`;
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if (sinoLigado()) {
       try { const n = new Notification(app.motor.mundo.nome ?? 'Vila Raízes', { body: texto, icon: ICONE_NOTIF, tag: 'vila' }); n.onclick = () => { window.focus(); n.close(); }; } catch {}
     }
   } else {
@@ -1234,9 +1235,14 @@ document.addEventListener('click', async (e) => {
     'painel-aba': () => { app.painelAba = d.aba; pinta(); },
     lido: () => { localStorage.setItem(lidoChave(), String(app.motor.mundo.seq)); pinta(); },
     sino: async () => {
+      // O navegador so deixa PEDIR permissao; desligar e escolha do jogo, guardada aqui.
+      if (sinoLigado()) { localStorage.setItem('vila:sino', 'off'); aviso('🔕 avisos desligados'); return pinta(); }
       const p = await Notification.requestPermission();
-      if (p === 'granted') { aviso('🔔 combinado: aviso quando a família falar com você'); new Notification('Vila Raízes', { body: 'Assim que alguém te mandar recado, abraço ou presente, aparece aqui.', icon: ICONE_NOTIF }); }
-      else aviso('sem permissão pra avisar — dá pra ligar nas configurações do navegador', true);
+      if (p === 'granted') {
+        localStorage.setItem('vila:sino', 'on');
+        aviso('🔔 combinado: aviso quando a família falar com você');
+        try { new Notification('Vila Raízes', { body: 'Assim que alguém te mandar recado, abraço ou presente, aparece aqui.', icon: ICONE_NOTIF }); } catch {}
+      } else aviso('sem permissão pra avisar — dá pra ligar nas configurações do navegador', true);
       pinta();
     },
     'escolhe-cultura': () => { app.cultura = d.cultura; app.ferramenta = 'semente'; fechaModal(); pinta(); },
