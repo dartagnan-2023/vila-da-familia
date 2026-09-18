@@ -429,7 +429,11 @@ function ecos(v) {
       <span class="w-2 h-2 bg-primary-fixed pisca"></span>
     </div>
     <div class="flex-1 overflow-y-auto space-y-panel-pad-sm pr-1">
-      ${v.presagios.map((p) => `
+      ${v.presagios.map((p) => p.chave === 'festa' ? `
+        <div class="bg-primary-container p-gutter-xs shadow-[inset_1px_1px_0_0_#1b3a0f]">
+          <span class="font-label-sm text-[11px] font-bold uppercase text-on-primary-container">🎉 O mundo respondeu</span>
+          <p class="font-body-sm text-[12px] text-on-primary-container mt-1 leading-snug">${esc(p.texto)}</p>
+        </div>` : `
         <div class="bg-error-container p-gutter-xs shadow-[inset_1px_1px_0_0_#93000a]">
           <span class="font-label-sm text-[11px] font-bold uppercase text-on-error-container">🔮 O mundo respondeu</span>
           <p class="font-body-sm text-[12px] text-on-error-container mt-1 leading-snug">${esc(p.texto)}</p>
