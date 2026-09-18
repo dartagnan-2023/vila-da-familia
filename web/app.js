@@ -5,7 +5,7 @@ import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js';
 import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
-import { VilaCanvas } from './vila-canvas.js';
+import { VilaCanvas, LOJAS } from './vila-canvas.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 import { projetar, estaMadura, rotuloDuracao } from '../src/engine/tempo.js';
 import { PRODUTOS, PROBLEMAS, nivelDe, xpParaNivel, nomeDe, precoDe } from '../src/engine/conteudo.js';
@@ -326,6 +326,7 @@ function pinta() {
 function cliqueNoMundo(alvo) {
   if (alvo.rio) return aviso(`rio comum: ${app.motor.mundo.comuns.agua}/100 de agua`);
   if (alvo.poco) return abreModal('doar');
+  if (alvo.loja) { app.lojaAberta = alvo.loja; return abreModal('loja'); }
   const h = app.motor.mundo.herdades[alvo.herdade];
   if (!h.dono) return aviso('terra livre — manda a chave pra alguem da familia!');
   if (h.dono === app.eu) {
@@ -470,6 +471,39 @@ function ecos(v) {
 const ICONE_COMUM = { agua: 'water_drop', floresta: 'forest', solo: 'terrain', harmonia: 'favorite' };
 const COR_ESTADO = { critico: 'bg-error text-on-error', alerta: 'bg-tertiary-container text-on-tertiary', ok: 'bg-primary text-on-primary', otimo: 'bg-primary text-on-primary' };
 
+// Um cartao de encomenda (painel e modal da loja usam o mesmo).
+function encomendaHtml(e) {
+  return `
+        <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">
+          <div class="flex items-center justify-between gap-gutter-xs">
+            <span class="font-label-sm text-[10px] uppercase text-on-surface-variant">${esc(e.cliente)}</span>
+            <span class="font-label-sm text-[10px] text-primary font-bold">+${e.moedas} G · +${e.xp} XP</span>
+          </div>
+          <div class="flex flex-wrap gap-1 mt-1">
+            ${e.itens.map((i) => `<span class="font-label-sm text-[10px] px-pixel-step py-pixel-unit shadow-[1px_1px_0_0_#221b08] ${i.ok ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-dim text-on-surface-variant'}">${i.icone} ${i.qtd} ${esc(i.nome)} <span class="opacity-70">(${i.tenho})</span></span>`).join('')}
+          </div>
+          ${e.pronta ? `<button class="w-full mt-1 bg-primary text-on-primary font-label-sm text-[10px] uppercase py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="cumprir-encomenda" data-indice="${e.indice}">Entregar</button>` : ''}
+        </div>`;
+}
+
+// A lista da vendinha (painel e modal da loja usam a mesma).
+function vendinhaHtml(v) {
+  return `
+    <div class="space-y-1">
+      ${v.vendinha.length ? v.vendinha.map((l) => `
+        <div class="flex items-center gap-gutter-xs bg-surface-container px-gutter-xs py-pixel-step shadow-[inset_1px_1px_0_0_#38301b] ${l.util ? 'ring-2 ring-primary-fixed-dim' : ''}">
+          <span class="text-[16px]">${l.icone}</span>
+          <div class="flex-1 min-w-0">
+            <p class="font-label-sm text-label-sm uppercase truncate">${l.qtd}x ${esc(l.nome)} <span class="text-on-surface-variant normal-case">de ${esc(l.vendedor)}</span></p>
+            <p class="font-body-sm text-[10px] text-on-surface-variant">${l.unitario} G cada · feira ${l.feira} G${l.util ? ' · <span class="text-primary font-bold">fecha uma encomenda sua</span>' : ''}</p>
+          </div>
+          ${l.minha
+            ? `<button class="bg-surface-dim font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="retirar" data-lote="${l.lote}" title="Volta pro seu celeiro">${l.preco} G · retirar</button>`
+            : `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press ${l.possoPagar ? '' : 'opacity-50'}" data-acao="comprar" data-de="${l.de}" data-lote="${l.lote}">Comprar ${l.preco} G</button>`}
+        </div>`).join('') : `<p class="font-body-sm text-[12px] text-on-surface-variant">Ninguém pôs nada à venda ainda. No seu celeiro (Minha Herdade) tem o botão 🏪 pra anunciar.</p>`}
+    </div>`;
+}
+
 function painel(v) {
   const m = v.missao;
   return `
@@ -499,17 +533,7 @@ function painel(v) {
       <span class="font-label-sm text-[10px]">pagam +50%</span>
     </div>
     <div class="space-y-1">
-      ${v.encomendas.map((e) => `
-        <div class="bg-surface-container p-gutter-xs shadow-[inset_1px_1px_0_0_#38301b]">
-          <div class="flex items-center justify-between gap-gutter-xs">
-            <span class="font-label-sm text-[10px] uppercase text-on-surface-variant">${esc(e.cliente)}</span>
-            <span class="font-label-sm text-[10px] text-primary font-bold">+${e.moedas} G · +${e.xp} XP</span>
-          </div>
-          <div class="flex flex-wrap gap-1 mt-1">
-            ${e.itens.map((i) => `<span class="font-label-sm text-[10px] px-pixel-step py-pixel-unit shadow-[1px_1px_0_0_#221b08] ${i.ok ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-dim text-on-surface-variant'}">${i.icone} ${i.qtd} ${esc(i.nome)} <span class="opacity-70">(${i.tenho})</span></span>`).join('')}
-          </div>
-          ${e.pronta ? `<button class="w-full mt-1 bg-primary text-on-primary font-label-sm text-[10px] uppercase py-pixel-unit shadow-[1px_1px_0_0_#221b08] press pisca" data-acao="cumprir-encomenda" data-indice="${e.indice}">Entregar</button>` : ''}
-        </div>`).join('')}
+      ${v.encomendas.map((e) => encomendaHtml(e)).join('')}
     </div>
   </div>
 
@@ -518,20 +542,9 @@ function painel(v) {
       <span class="font-headline-md text-[13px] uppercase font-bold">🏪 Vendinha da vila</span>
       <span class="font-label-sm text-[10px]">${v.minhaVendinha ? `${v.minhaVendinha.lotes}/${v.minhaVendinha.maximo} lotes meus` : ''}</span>
     </div>
-    <div class="space-y-1">
-      ${v.vendinha.length ? v.vendinha.map((l) => `
-        <div class="flex items-center gap-gutter-xs bg-surface-container px-gutter-xs py-pixel-step shadow-[inset_1px_1px_0_0_#38301b] ${l.util ? 'ring-2 ring-primary-fixed-dim' : ''}">
-          <span class="text-[16px]">${l.icone}</span>
-          <div class="flex-1 min-w-0">
-            <p class="font-label-sm text-label-sm uppercase truncate">${l.qtd}x ${esc(l.nome)} <span class="text-on-surface-variant normal-case">de ${esc(l.vendedor)}</span></p>
-            <p class="font-body-sm text-[10px] text-on-surface-variant">${l.unitario} G cada · feira ${l.feira} G${l.util ? ' · <span class="text-primary font-bold">fecha uma encomenda sua</span>' : ''}</p>
-          </div>
-          ${l.minha
-            ? `<button class="bg-surface-dim font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="retirar" data-lote="${l.lote}" title="Volta pro seu celeiro">${l.preco} G · retirar</button>`
-            : `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press ${l.possoPagar ? '' : 'opacity-50'}" data-acao="comprar" data-de="${l.de}" data-lote="${l.lote}">Comprar ${l.preco} G</button>`}
-        </div>`).join('') : `<p class="font-body-sm text-[12px] text-on-surface-variant">Ninguém pôs nada à venda ainda. No seu celeiro (Minha Herdade) tem o botão 🏪 pra anunciar.</p>`}
-    </div>
+    ${vendinhaHtml(v)}
   </div>
+
 
   <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
     <div class="bg-secondary text-on-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
@@ -606,6 +619,7 @@ function legendaVila(v) {
     <span>clique na herdade de alguém pra ajudar</span>
     <span>·</span>
     <span>poço = doar pra obra</span>
+    <span>· lojas lá embaixo = quem faz as encomendas (acende quando a sua está pronta)</span>
     ${v.pedidosDeAjuda.length ? `<span class="ml-auto bg-tertiary-fixed text-on-tertiary-fixed px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] pisca">${v.pedidosDeAjuda.length} pedido(s) de ajuda</span>` : ''}
   </div>`;
 }
@@ -893,6 +907,16 @@ function abreModal(qual) {
         <span class="font-label-md text-label-md uppercase">${f.sprite} ${esc(f.nome)}</span>
         <p class="font-body-sm text-[11px] text-on-surface-variant">Laço: ${esc(f.laco)} · +1 harmonia para a vila</p></button>`).join('')}
       </div>` : `<p class="font-body-sm">Ninguém mais na vila ainda.</p>`),
+
+    loja: () => {
+      const loja = LOJAS.find((l) => (l.chave ?? l.cliente) === app.lojaAberta);
+      if (!loja) return caixa('Rua do comércio', '');
+      if (loja.chave === 'vendinha') return caixa('🏪 Vendinha da vila', vendinhaHtml(v));
+      const minhas = v.encomendas.filter((e) => e.cliente === loja.cliente);
+      return caixa(`${loja.icone} ${esc(loja.cliente.replace(/^(a|o) /, (m) => m.toUpperCase()))}`, minhas.length ? `
+        <div class="space-y-1">${minhas.map((e) => encomendaHtml(e)).join('')}</div>`
+        : `<p class="font-body-sm text-[12px]">Nenhuma encomenda ${esc(loja.cliente.replace(/^(a|o) /, 'd$1 '))} pra você agora. Quando aparecer no painel de Encomendas, o prédio mostra um bilhete; pronta pra entregar, ele acende.</p>`);
+    },
 
     anunciar: () => {
       const c = v.hud.colheita.find((x) => x.cultura === app.anunciarItem);

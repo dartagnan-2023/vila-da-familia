@@ -321,7 +321,7 @@ export function aplicar(mundo, ev) {
 export function registrarFeed(mundo, ev) {
   const d = ev.dados ?? {};
   // `ref` diz ONDE o ato aconteceu: e o que a tela usa para mandar o boneco ate la.
-  const ref = { herdade: d.herdade, tile: d.tile, para: d.para ?? d.dono, cultura: d.cultura, quantidade: d.quantidade };
+  const ref = { herdade: d.herdade, tile: d.tile, para: d.para ?? d.dono, cultura: d.cultura, quantidade: d.quantidade, cliente: d.cliente };
   mundo.feed.push({ seq: ev.seq, tick: ev.tick, tipo: ev.tipo, ator: ev.ator, texto: ev.texto, comuns: ev.comuns, ref });
   while (mundo.feed.length > CONFIG.feedMax) mundo.feed.shift();
 }

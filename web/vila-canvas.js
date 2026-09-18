@@ -23,6 +23,20 @@ const P = {
   pedra: '#72796b', pedra2: '#c2c9b8', ink: '#2b1b17', ouro: '#f4b83f',
   pele: '#f1c27d', calca: '#4a2511',
 };
+// A rua do comercio: quem faz as encomendas mora aqui. E a vendinha da familia.
+export const LOJAS = [
+  { cliente: 'a Padaria da Esquina', nome: 'PADARIA',   icone: '🍞', cor: '#f4b83f' },
+  { cliente: 'o Mercadinho',         nome: 'MERCADO',   icone: '🛒', cor: '#5c9ead' },
+  { cliente: 'a Feira de Domingo',   nome: 'FEIRA',     icone: '🧺', cor: '#a0d57e' },
+  { cliente: 'a Escola',             nome: 'ESCOLA',    icone: '🏫', cor: '#fea776' },
+  { cliente: 'o Restaurante do Zé',  nome: 'DO ZÉ',     icone: '🍲', cor: '#b84133' },
+  { cliente: 'a Igreja',             nome: 'IGREJA',    icone: '⛪', cor: '#f5e6c8' },
+  { cliente: 'a Pousada',            nome: 'POUSADA',   icone: '🛏️', cor: '#996d00' },
+  { cliente: 'a Quermesse',          nome: 'QUERMESSE', icone: '🎪', cor: '#ff7a3d' },
+  { cliente: null, chave: 'vendinha', nome: 'VENDINHA', icone: '🏪', cor: '#8f4d24' },
+];
+const LOJA_W = 3, LOJA_H = 4; // cada loja ocupa 3x4 tiles (placa, predio, calcada)
+
 const ROUPAS = ['#b84133', '#5c9ead', '#f4b83f', '#5b8c3e', '#8f4d24', '#a0d57e', '#fea776', '#996d00'];
 const CABELOS = ['#2b1b17', '#f5e6c8', '#8f4d24', '#4a2511', '#e7d9bb', '#221b08'];
 
@@ -69,9 +83,16 @@ const ruido = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
 function geometria(mundo) {
   const { l, a } = mundo.grade;
   const largura = GAP + l * (HERD + GAP);
-  const altura = GAP + 2 + a * (HERD + GAP); // +2: faixa do rio no topo
-  return { l, a, largura, altura, rioAltura: 2 };
+  const rioAltura = 2;
+  const ruaTopo = rioAltura + a * (HERD + GAP) + GAP;       // logo abaixo da ultima faixa de caminho
+  const porLinha = Math.max(1, Math.floor((largura - 2) / LOJA_W));
+  const linhasRua = Math.ceil(LOJAS.length / porLinha);
+  const altura = ruaTopo + linhasRua * LOJA_H + 1;           // +1: fileira de mata embaixo
+  return { l, a, largura, altura, rioAltura, ruaTopo, porLinha, linhasRua };
 }
+
+const posLoja = (i, geo) => ({ tx: 1 + (i % geo.porLinha) * LOJA_W, ty: geo.ruaTopo + Math.floor(i / geo.porLinha) * LOJA_H });
+const indiceLoja = (chaveOuCliente) => LOJAS.findIndex((l) => l.cliente === chaveOuCliente || l.chave === chaveOuCliente);
 
 const origemHerdade = (h, geo) => ({ tx: GAP + h.x * (HERD + GAP), ty: geo.rioAltura + GAP + h.y * (HERD + GAP) });
 
@@ -138,7 +159,13 @@ export class VilaCanvas {
       } else if (ultimo.tipo === 'CORTOU_ARVORE' || ultimo.tipo === 'PLANTOU_ARVORE') {
         alvo = { tx: geo.largura - 3, ty: geo.rioAltura + 3 + (casa.ty % 5) };
       } else if (ultimo.tipo === 'MINEROU') {
-        alvo = { tx: 1, ty: geo.altura - 2 };
+        alvo = { tx: 1, ty: geo.altura - 1 };
+      } else if (ultimo.tipo === 'ENCOMENDA_ENTREGUE' && indiceLoja(ev.cliente) >= 0) {
+        const l = posLoja(indiceLoja(ev.cliente), geo);
+        alvo = { tx: l.tx + 1, ty: l.ty + 3 };
+      } else if (ultimo.tipo === 'ANUNCIOU' || ultimo.tipo === 'COMPROU' || ultimo.tipo === 'VENDEU') {
+        const l = posLoja(indiceLoja('vendinha'), geo);
+        alvo = { tx: l.tx + 1, ty: l.ty + 3 };
       } else if (ultimo.tipo === 'DOOU' || ultimo.tipo === 'RECADO') {
         alvo = this.#poco(geo);
         alvo = { tx: alvo.tx - 1, ty: alvo.ty + 1 };
@@ -173,6 +200,10 @@ export class VilaCanvas {
     }
     const poco = this.#poco(geo);
     if (Math.abs(tx - poco.tx) <= 1 && Math.abs(ty - poco.ty) <= 1) return this.aoClicar({ poco: true });
+    for (let i = 0; i < LOJAS.length; i++) {
+      const l = posLoja(i, geo);
+      if (tx >= l.tx && tx < l.tx + LOJA_W && ty >= l.ty && ty < l.ty + LOJA_H) return this.aoClicar({ loja: LOJAS[i].chave ?? LOJAS[i].cliente });
+    }
     if (ty < geo.rioAltura) return this.aoClicar({ rio: true });
   }
 
@@ -204,6 +235,7 @@ export class VilaCanvas {
     this.#pocoDesenho(geo, c.agua);
 
     for (const h of Object.values(mundo.herdades)) this.#herdade(h, geo);
+    this.#rua(geo);
 
     // bonecos: quem esta mais embaixo desenha por cima
     const lista = [...this.bonecos.entries()].sort((a, b) => a[1].y - b[1].y);
@@ -259,8 +291,9 @@ export class VilaCanvas {
   #mata(geo, floresta) {
     // Arvores na faixa direita e inferior; quantas, depende da mata comum.
     const vagas = [];
-    for (let ty = geo.rioAltura; ty < geo.altura; ty++) vagas.push([geo.largura - 1, ty], [geo.largura - 2, ty]);
-    for (let tx = 0; tx < geo.largura - 2; tx++) vagas.push([tx, geo.altura - 1]);
+    const naRua = (tx, ty) => ty >= geo.ruaTopo && ty < geo.altura - 1 && tx >= 1 && tx < 1 + geo.porLinha * LOJA_W;
+    for (let ty = geo.rioAltura; ty < geo.altura; ty++) for (const tx of [geo.largura - 1, geo.largura - 2]) if (!naRua(tx, ty)) vagas.push([tx, ty]);
+    for (let tx = 2; tx < geo.largura - 2; tx++) vagas.push([tx, geo.altura - 1]);
     const n = Math.round(vagas.length * (floresta / 100));
     vagas.forEach(([tx, ty], i) => {
       if ((ruido(tx, ty) % vagas.length) < n) this.#arvore(tx * T + (ruido(ty, tx) % 5), ty * T);
@@ -277,7 +310,7 @@ export class VilaCanvas {
 
   #pedreira(geo) {
     const { ctx } = this;
-    const x = 0, y = (geo.altura - 2) * T;
+    const x = 0, y = (geo.altura - 1) * T;
     ctx.fillStyle = P.pedra; ctx.fillRect(x + 2, y + 6, 12, 10);
     ctx.fillStyle = P.pedra2; ctx.fillRect(x + 4, y + 8, 4, 3); ctx.fillRect(x + 9, y + 11, 3, 2);
     ctx.fillStyle = P.ink; ctx.fillRect(x + 2, y + 15, 12, 1);
@@ -409,6 +442,58 @@ export class VilaCanvas {
     }
   }
 
+  // A rua: cada cliente das encomendas e um predinho; o meu pedido pronto acende a loja.
+  #rua(geo) {
+    const { ctx, visao } = this;
+    const minhas = visao?.encomendas ?? [];
+    // calcada continua
+    for (let li = 0; li < geo.linhasRua; li++) {
+      const ty = geo.ruaTopo + li * LOJA_H + 3;
+      for (let tx = 0; tx < geo.largura - 2; tx++) {
+        ctx.fillStyle = P.caminho; ctx.fillRect(tx * T, ty * T, T, T);
+        const r = ruido(tx, ty); ctx.fillStyle = P.caminho2; ctx.fillRect(tx * T + (r % 12), ty * T + ((r >> 5) % 12), 3, 2);
+      }
+    }
+    LOJAS.forEach((loja, i) => {
+      const p = posLoja(i, geo);
+      const x = p.tx * T, y = p.ty * T;
+      const enc = loja.cliente ? minhas.filter((e) => e.cliente === loja.cliente) : [];
+      const pronta = enc.some((e) => e.pronta);
+      const pendente = enc.length > 0;
+      const vendinha = loja.chave === 'vendinha';
+      const lotes = vendinha ? (visao?.vendinha?.length ?? 0) : 0;
+      // predio 44x30 dentro de 48x64
+      const bx = x + 2, by = y + T + 2;
+      ctx.fillStyle = loja.cor; ctx.fillRect(bx, by + 8, 44, 22);
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(bx, by + 28, 44, 2);
+      ctx.fillStyle = P.telhado2; ctx.fillRect(bx - 2, by + 2, 48, 8);
+      ctx.fillStyle = P.telhado; ctx.fillRect(bx, by, 44, 3);
+      if (loja.cliente === 'a Igreja') { ctx.fillStyle = P.parede; ctx.fillRect(bx + 19, by - 10, 6, 12); ctx.fillStyle = P.ink; ctx.fillRect(bx + 21, by - 14, 2, 7); ctx.fillRect(bx + 19, by - 12, 6, 2); }
+      if (vendinha) { ctx.fillStyle = P.parede; for (let k = 0; k < 44; k += 8) ctx.fillRect(bx + k, by + 2, 4, 8); }
+      ctx.fillStyle = P.porta; ctx.fillRect(bx + 18, by + 18, 8, 12);
+      ctx.fillStyle = P.janela; ctx.fillRect(bx + 5, by + 15, 8, 7); ctx.fillRect(bx + 31, by + 15, 8, 7);
+      ctx.fillStyle = P.ink; ctx.fillRect(bx + 5, by + 18, 8, 1); ctx.fillRect(bx + 31, by + 18, 8, 1);
+      // letreiro com o icone
+      ctx.font = '10px serif'; ctx.textAlign = 'center'; ctx.fillStyle = P.ink;
+      ctx.fillText(loja.icone, bx + 22, by + 1);
+      // estado do meu pedido: pronta acende e pisca; pendente mostra o bilhete
+      if (pronta) {
+        ctx.fillStyle = (this.frame >> 3) % 2 ? P.ouro : '#ffdea8';
+        ctx.fillRect(bx - 3, by - 1, 50, 2); ctx.fillRect(bx - 3, by + 30, 50, 2); ctx.fillRect(bx - 3, by - 1, 2, 33); ctx.fillRect(bx + 45, by - 1, 2, 33);
+        ctx.fillStyle = P.ouro; ctx.fillRect(bx + 36, by - 12 + ((this.frame >> 3) % 2), 8, 9);
+        ctx.fillStyle = P.ink; ctx.font = 'bold 8px "Space Mono", monospace'; ctx.fillText('!', bx + 40, by - 4 + ((this.frame >> 3) % 2));
+      } else if (pendente) {
+        ctx.fillStyle = P.parede; ctx.fillRect(bx + 37, by - 8, 7, 8);
+        ctx.fillStyle = P.ink; ctx.fillRect(bx + 38, by - 6, 5, 1); ctx.fillRect(bx + 38, by - 4, 5, 1); ctx.fillRect(bx + 38, by - 2, 3, 1);
+      }
+      if (vendinha && lotes) {
+        ctx.fillStyle = P.ouro; ctx.fillRect(bx + 36, by - 10, 9, 9);
+        ctx.fillStyle = P.ink; ctx.font = 'bold 7px "Space Mono", monospace'; ctx.fillText(String(lotes), bx + 40.5, by - 3);
+      }
+      this.#etiqueta(x + (LOJA_W * T) / 2, y + LOJA_H * T - 5, loja.nome, pronta);
+    });
+  }
+
   #placa(x, y, texto) {
     const { ctx } = this;
     ctx.fillStyle = P.tronco; ctx.fillRect(x + 7, y + 6, 2, 10);
@@ -496,5 +581,8 @@ const FALAS = {
   DOOU: () => 'doando pra obra',
   RECADO: () => 'deixou recado',
   VENDEU: () => 'vendendo',
+  ENCOMENDA_ENTREGUE: () => 'entregando 📦',
+  ANUNCIOU: () => 'na vendinha',
+  COMPROU: () => 'comprando',
   JOGADOR_ENTROU: () => 'cheguei!',
 };

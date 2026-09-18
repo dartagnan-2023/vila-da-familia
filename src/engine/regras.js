@@ -443,7 +443,7 @@ export const REGRAS = {
       return [{
         tipo: 'ENCOMENDA_ENTREGUE',
         ator: cmd.por,
-        dados: { indice: cmd.indice, itens: enc.itens, moedas: enc.moedas, xp: enc.xp, nova },
+        dados: { indice: cmd.indice, cliente: enc.cliente, itens: enc.itens, moedas: enc.moedas, xp: enc.xp, nova },
         comuns: { harmonia: 1 },
         texto: `${nome(mundo, cmd.por)} entregou a encomenda de ${enc.cliente} (+${enc.moedas} G, +${enc.xp} XP).`,
       }];
@@ -699,7 +699,7 @@ export function missoesDoDia(mundo) {
   return out;
 }
 
-const CLIENTES = ['a Padaria da Esquina', 'o Mercadinho', 'a Feira de Domingo', 'a Escola', 'o Restaurante do Zé', 'a Igreja', 'a Pousada', 'a Quermesse'];
+export const CLIENTES = ['a Padaria da Esquina', 'o Mercadinho', 'a Feira de Domingo', 'a Escola', 'o Restaurante do Zé', 'a Igreja', 'a Pousada', 'a Quermesse'];
 
 /**
  * Uma encomenda para este jogador: pede o que ele JA consegue produzir no
