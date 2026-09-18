@@ -596,7 +596,16 @@ function painelMissoes(v) {
     </div>
 
     <div class="flex items-center gap-1.5 text-secondary mt-gutter-sm mb-1">
-      ${ICO('assignment', 'text-[16px]')}<span class="font-label-md text-label-md font-bold uppercase">Missão Familiar</span>
+      ${ICO('assignment', 'text-[16px]')}<span class="font-label-md text-label-md font-bold uppercase">Obras da família</span>
+      <span class="font-label-sm text-[10px] text-on-surface-variant ml-auto">${v.obras.filter((o) => o.concluida).length}/${v.obras.length} prontas</span>
+    </div>
+    <div class="space-y-1 mb-gutter-xs">
+      ${v.obras.filter((o) => o.concluida).map((o) => `
+        <div class="bg-primary-fixed text-on-primary-fixed p-gutter-xs shadow-[inset_1px_1px_0_0_#245107] flex items-center gap-gutter-xs">
+          <span class="text-[16px]">🏆</span>
+          <div class="flex-1"><span class="font-label-sm text-label-sm uppercase font-bold">${esc(o.nome)} · pronta</span>
+          <p class="font-body-sm text-[11px] leading-tight">${esc(o.texto)} Vale pra todo mundo, todo dia.</p></div>
+        </div>`).join('')}
     </div>
     ${m ? `
       <p class="font-body-sm text-[12px] text-on-surface leading-tight font-bold">${esc(m.nome)} — ${esc(m.texto)}</p>
@@ -610,6 +619,7 @@ function painelMissoes(v) {
         <p class="font-label-sm text-[10px] text-error mt-1">${esc(m.chamada)}</p>
       </div>
       <button class="w-full mt-2 bg-primary text-on-primary font-label-sm text-label-sm uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="modal" data-modal="doar">Doar recursos</button>
+      ${v.obras.filter((o) => !o.concluida && o.chave !== m.chave).length ? `<p class="font-label-sm text-[10px] text-on-surface-variant mt-1">Depois: ${v.obras.filter((o) => !o.concluida && o.chave !== m.chave).map((o) => esc(o.nome)).join(' · ')}</p>` : ''}
     ` : `<p class="font-body-sm text-[12px] text-primary">Todas as obras da vila estão prontas. Isso é raro.</p>`}`;
 }
 

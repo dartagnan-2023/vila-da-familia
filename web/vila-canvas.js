@@ -232,6 +232,7 @@ export class VilaCanvas {
     this.#caminhos(geo);
     this.#mata(geo, c.floresta);
     this.#pedreira(geo);
+    this.#obras(geo);
     this.#pocoDesenho(geo, c.agua);
 
     for (const h of Object.values(mundo.herdades)) this.#herdade(h, geo);
@@ -314,6 +315,35 @@ export class VilaCanvas {
     ctx.fillStyle = P.pedra; ctx.fillRect(x + 2, y + 6, 12, 10);
     ctx.fillStyle = P.pedra2; ctx.fillRect(x + 4, y + 8, 4, 3); ctx.fillRect(x + 9, y + 11, 3, 2);
     ctx.fillStyle = P.ink; ctx.fillRect(x + 2, y + 15, 12, 1);
+  }
+
+  // As obras da familia, quando prontas, mudam a paisagem de todo mundo.
+  #obras(geo) {
+    const { ctx, mundo } = this;
+    const feitas = mundo.vila?.concluidas ?? [];
+    const W = geo.largura * T;
+    if (feitas.includes('velocidade')) { // ponte sobre o rio, no meio
+      const x = Math.floor(geo.largura / 2) * T - 12, y = 0;
+      ctx.fillStyle = P.tronco; ctx.fillRect(x, y, 40, geo.rioAltura * T);
+      ctx.fillStyle = P.cerca; for (let k = 0; k < geo.rioAltura * T; k += 4) ctx.fillRect(x + 2, y + k, 36, 2);
+      ctx.fillStyle = P.cercaEscura; ctx.fillRect(x, y, 3, geo.rioAltura * T); ctx.fillRect(x + 37, y, 3, geo.rioAltura * T);
+    }
+    if (feitas.includes('agua')) { // acude: muro de pedra segurando o rio a direita
+      const x = W - 6 * T, y = 0;
+      ctx.fillStyle = P.pedra; ctx.fillRect(x, y, 8, geo.rioAltura * T);
+      ctx.fillStyle = P.pedra2; for (let k = 2; k < geo.rioAltura * T; k += 6) ctx.fillRect(x + 2, y + k, 4, 2);
+      ctx.fillStyle = P.agua; ctx.fillRect(x + 8, y + 4, 3, 3 + ((this.frame >> 3) % 3));
+    }
+    if (feitas.includes('harmonia')) { // praca em volta do poco: calcada, bancos, flores
+      const p = this.#poco(geo);
+      const x = (p.tx - 2) * T, y = (p.ty - 2) * T;
+      ctx.fillStyle = P.caminho2; ctx.fillRect(x, y, 5 * T, 5 * T);
+      ctx.fillStyle = P.caminho; for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) if ((i + j) % 2) ctx.fillRect(x + i * T + 2, y + j * T + 2, T - 4, T - 4);
+      const banco = (bx, by) => { ctx.fillStyle = P.tronco; ctx.fillRect(bx, by + 6, 14, 4); ctx.fillRect(bx + 1, by + 10, 2, 4); ctx.fillRect(bx + 11, by + 10, 2, 4); ctx.fillStyle = P.cerca; ctx.fillRect(bx, by + 3, 14, 3); };
+      banco(x + 1, y + T * 2); banco(x + 4 * T + 1, y + T * 2);
+      const flor = (fx, fy, cor) => { ctx.fillStyle = P.copa2; ctx.fillRect(fx + 3, fy + 8, 2, 6); ctx.fillStyle = cor; ctx.fillRect(fx + 1, fy + 5, 6, 4); };
+      flor(x + 2, y + 1, '#fea776'); flor(x + 4 * T + 6, y + 1, '#ffdbca'); flor(x + 2, y + 4 * T + 1, '#f4b83f'); flor(x + 4 * T + 6, y + 4 * T + 1, '#fea776');
+    }
   }
 
   #pocoDesenho(geo, agua) {
@@ -470,6 +500,10 @@ export class VilaCanvas {
       ctx.fillStyle = P.telhado; ctx.fillRect(bx, by, 44, 3);
       if (loja.cliente === 'a Igreja') { ctx.fillStyle = P.parede; ctx.fillRect(bx + 19, by - 10, 6, 12); ctx.fillStyle = P.ink; ctx.fillRect(bx + 21, by - 14, 2, 7); ctx.fillRect(bx + 19, by - 12, 6, 2); }
       if (vendinha) { ctx.fillStyle = P.parede; for (let k = 0; k < 44; k += 8) ctx.fillRect(bx + k, by + 2, 4, 8); }
+      if (loja.cliente === 'a Escola' && (this.mundo.vila?.concluidas ?? []).includes('sabedoria')) {
+        ctx.fillStyle = P.ink; ctx.fillRect(bx + 4, by - 12, 1, 14);
+        ctx.fillStyle = P.ouro; ctx.fillRect(bx + 5, by - 12 + ((this.frame >> 3) % 2), 8, 5);
+      }
       ctx.fillStyle = P.porta; ctx.fillRect(bx + 18, by + 18, 8, 12);
       ctx.fillStyle = P.janela; ctx.fillRect(bx + 5, by + 15, 8, 7); ctx.fillRect(bx + 31, by + 15, 8, 7);
       ctx.fillStyle = P.ink; ctx.fillRect(bx + 5, by + 18, 8, 1); ctx.fillRect(bx + 31, by + 18, 8, 1);
