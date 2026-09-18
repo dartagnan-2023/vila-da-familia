@@ -55,7 +55,9 @@ export function criarJogador({ id, nome, sprite, herdade }) {
     descanso: { machado: 0, picareta: 0 }, // ate quando a ferramenta descansa
     encomendas: [],
     encomendasGeradas: 0,
-    hoje: { cuidados: 0, plantios: 0, colheitas: 0, ajudas: 0, abracos: 0, cortes: 0, arvores: 0, doacoes: 0, vendas: 0, recados: 0, encomendas: 0, producoes: 0 },
+    vendinha: [],       // lotes a venda: { id, item, qtd, preco (total) }
+    vendinhaSeq: 0,
+    hoje: { cuidados: 0, plantios: 0, colheitas: 0, ajudas: 0, abracos: 0, cortes: 0, arvores: 0, doacoes: 0, vendas: 0, recados: 0, encomendas: 0, producoes: 0, compras: 0 },
     missoesFeitas: [],
     feitos: { plantios: 0, colheitas: 0, ajudas: 0, presentes: 0, doacoes: 0, arvores: 0, cortes: 0, abracos: 0 },
   };

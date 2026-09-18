@@ -3,7 +3,7 @@ import {
   nivelDe, xpParaNivel, precoDe, nomeDe,
 } from './conteudo.js';
 import { vizinhas, temConstrucao } from './mundo.js';
-import { REGRAS, missoesDoDia } from './regras.js';
+import { REGRAS, missoesDoDia, lotesDe } from './regras.js';
 import { projetar, estaMadura, prontaEm, duracaoCultura, rotuloDuracao, velocidade } from './tempo.js';
 
 // ---------------------------------------------------------------------------
@@ -64,6 +64,17 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
     })),
     // O convite social: onde a sua mao faz falta agora.
     pedidosDeAjuda: minha ? pedidos(mundo, jogadorId) : [],
+    // A vendinha da vila: o que cada um pos a venda, os meus por ultimo.
+    vendinha: Object.values(mundo.jogadores)
+      .flatMap((p) => (p.vendinha ?? []).map((l) => ({
+        de: p.id, vendedor: p.nome, sprite: p.sprite, lote: l.id, item: l.item, nome: nomeDe(l.item), icone: iconeDe(l.item),
+        qtd: l.qtd, preco: l.preco, unitario: Math.round((l.preco / l.qtd) * 10) / 10, feira: precoDe(l.item),
+        minha: p.id === jogadorId, possoPagar: eu ? eu.inventario.moedas >= l.preco : false,
+        // ajuda a fechar alguma encomenda minha?
+        util: eu ? (eu.encomendas ?? []).some((e) => e.itens[l.item] && (eu.colheita[l.item] ?? 0) < e.itens[l.item]) : false,
+      })))
+      .sort((a, b) => (a.minha ? 1 : 0) - (b.minha ? 1 : 0) || (b.util ? 1 : 0) - (a.util ? 1 : 0)),
+    minhaVendinha: eu ? { lotes: (eu.vendinha ?? []).length, maximo: lotesDe(mundo, eu) } : null,
     encomendas: eu ? (eu.encomendas ?? []).map((e, i) => ({
       indice: i, cliente: e.cliente, moedas: e.moedas, xp: e.xp,
       itens: Object.entries(e.itens).map(([k, q]) => ({ chave: k, nome: nomeDe(k), icone: iconeDe(k), qtd: q, tenho: eu.colheita[k] ?? 0, ok: (eu.colheita[k] ?? 0) >= q })),

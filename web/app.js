@@ -1,4 +1,5 @@
 import { Motor } from '../src/engine/motor.js';
+import { faixaDePreco } from '../src/engine/regras.js';
 import { visao, acoesPossiveis } from '../src/engine/apresentador.js';
 import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
@@ -7,7 +8,7 @@ import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
 import { VilaCanvas } from './vila-canvas.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 import { projetar, estaMadura, rotuloDuracao } from '../src/engine/tempo.js';
-import { PRODUTOS, PROBLEMAS, nivelDe, xpParaNivel, nomeDe } from '../src/engine/conteudo.js';
+import { PRODUTOS, PROBLEMAS, nivelDe, xpParaNivel, nomeDe, precoDe } from '../src/engine/conteudo.js';
 import { iconeDe } from '../src/engine/apresentador.js';
 
 // Se houver web/config.js com o projeto Supabase, o jogo e entre casas.
@@ -228,6 +229,8 @@ function novidadesDesde(seqVisto) {
     }
     else if (l.tipo === 'ENCOMENDA_ENTREGUE' || l.tipo === 'PRODUZIU') {}
     else if (l.tipo === 'ABRACOU' && r.para === app.eu) linhas.push(`❤️ ${nomeDe(l.ator)} te mandou um abraço`);
+    else if (l.tipo === 'ANUNCIOU') linhas.push(`🏪 ${l.texto.replace(/\.$/, '')}`);
+    else if (l.tipo === 'COMPROU' && r.para === app.eu) linhas.push(`💰 ${l.texto.replace(/\.$/, '')} — o dinheiro já está com você`);
     else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push(`🎁 ${l.texto}`);
     else if (l.tipo === 'RECADO') linhas.push(`💬 ${l.texto}`);
     else if (l.tipo === 'JOGADOR_ENTROU') linhas.push(`🏠 ${nomeDe(l.ator)} chegou na vila!`);
@@ -510,6 +513,26 @@ function painel(v) {
     </div>
   </div>
 
+  <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]" id="vendinha">
+    <div class="bg-tertiary-container text-on-tertiary-container px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
+      <span class="font-headline-md text-[13px] uppercase font-bold">🏪 Vendinha da vila</span>
+      <span class="font-label-sm text-[10px]">${v.minhaVendinha ? `${v.minhaVendinha.lotes}/${v.minhaVendinha.maximo} lotes meus` : ''}</span>
+    </div>
+    <div class="space-y-1">
+      ${v.vendinha.length ? v.vendinha.map((l) => `
+        <div class="flex items-center gap-gutter-xs bg-surface-container px-gutter-xs py-pixel-step shadow-[inset_1px_1px_0_0_#38301b] ${l.util ? 'ring-2 ring-primary-fixed-dim' : ''}">
+          <span class="text-[16px]">${l.icone}</span>
+          <div class="flex-1 min-w-0">
+            <p class="font-label-sm text-label-sm uppercase truncate">${l.qtd}x ${esc(l.nome)} <span class="text-on-surface-variant normal-case">de ${esc(l.vendedor)}</span></p>
+            <p class="font-body-sm text-[10px] text-on-surface-variant">${l.unitario} G cada · feira ${l.feira} G${l.util ? ' · <span class="text-primary font-bold">fecha uma encomenda sua</span>' : ''}</p>
+          </div>
+          ${l.minha
+            ? `<button class="bg-surface-dim font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="retirar" data-lote="${l.lote}" title="Volta pro seu celeiro">${l.preco} G · retirar</button>`
+            : `<button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press ${l.possoPagar ? '' : 'opacity-50'}" data-acao="comprar" data-de="${l.de}" data-lote="${l.lote}">Comprar ${l.preco} G</button>`}
+        </div>`).join('') : `<p class="font-body-sm text-[12px] text-on-surface-variant">Ninguém pôs nada à venda ainda. No seu celeiro (Minha Herdade) tem o botão 🏪 pra anunciar.</p>`}
+    </div>
+  </div>
+
   <div class="bg-surface-container-low p-panel-pad-sm shadow-[4px_4px_0_0_#221b08]">
     <div class="bg-secondary text-on-secondary px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#331200] flex items-center justify-between mb-panel-pad-sm">
       <span class="font-headline-md text-[13px] uppercase font-bold">📋 Missões de hoje</span>
@@ -636,6 +659,7 @@ function palcoHerdade(v) {
             <div class="flex items-center gap-gutter-xs bg-surface-container px-gutter-xs py-pixel-step shadow-[1px_1px_0_0_#221b08]">
               <span class="text-[16px]">${c.icone}</span>
               <span class="font-label-sm text-label-sm uppercase flex-1">${esc(c.nome)} x${c.qtd}</span>
+              <button class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="modal" data-modal="anunciar" data-item="${c.cultura}" title="Pôr na vendinha da vila (até 2x o preço de feira)">🏪 Anunciar</button>
               <button class="bg-primary text-on-primary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press" data-acao="vender" data-cultura="${c.cultura}" data-qtd="${c.qtd}">Vender ${c.preco * c.qtd} G</button>
             </div>`).join('') : `<p class="font-body-sm text-[12px] text-on-surface-variant">Celeiro vazio.</p>`}
         </div>
@@ -870,6 +894,26 @@ function abreModal(qual) {
         <p class="font-body-sm text-[11px] text-on-surface-variant">Laço: ${esc(f.laco)} · +1 harmonia para a vila</p></button>`).join('')}
       </div>` : `<p class="font-body-sm">Ninguém mais na vila ainda.</p>`),
 
+    anunciar: () => {
+      const c = v.hud.colheita.find((x) => x.cultura === app.anunciarItem);
+      if (!c) return caixa('Vendinha', `<p class="font-body-sm">Isso não está mais no seu celeiro.</p>`);
+      const qtd = Math.min(c.qtd, 20);
+      const [min, max] = faixaDePreco(c.cultura, qtd);
+      const sugerido = Math.min(max, Math.round(c.preco * qtd * 1.5));
+      return caixa(`🏪 Pôr ${esc(c.nome)} na vendinha`, `
+        <p class="font-body-sm text-[12px] mb-gutter-xs">Você tem ${c.qtd}. Feira paga ${c.preco} G cada; na vendinha vale de ${c.preco} a ${c.preco * 2} G cada. A família vê na hora.</p>
+        <label class="font-label-sm text-label-sm uppercase text-on-surface-variant">Quantidade (até ${qtd})</label>
+        <input class="w-full bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md mb-gutter-xs" id="in-qtd" type="number" min="1" max="${qtd}" value="${qtd}" data-item="${c.cultura}"/>
+        <label class="font-label-sm text-label-sm uppercase text-on-surface-variant">Preço total (<span id="faixa">${min} a ${max}</span> G)</label>
+        <input class="w-full bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md mb-gutter-xs" id="in-preco" type="number" min="${min}" max="${max}" value="${sugerido}"/>
+        <div class="flex gap-gutter-xs">
+          <button class="flex-1 bg-surface-dim font-label-sm text-[10px] uppercase py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="preco-sugerido" data-mult="1">feira</button>
+          <button class="flex-1 bg-surface-dim font-label-sm text-[10px] uppercase py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="preco-sugerido" data-mult="1.5">justo (1,5x)</button>
+          <button class="flex-1 bg-surface-dim font-label-sm text-[10px] uppercase py-pixel-step shadow-[1px_1px_0_0_#221b08] press" data-acao="preco-sugerido" data-mult="2">teto (2x)</button>
+        </div>
+        <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="anunciar" data-item="${c.cultura}">Anunciar</button>`);
+    },
+
     recado: () => caixa('Recado no mural', `
       <input class="w-full bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md" id="in-recado" maxlength="140" placeholder="Ex: quem rega minha horta amanhã?"/>
       <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="recado">Deixar recado</button>`),
@@ -962,7 +1006,7 @@ function reabreAjudar(herdade) {
 function confirma() {
   const l = visao(app.motor.mundo, app.eu, Date.now()).feed.find((x) => x.ator === app.eu);
   if (!l) return;
-  const verbo = l.texto.replace(/^.*? (plantou|regou|capinou|tirou a praga de|colheu|derrubou|tirou|construiu|desmanchou|deu|mandou|foi ajudar|doou|vendeu|pos|entregou|cumpriu|abriu)/, '$1').split(' em ')[0].split(' (')[0];
+  const verbo = l.texto.replace(/^.*? (plantou|regou|capinou|tirou a praga de|colheu|derrubou|tirou|construiu|desmanchou|deu|mandou|foi ajudar|doou|vendeu|pos|comprou|entregou|cumpriu|abriu)/, '$1').split(' em ')[0].split(' (')[0];
   aviso(`✓ ${verbo}${l.impacto ? ` · ${l.impacto}` : ''}`);
 }
 
@@ -1025,7 +1069,7 @@ document.addEventListener('click', async (e) => {
       if (s.chave === 'semente') abreModal('semente');
       pinta();
     },
-    modal: () => abreModal(d.modal),
+    modal: () => { if (d.item) app.anunciarItem = d.item; abreModal(d.modal); },
     'fecha-modal': fechaModal,
     'fecha-tutorial': () => { localStorage.setItem('vila:tutorial', '1'); fechaModal(); app.aba = 'herdade'; pinta(); },
     tutorial: () => abreModal('tutorial'),
@@ -1051,6 +1095,21 @@ document.addEventListener('click', async (e) => {
     abracar: async () => { fechaModal(); await manda({ tipo: 'ABRACAR', para: d.para }); },
     presentear: async () => { await manda({ tipo: 'PRESENTEAR', para: d.para, recurso: d.recurso, quantidade: 5 }); },
     recado: async () => { const t = $('in-recado').value; fechaModal(); await manda({ tipo: 'RECADO', texto: t }); },
+    'preco-sugerido': () => {
+      const qtd = Number($('in-qtd').value) || 1;
+      const item = $('in-qtd').dataset.item;
+      const [min, max] = faixaDePreco(item, qtd);
+      $('in-preco').value = Math.max(min, Math.min(max, Math.round(precoDe(item) * qtd * Number(d.mult))));
+      $('faixa').textContent = `${min} a ${max}`;
+    },
+    anunciar: async () => {
+      const quantidade = Number($('in-qtd').value), preco = Number($('in-preco').value);
+      const r = await app.sessao.executar({ tipo: 'ANUNCIAR', item: d.item, quantidade, preco, data: dataLocal() });
+      if (!r.ok) return aviso(r.erro, true);
+      fechaModal(); pinta(); confirma();
+    },
+    comprar: () => manda({ tipo: 'COMPRAR', de: d.de, lote: Number(d.lote) }),
+    retirar: () => manda({ tipo: 'RETIRAR', lote: Number(d.lote) }),
     construir: async () => { fechaModal(); await manda({ tipo: 'CONSTRUIR', construcao: d.construcao }); },
     doar: async () => { fechaModal(); await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); },
     vender: () => manda({ tipo: 'VENDER', cultura: d.cultura, quantidade: Number(d.qtd) }),

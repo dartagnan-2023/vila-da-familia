@@ -469,5 +469,54 @@ await teste('o calendario vem do log: primeira data funda, PASSAR_DIA avanca', a
   igual(m.executar({ ...comandoDoDia('2026-09-12'), em: T0 + 2 }).repetido, true, 'mesmo dia duas vezes = ignorado');
 });
 
+await teste('vendinha: anuncia dentro da faixa, o parente compra, dinheiro e item trocam de mao', () => {
+  const m = vilaCom('Ana', 'Bia');
+  const ana = m.mundo.jogadores.ana, bia = m.mundo.jogadores.bia;
+  ana.colheita.trigo = 10;
+  ok(!manda(m, { tipo: 'ANUNCIAR', por: 'ana', item: 'trigo', quantidade: 4, preco: 30 }).ok, 'acima do dobro da feira nao vale');
+  ok(!manda(m, { tipo: 'ANUNCIAR', por: 'ana', item: 'trigo', quantidade: 4, preco: 5 }).ok, 'abaixo da feira nao vale');
+  ok(!manda(m, { tipo: 'ANUNCIAR', por: 'ana', item: 'trigo', quantidade: 11, preco: 22 }).ok, 'nao tem 11');
+  ok(manda(m, { tipo: 'ANUNCIAR', por: 'ana', item: 'trigo', quantidade: 4, preco: 12 }).ok, 'anuncia 4 trigos por 12 (1,5x)');
+  igual(ana.colheita.trigo, 6, 'saiu do celeiro');
+  igual(ana.vendinha.length, 1);
+  const v = visao(m.mundo, 'bia');
+  igual(v.vendinha.length, 1);
+  igual(v.vendinha[0].vendedor, 'Ana');
+  ok(!manda(m, { tipo: 'COMPRAR', por: 'ana', de: 'ana', lote: 0 }).ok, 'nao compra de si mesma');
+  const moedasBia = bia.inventario.moedas, moedasAna = ana.inventario.moedas, harm = m.mundo.comuns.harmonia;
+  ok(manda(m, { tipo: 'COMPRAR', por: 'bia', de: 'ana', lote: 0 }).ok, 'bia compra');
+  igual(bia.inventario.moedas, moedasBia - 12);
+  igual(ana.inventario.moedas, moedasAna + 12);
+  igual(bia.colheita.trigo, 4);
+  igual(ana.vendinha.length, 0);
+  igual(m.mundo.comuns.harmonia, harm + 1, 'comprar do parente aquece a vila');
+  igual(bia.reputacao.ana, 1, 'e cria laco');
+  ok(!manda(m, { tipo: 'COMPRAR', por: 'bia', de: 'ana', lote: 0 }).ok, 'lote ja vendido');
+});
+
+await teste('vendinha: 3 lotes gratis, retirar devolve ao celeiro, sem dinheiro nao compra, log reproduz igual', () => {
+  const log = [];
+  const m = vilaCom('Ana', 'Bia');
+  log.push(...[['entrar-0', 'ana', 'Ana'], ['entrar-1', 'bia', 'Bia']].map(([id, por, nome]) => ({ id, tipo: 'ENTRAR', por, nome, nomeHerdade: `Sitio ${nome}`, em: T0 })));
+  const exec = (cmd) => { const c = agora(m, { ...cmd, id: `v${log.length}` }); const r = m.executar(c); if (r.ok) log.push(c); return r; };
+  const ana = m.mundo.jogadores.ana, bia = m.mundo.jogadores.bia;
+  for (let i = 0; i < 10; i++) { exec({ tipo: 'PLANTAR', por: 'ana', tile: i % 9, cultura: 'trigo' }); m.relogio += 3 * MIN; exec({ tipo: 'COLHER', por: 'ana', tile: i % 9 }); }
+  ok(ana.colheita.trigo >= 8, 'tem trigo');
+  for (let i = 0; i < 3; i++) ok(exec({ tipo: 'ANUNCIAR', por: 'ana', item: 'trigo', quantidade: 2, preco: 4 }).ok);
+  ok(!exec({ tipo: 'ANUNCIAR', por: 'ana', item: 'trigo', quantidade: 2, preco: 4 }).ok, 'quarto lote nao cabe');
+  const antes = ana.colheita.trigo;
+  ok(exec({ tipo: 'RETIRAR', por: 'ana', lote: 1 }).ok);
+  igual(ana.colheita.trigo, antes + 2, 'retirou 2 de volta');
+  igual(ana.vendinha.map((l) => l.id).join(','), '0,2');
+  bia.inventario.moedas = 3;
+  const r = exec({ tipo: 'COMPRAR', por: 'bia', de: 'ana', lote: 0 });
+  ok(!r.ok && /faltam 1 G/.test(r.erro), r.erro);
+  ok(exec({ tipo: 'VENDER', por: 'bia', cultura: 'trigo', quantidade: 1 }).ok === false, 'bia nao tem trigo');
+  const m2 = Motor.reproduzir(log, OPC);
+  m2.mundo.jogadores.bia.inventario.moedas = 3; // mesmo ajuste manual
+  igual(m2.mundo.jogadores.ana.vendinha.length, 2, 'vendinha reproduzida');
+  igual(m2.hash, m.hash, 'hash igual nas duas maquinas');
+});
+
 console.log(`\n${passou} passaram, ${falhou} falharam\n`);
 process.exit(falhou ? 1 : 0);

@@ -41,6 +41,8 @@ export function garantirJogador(mundo, p) {
   p.missoesFeitas ??= [];
   p.encomendasGeradas ??= 0;
   p.encomendas ??= [];
+  p.vendinha ??= [];
+  p.vendinhaSeq ??= 0;
   while (p.encomendas.length < CONFIG.encomendasAbertas) {
     p.encomendas.push(gerarEncomenda(mundo, p, p.encomendasGeradas++));
   }
@@ -90,6 +92,37 @@ const REDUCERS = {
     if (p.colheita[d.cultura] <= 0) delete p.colheita[d.cultura];
     p.inventario.moedas += d.moedas;
     conta(mundo, ev.ator, 'vendas');
+  },
+
+  ANUNCIOU(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    p.colheita[d.item] -= d.qtd;
+    if (p.colheita[d.item] <= 0) delete p.colheita[d.item];
+    p.vendinha.push({ id: d.lote, item: d.item, qtd: d.qtd, preco: d.preco });
+    p.vendinhaSeq = Math.max(p.vendinhaSeq ?? 0, d.lote + 1);
+    xp(mundo, ev.ator, d.xp);
+  },
+
+  RETIROU(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    const i = p.vendinha.findIndex((l) => l.id === d.lote);
+    if (i < 0) return;
+    const [l] = p.vendinha.splice(i, 1);
+    p.colheita[l.item] = (p.colheita[l.item] ?? 0) + l.qtd;
+  },
+
+  COMPROU(mundo, ev, d) {
+    const quem = j(mundo, ev.ator), de = j(mundo, d.de);
+    const i = de.vendinha.findIndex((l) => l.id === d.lote);
+    if (i < 0) return;
+    const [l] = de.vendinha.splice(i, 1);
+    quem.inventario.moedas -= l.preco;
+    de.inventario.moedas += l.preco;
+    quem.colheita[l.item] = (quem.colheita[l.item] ?? 0) + l.qtd;
+    conta(mundo, ev.ator, 'compras');
+    conta(mundo, d.de, 'vendas');
+    creditaReputacao(mundo, ev.ator, d.de, 1);
+    xp(mundo, ev.ator, d.xp);
   },
 
   CORTOU_ARVORE(mundo, ev, d) {

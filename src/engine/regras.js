@@ -1,6 +1,6 @@
 import {
   CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, CONFIG, SPRITES, TEMPO, PROBLEMAS, MISSOES, XP,
-  nivelDe, precoDe, nomeDe, xpDe,
+  nivelDe, precoDe, nomeDe, xpDe, VENDINHA,
 } from './conteudo.js';
 import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida } from './mundo.js';
 import { rngPara } from './rng.js';
@@ -24,6 +24,18 @@ function alvo(mundo, cmd) {
 function checaBase(mundo, cmd) {
   if (!mundo.jogadores[cmd.por]) return 'jogador nao esta na vila';
   return null;
+}
+
+/** Faixa de preco permitida na vendinha para `qtd` unidades de `item`. */
+export function faixaDePreco(item, qtd) {
+  const base = precoDe(item) * qtd;
+  return [Math.ceil(base * VENDINHA.precoMin), Math.floor(base * VENDINHA.precoMax)];
+}
+
+/** Quantos lotes essa pessoa pode ter na vendinha. */
+export function lotesDe(mundo, p) {
+  const her = mundo.herdades[p.herdade];
+  return VENDINHA.lotes + (her && temConstrucao(her, 'estoque') ? VENDINHA.lotesCeleiro : 0);
 }
 
 /** Quanto rende uma colheita: aqui entram fertilidade, vizinhos e harmonia. */
@@ -527,6 +539,72 @@ export const REGRAS = {
         ator: cmd.por,
         dados: { cultura: cmd.cultura, quantidade: cmd.quantidade, moedas },
         texto: `${nome(mundo, cmd.por)} vendeu ${cmd.quantidade}x ${nomeDe(cmd.cultura)} por ${moedas} moedas.`,
+      }];
+    },
+  },
+
+  // --- vendinha: o que sobra de um vira a encomenda do outro ---------------
+  ANUNCIAR: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      const p = mundo.jogadores[cmd.por];
+      const base = precoDe(cmd.item);
+      if (!base) return 'item desconhecido';
+      const qtd = Number(cmd.quantidade), preco = Number(cmd.preco);
+      if (!(qtd > 0 && qtd <= VENDINHA.qtdMax && Number.isInteger(qtd))) return `quantidade de 1 a ${VENDINHA.qtdMax}`;
+      if ((p.colheita[cmd.item] ?? 0) < qtd) return 'voce nao tem essa quantidade';
+      const [min, max] = faixaDePreco(cmd.item, qtd);
+      if (!(preco >= min && preco <= max && Number.isInteger(preco))) return `preco entre ${min} e ${max} G`;
+      if ((p.vendinha ?? []).length >= lotesDe(mundo, p)) return 'sua vendinha esta cheia — retire ou espere vender';
+      return null;
+    },
+    emite(mundo, cmd) {
+      const p = mundo.jogadores[cmd.por];
+      const qtd = Number(cmd.quantidade), preco = Number(cmd.preco);
+      return [{
+        tipo: 'ANUNCIOU',
+        ator: cmd.por,
+        dados: { lote: p.vendinhaSeq ?? 0, item: cmd.item, qtd, preco, xp: XP.anunciar },
+        texto: `${nome(mundo, cmd.por)} pos ${qtd}x ${nomeDe(cmd.item)} na vendinha por ${preco} G.`,
+      }];
+    },
+  },
+
+  RETIRAR: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      const p = mundo.jogadores[cmd.por];
+      if (!(p.vendinha ?? []).some((l) => l.id === Number(cmd.lote))) return 'esse lote ja saiu da vendinha';
+      return null;
+    },
+    emite(mundo, cmd) {
+      const l = mundo.jogadores[cmd.por].vendinha.find((x) => x.id === Number(cmd.lote));
+      return [{ tipo: 'RETIROU', ator: cmd.por, dados: { lote: l.id, item: l.item, qtd: l.qtd }, texto: null }];
+    },
+  },
+
+  COMPRAR: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      const de = mundo.jogadores[cmd.de];
+      if (!de) return 'esse familiar nao esta na vila';
+      if (cmd.de === cmd.por) return 'comprar de si mesmo nao vale — retire o lote';
+      const l = (de.vendinha ?? []).find((x) => x.id === Number(cmd.lote));
+      if (!l) return 'ja vendido — alguem chegou antes';
+      if (mundo.jogadores[cmd.por].inventario.moedas < l.preco) return `faltam ${l.preco - mundo.jogadores[cmd.por].inventario.moedas} G`;
+      return null;
+    },
+    emite(mundo, cmd) {
+      const l = mundo.jogadores[cmd.de].vendinha.find((x) => x.id === Number(cmd.lote));
+      return [{
+        tipo: 'COMPROU',
+        ator: cmd.por,
+        dados: { de: cmd.de, para: cmd.de, lote: l.id, item: l.item, qtd: l.qtd, preco: l.preco, xp: XP.comprar },
+        comuns: { harmonia: 1 },
+        texto: `${nome(mundo, cmd.por)} comprou ${l.qtd}x ${nomeDe(l.item)} de ${nome(mundo, cmd.de)} por ${l.preco} G.`,
       }];
     },
   },

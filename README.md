@@ -89,6 +89,8 @@ prendia porque a planta *pede* coisas e o amigo resolve. A Vila copiou os dois:
 | `CONSTRUIR` / `DEMOLIR` | benfeitoria (por nível) / desmancha, devolve metade | materiais | harmonia ±1 |
 | `COMPRAR_CANTEIRO` | abre o 10º, 11º, 12º canteiro | 60/90/120 G | — |
 | `PRESENTEAR` / `ABRACAR` / `RECADO` | gestos | — | harmonia +1 |
+| `ANUNCIAR` / `RETIRAR` | põe lote na **vendinha** (3 lotes; +3 com Celeiro), preço entre 1× e 2× a feira | item | — |
+| `COMPRAR` | compra o lote do parente: moeda vai pra ele, item pro seu celeiro, laço +1 | G | harmonia +1 |
 | **`AJUDAR`** | cuida/colhe **na terra do outro**; XP e laço pra quem ajuda | — | **harmonia +2** |
 | `DOAR` | material pra obra da vila | — | harmonia +1 |
 | `CUMPRIR_MISSAO` | prêmio de uma missão do dia | — | harmonia +1 |

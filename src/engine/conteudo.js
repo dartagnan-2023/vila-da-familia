@@ -20,6 +20,17 @@ export const CONFIG = {
   encomendasAbertas: 3,
 };
 
+// A vendinha: cada um poe o que sobra a venda para a familia. O preco anda entre
+// o de feira e o dobro dele — a encomenda paga 1,5x, entao comprar do parente
+// ate esse ponto ainda compensa para quem compra, e rende mais para quem vende.
+export const VENDINHA = {
+  lotes: 3,          // lotes gratis por pessoa
+  lotesCeleiro: 3,   // o Celeiro (nv 6) abre mais estes
+  precoMin: 1,       // x preco de feira
+  precoMax: 2,
+  qtdMax: 20,
+};
+
 export const ESTACOES = ['Primavera', 'Verao', 'Outono', 'Inverno'];
 
 // `minutos`: tempo de relogio ate ficar pronta. `rende`: unidades por colheita.
@@ -63,6 +74,7 @@ export const OBRAS = {
 export const XP = {
   plantar: 1, cuidar: 1, ajudar: 5, cortar: 2, minerar: 2, arvore: 4,
   construir: 10, doar: 3, presente: 2, abraco: 1, recado: 1, encomendaBase: 5, missao: 5,
+  anunciar: 1, comprar: 2,
 };
 /** XP acumulado necessario para estar no nivel n: 10, 30, 60, 100, 150... */
 export const xpParaNivel = (n) => 5 * (n - 1) * n;
