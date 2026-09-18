@@ -182,7 +182,7 @@ async function abrirVila(chave, nomeJogador) {
     : new TransporteSalvo(`vila:log:${chave}`);
   app.motor = Motor.criar({ semente: vila.semente, nome: vila.nome });
   app.eu = vila.eu;
-  app.sessao = new Sessao({ motor: app.motor, transporte: app.transporte, jogadorId: app.eu ?? 'convidado', aoAtualizar: pinta });
+  app.sessao = new Sessao({ motor: app.motor, transporte: app.transporte, jogadorId: app.eu ?? 'convidado', aoAtualizar: (mundo, r) => { pinta(); avisaChegada(r); } });
 
   try { await app.sessao.sincronizar(); }
   catch (e) { return aviso(`não deu para carregar a vila: ${e.message}`, true); }
@@ -361,6 +361,7 @@ function topo(v) {
     </nav>
     <div class="flex items-center gap-gutter-md">
       <button class="bg-surface-container-low text-secondary font-label-lg px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="tutorial" title="Como jogar">❔</button>
+      ${'Notification' in window && Notification.permission !== 'denied' ? `<button class="bg-surface-container-low text-secondary font-label-lg px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press ${Notification.permission === 'granted' ? '' : 'pisca'}" data-acao="sino" title="${Notification.permission === 'granted' ? 'Você é avisado(a) quando a família fala com você ou uma planta fica pronta' : 'Quer ser avisado(a) quando a família falar com você? Clique.'}">${Notification.permission === 'granted' ? '🔔' : '🔕'}</button>` : ''}
       <div class="flex items-center gap-gutter-xs bg-tertiary-fixed px-panel-pad-sm py-pixel-step shadow-[2px_2px_0_0_#221b08]">
         ${ICO('monetization_on', 'text-tertiary text-[18px]')}
         <span class="font-label-md text-label-md text-on-tertiary-fixed">${v.hud.moedas} G</span>
@@ -992,6 +993,79 @@ function aviso(texto, ruim = false) {
   setTimeout(() => d.remove(), 2600);
 }
 
+// --- avisos de fora da tela -------------------------------------------------
+// Quem esta em outra aba (ou com o jogo aberto no fundo) precisa ser chamado:
+// recado, abraco, presente, compra na vendinha, ajuda na horta, planta pronta.
+const ICONE_NOTIF = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#39671d"/><text x="32" y="46" font-size="40" text-anchor="middle">🌳</text></svg>');
+let naoLidos = 0;
+const tituloBase = document.title;
+
+function avisaChegada(r) {
+  if (!r?.eventos?.length || !app.eu) return;
+  const m = app.motor.mundo;
+  const nomeDe = (id) => m.jogadores[id]?.nome ?? 'alguém';
+  const minha = m.jogadores[app.eu]?.herdade;
+  for (const ev of r.eventos) {
+    if (ev.ator === app.eu) continue;
+    const d = ev.dados ?? {};
+    let texto = null;
+    if (ev.tipo === 'RECADO') texto = `💬 ${ev.texto}`;
+    else if (ev.tipo === 'ABRACOU' && d.para === app.eu) texto = `❤️ ${nomeDe(ev.ator)} te mandou um abraço`;
+    else if (ev.tipo === 'PRESENTEOU' && d.para === app.eu) texto = `🎁 ${ev.texto}`;
+    else if (ev.tipo === 'COMPROU' && d.de === app.eu) texto = `💰 ${ev.texto}`;
+    else if (ev.tipo === 'ANUNCIOU') texto = `🏪 ${ev.texto}`;
+    else if ((ev.tipo === 'CUIDOU' || ev.tipo === 'COLHEU') && d.herdade === minha) texto = `🤝 ${ev.texto}`;
+    else if (ev.tipo === 'JOGADOR_ENTROU') texto = `🏠 ${nomeDe(ev.ator)} chegou na vila!`;
+    if (!texto) continue;
+    // Dez colheitas seguidas do mesmo parente = um aviso so.
+    const chave = `${ev.tipo}:${ev.ator}`;
+    if (ev.tipo === 'CUIDOU' || ev.tipo === 'COLHEU') {
+      if (Date.now() - (ultimoAviso.get(chave) ?? 0) < 5 * 60e3) continue;
+      texto = `🤝 ${nomeDe(ev.ator)} está cuidando da sua horta`;
+    }
+    ultimoAviso.set(chave, Date.now());
+    notifica(texto);
+  }
+}
+const ultimoAviso = new Map();
+
+function notifica(texto) {
+  if (document.hidden) {
+    naoLidos++;
+    document.title = `(${naoLidos}) ${tituloBase}`;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try { const n = new Notification(app.motor.mundo.nome ?? 'Vila Raízes', { body: texto, icon: ICONE_NOTIF, tag: 'vila' }); n.onclick = () => { window.focus(); n.close(); }; } catch {}
+    }
+  } else {
+    aviso(texto);
+  }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { naoLidos = 0; document.title = tituloBase; } });
+
+// Planta ficou pronta enquanto voce nao olhava: avisa uma vez por canteiro.
+const prontasAvisadas = new Set();
+setInterval(() => {
+  if (!app.motor || !app.eu) return;
+  const v = visao(app.motor.mundo, app.eu, Date.now());
+  const novas = v.minhaHerdade.canteiros.filter((c) => c.pronto && !prontasAvisadas.has(`${c.i}:${c.nome}`));
+  for (const c of v.minhaHerdade.canteiros) if (!c.pronto) prontasAvisadas.delete(`${c.i}:${c.nome}`);
+  if (!novas.length) return;
+  for (const c of novas) prontasAvisadas.add(`${c.i}:${c.nome}`);
+  if (document.hidden) notifica(`🌾 ${novas.length === 1 ? `${novas[0].nome} pronto` : `${novas.length} canteiros prontos`} na sua horta`);
+}, 20000);
+
+// O jogo nao tem o telefone de ninguem: quem manda o recado leva o link pro zap.
+function ofereceZap(mensagem) {
+  const texto = `${mensagem}\n${linkDeConvite(app.chave)}`;
+  const d = document.createElement('a');
+  d.href = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  d.target = '_blank'; d.rel = 'noopener';
+  d.className = 'bg-[#25D366] text-white font-label-sm text-label-sm uppercase px-gutter-md py-pixel-step shadow-[3px_3px_0_0_#221b08] press inline-block';
+  d.textContent = '📲 avisar no WhatsApp que tem recado';
+  $('avisos').appendChild(d);
+  setTimeout(() => d.remove(), 12000);
+}
+
 // --- comandos --------------------------------------------------------------
 
 async function manda(cmd) {
@@ -1097,6 +1171,12 @@ document.addEventListener('click', async (e) => {
     'fecha-modal': fechaModal,
     'fecha-tutorial': () => { localStorage.setItem('vila:tutorial', '1'); fechaModal(); app.aba = 'herdade'; pinta(); },
     tutorial: () => abreModal('tutorial'),
+    sino: async () => {
+      const p = await Notification.requestPermission();
+      if (p === 'granted') { aviso('🔔 combinado: aviso quando a família falar com você'); new Notification('Vila Raízes', { body: 'Assim que alguém te mandar recado, abraço ou presente, aparece aqui.', icon: ICONE_NOTIF }); }
+      else aviso('sem permissão pra avisar — dá pra ligar nas configurações do navegador', true);
+      pinta();
+    },
     'escolhe-cultura': () => { app.cultura = d.cultura; app.ferramenta = 'semente'; fechaModal(); pinta(); },
     canteiro: () => usaFerramentaNoCanteiro(Number(d.tile)),
     'abrir-herdade': () => {
@@ -1117,8 +1197,16 @@ document.addEventListener('click', async (e) => {
       await mandaVarios(c.map((x) => ({ tipo: 'PLANTAR', tile: x.i, cultura: app.cultura })), 'nenhum canteiro vazio');
     },
     abracar: async () => { fechaModal(); await manda({ tipo: 'ABRACAR', para: d.para }); },
-    presentear: async () => { await manda({ tipo: 'PRESENTEAR', para: d.para, recurso: d.recurso, quantidade: 5 }); },
-    recado: async () => { const t = $('in-recado').value; fechaModal(); await manda({ tipo: 'RECADO', texto: t }); },
+    presentear: async () => {
+      await manda({ tipo: 'PRESENTEAR', para: d.para, recurso: d.recurso, quantidade: 5 });
+      const quem = app.motor.mundo.jogadores[d.para]?.nome ?? 'alguém';
+      ofereceZap(`${app.motor.mundo.jogadores[app.eu]?.nome} te deixou um presente na ${app.motor.mundo.nome ?? 'vila'}, ${quem}!`);
+    },
+    recado: async () => {
+      const t = $('in-recado').value; fechaModal();
+      await manda({ tipo: 'RECADO', texto: t });
+      if (t.trim()) ofereceZap(`${app.motor.mundo.jogadores[app.eu]?.nome} deixou um recado na ${app.motor.mundo.nome ?? 'vila'}: "${t.trim()}"`);
+    },
     'preco-sugerido': () => {
       const qtd = Number($('in-qtd').value) || 1;
       const item = $('in-qtd').dataset.item;
