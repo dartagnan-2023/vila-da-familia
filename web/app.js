@@ -1277,11 +1277,7 @@ document.addEventListener('click', async (e) => {
       fundar(vila, nome);
     },
     'abrir-vila': () => abrirVila(d.chave, $('in-nome')?.value.trim() || null),
-    'trocar-vila': () => { localStorage.removeItem('vila:ultima'); app.transporte?.fechar?.(); telaEntrada();
-{
-  const ultima = localStorage.getItem('vila:ultima');
-  if (!chaveDaUrl() && ultima && vilasSalvas().some((v) => v.chave === ultima)) abrirVila(ultima, null);
-} window.scrollTo(0, 0); },
+    'trocar-vila': () => { localStorage.removeItem('vila:ultima'); app.transporte?.fechar?.(); telaEntrada(); window.scrollTo(0, 0); },
     'usar-chave': () => {
       const nome = $('in-nome').value.trim();
       if (!nome) return aviso('diga seu nome primeiro', true);
@@ -1431,3 +1427,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 telaEntrada();
+{
+  const ultima = localStorage.getItem('vila:ultima');
+  if (!chaveDaUrl() && ultima && vilasSalvas().some((v) => v.chave === ultima)) abrirVila(ultima, null);
+}
