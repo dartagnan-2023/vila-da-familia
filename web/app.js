@@ -6,6 +6,7 @@ import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js';
 import { CULTURAS, CONSTRUCOES, OBRAS } from '../src/engine/conteudo.js';
 import { VilaCanvas, LOJAS } from './vila-canvas.js';
+import { VERSAO } from './versao.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 import { projetar, estaMadura, rotuloDuracao } from '../src/engine/tempo.js';
 import { PRODUTOS, PROBLEMAS, nivelDe, xpParaNivel, nomeDe, precoDe } from '../src/engine/conteudo.js';
@@ -1083,6 +1084,31 @@ function caixaPraVoce() {
     </div>
   </div>`;
 }
+
+// --- atualizacao sozinha ------------------------------------------------------
+// O GitHub Pages manda "guarde 10 min" e o F5 nao reconfere os modulos. Entao o
+// jogo confere a versao no servidor e, quando muda, rebaixa cada arquivo que
+// carregou (cache: 'reload' atualiza o cache do navegador) e recarrega.
+let atualizando = false;
+async function conferirVersao() {
+  if (atualizando || !navigator.onLine) return;
+  try {
+    const r = await fetch(`./versao.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const { v } = await r.json();
+    if (!v || v === VERSAO) return;
+    atualizando = true;
+    aviso('🆕 vila atualizada — recarregando…');
+    const urls = new Set([location.href.split('#')[0], ...performance.getEntriesByType('resource').map((e) => e.name)]);
+    await Promise.allSettled([...urls].filter((u) => /\.(js|html|css)(\?|$)/.test(u)).map((u) => fetch(u, { cache: 'reload' })));
+    const espera = () => document.getElementById('modal').hidden && document.activeElement?.tagName !== 'INPUT';
+    const tenta = () => { if (espera()) location.reload(); else setTimeout(tenta, 5000); };
+    tenta();
+  } catch {}
+}
+setInterval(conferirVersao, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) conferirVersao(); });
+setTimeout(conferirVersao, 3000);
 
 // --- avisos de fora da tela -------------------------------------------------
 // Quem esta em outra aba (ou com o jogo aberto no fundo) precisa ser chamado:

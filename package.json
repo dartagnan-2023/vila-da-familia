@@ -9,7 +9,9 @@
   "scripts": {
     "test": "node tests/motor.test.mjs && node tests/rede.test.mjs",
     "demo": "node demo/simulacao.mjs",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "versao": "node scripts/versao.mjs",
+    "publicar": "node scripts/versao.mjs && git add -A && git commit -q -m \"publica\" && git push -q"
   },
   "dependencies": {}
 }
