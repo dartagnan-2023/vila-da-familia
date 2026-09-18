@@ -199,6 +199,7 @@ async function abrirVila(chave, nomeJogador) {
   if (!app.eu || !app.motor.mundo.jogadores[app.eu]) app.eu = Object.keys(app.motor.mundo.jogadores)[0] ?? null;
   if (!app.eu) return aviso('diga seu nome para entrar na vila', true);
   trocarDeFamiliar(app.eu);
+  localStorage.setItem('vila:ultima', chave); // recarregou? volta direto pra ca
   $('entrada').hidden = true;
   if (location.search) history.replaceState(null, '', location.pathname);
   pinta();
@@ -1276,7 +1277,11 @@ document.addEventListener('click', async (e) => {
       fundar(vila, nome);
     },
     'abrir-vila': () => abrirVila(d.chave, $('in-nome')?.value.trim() || null),
-    'trocar-vila': () => { app.transporte?.fechar?.(); telaEntrada(); window.scrollTo(0, 0); },
+    'trocar-vila': () => { localStorage.removeItem('vila:ultima'); app.transporte?.fechar?.(); telaEntrada();
+{
+  const ultima = localStorage.getItem('vila:ultima');
+  if (!chaveDaUrl() && ultima && vilasSalvas().some((v) => v.chave === ultima)) abrirVila(ultima, null);
+} window.scrollTo(0, 0); },
     'usar-chave': () => {
       const nome = $('in-nome').value.trim();
       if (!nome) return aviso('diga seu nome primeiro', true);

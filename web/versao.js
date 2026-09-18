@@ -1,1 +1,1 @@
-export const VERSAO = '20260918193038';
+export const VERSAO = '20260918193334';
