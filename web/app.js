@@ -307,6 +307,7 @@ function pinta() {
   const v = visao(app.motor.mundo, app.eu, Date.now());
   $('topo').innerHTML = topo(v);
   $('hud').innerHTML = hud(v);
+  $('caixa').innerHTML = caixaPraVoce();
   $('ecos').innerHTML = ecos(v);
   $('painel').innerHTML = painel(v);
   $('hotbar').innerHTML = hotbar(v);
@@ -993,6 +994,29 @@ function aviso(texto, ruim = false) {
   setTimeout(() => d.remove(), 2600);
 }
 
+// --- "pra voce": o que a familia fez com voce, ate voce dizer que viu ---------
+// Toast some em 3 segundos; abraco de mae nao pode sumir. Fica na tela.
+const lidoChave = () => `vila:lido:${app.chave}`;
+function caixaPraVoce() {
+  if (!app.motor || !app.eu) return '';
+  const lido = Number(localStorage.getItem(lidoChave()) ?? 0);
+  const n = novidadesDesde(lido);
+  if (!n.linhas.length) return '';
+  const mostra = n.linhas.slice(-3).reverse();
+  const resto = n.linhas.length - mostra.length;
+  return `
+  <div class="max-w-[1600px] mx-auto px-gutter-md pt-gutter-xs">
+    <div class="bg-tertiary-fixed text-on-tertiary-fixed p-gutter-xs shadow-[4px_4px_0_0_#221b08] flex items-start gap-gutter-sm">
+      <span class="font-headline-md text-[14px] uppercase whitespace-nowrap">📬 Pra você${n.linhas.length > 1 ? ` (${n.linhas.length})` : ''}</span>
+      <div class="flex-1 font-body-sm text-[12px] leading-snug">
+        ${mostra.map((l) => `<div>${esc(l)}</div>`).join('')}
+        ${resto > 0 ? `<div class="opacity-70">e mais ${resto}…</div>` : ''}
+      </div>
+      <button class="bg-surface-container-low text-secondary font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-step shadow-[2px_2px_0_0_#221b08] press whitespace-nowrap" data-acao="lido">✓ vi</button>
+    </div>
+  </div>`;
+}
+
 // --- avisos de fora da tela -------------------------------------------------
 // Quem esta em outra aba (ou com o jogo aberto no fundo) precisa ser chamado:
 // recado, abraco, presente, compra na vendinha, ajuda na horta, planta pronta.
@@ -1171,6 +1195,7 @@ document.addEventListener('click', async (e) => {
     'fecha-modal': fechaModal,
     'fecha-tutorial': () => { localStorage.setItem('vila:tutorial', '1'); fechaModal(); app.aba = 'herdade'; pinta(); },
     tutorial: () => abreModal('tutorial'),
+    lido: () => { localStorage.setItem(lidoChave(), String(app.motor.mundo.seq)); pinta(); },
     sino: async () => {
       const p = await Notification.requestPermission();
       if (p === 'granted') { aviso('🔔 combinado: aviso quando a família falar com você'); new Notification('Vila Raízes', { body: 'Assim que alguém te mandar recado, abraço ou presente, aparece aqui.', icon: ICONE_NOTIF }); }

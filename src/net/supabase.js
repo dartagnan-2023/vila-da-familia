@@ -119,7 +119,8 @@ export class TransporteSupabase {
       if (error) throw new Error(traduz(error));
       const lote = (data ?? []).map(paraComando);
       tudo.push(...lote);
-      if (lote.length < 2000) return tudo; // pagina cheia = pode haver mais
+      // O PostgREST corta em 1000 linhas por chamada: so se pode confiar numa pagina VAZIA.
+      if (!lote.length) return tudo;
       desde = lote.at(-1).ordem;
     }
   }
