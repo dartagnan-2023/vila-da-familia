@@ -298,7 +298,8 @@ export const REGRAS = {
     },
     emite(mundo, cmd, rnd) {
       const p = mundo.jogadores[cmd.por];
-      const madeira = 3 + Math.floor(rnd() * 3);
+      // 4 a 6, mais 1 a cada 4 niveis, mais 1 se a mata esta farta (>= 80).
+      const madeira = Math.min(12, 4 + Math.floor(rnd() * 3) + Math.floor(nivel(p) / 4) + (mundo.comuns.floresta >= 80 ? 1 : 0));
       return [{
         tipo: 'CORTOU_ARVORE',
         ator: cmd.por,
@@ -313,14 +314,14 @@ export const REGRAS = {
     valida(mundo, cmd) {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
-      if (mundo.jogadores[cmd.por].inventario.madeira < 2) return 'precisa de 2 de madeira para as mudas';
+      if (mundo.jogadores[cmd.por].inventario.madeira < 1) return 'precisa de 1 de madeira para as mudas';
       return null;
     },
     emite(mundo, cmd) {
       return [{
         tipo: 'PLANTOU_ARVORE',
         ator: cmd.por,
-        dados: { custoMadeira: 2, xp: XP.arvore },
+        dados: { custoMadeira: 1, xp: XP.arvore },
         comuns: { floresta: 4, harmonia: 1 },
         texto: `${nome(mundo, cmd.por)} plantou mudas na mata comum (+4 de floresta).`,
       }];
@@ -335,7 +336,7 @@ export const REGRAS = {
     },
     emite(mundo, cmd, rnd) {
       const p = mundo.jogadores[cmd.por];
-      const pedra = 2 + Math.floor(rnd() * 3);
+      const pedra = Math.min(10, 3 + Math.floor(rnd() * 3) + Math.floor(nivel(mundo.jogadores[cmd.por]) / 5));
       return [{
         tipo: 'MINEROU',
         ator: cmd.por,

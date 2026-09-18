@@ -87,8 +87,8 @@ export function nivelDe(xp) {
 export const TEMPO = {
   hora: HORA,
   minuto: MIN,
-  descansoMachado: 3 * MIN,     // sem energia, a ferramenta e o limite
-  descansoPicareta: 5 * MIN,
+  descansoMachado: 2 * MIN,     // sem energia, a ferramenta e o limite
+  descansoPicareta: 4 * MIN,
   // A planta pede ajuda (sede/praga/mato) e PARA ate alguem resolver.
   // So culturas de 10 min ou mais; nos pontos abaixo do crescimento.
   pedidoMinimoMinutos: 10,

@@ -83,9 +83,9 @@ prendia porque a planta *pede* coisas e o amigo resolve. A Vila copiou os dois:
 | `VENDER` | vira moeda (culturas e produtos) | — | — |
 | `PRODUZIR` / `RECOLHER` | põe insumo na máquina / tira o produto | insumos | — |
 | `CUMPRIR_ENCOMENDA` | entrega itens do celeiro, recebe G + XP | itens | harmonia +1 |
-| `CORTAR` | pega madeira; machado descansa 3 min | — | **mata −3** |
-| `PLANTAR_ARVORE` | repõe a mata | 2 madeira | mata +4, harmonia +1 |
-| `MINERAR` | pega pedra; picareta descansa 5 min | — | solo −1 |
+| `CORTAR` | pega 4–6 madeira (+1 a cada 4 níveis, +1 com a mata ≥ 80); machado descansa 2 min | — | **mata −3** |
+| `PLANTAR_ARVORE` | repõe a mata | 1 madeira | mata +4, harmonia +1 |
+| `MINERAR` | pega 3–5 pedra (+1 a cada 5 níveis); picareta descansa 4 min | — | solo −1 |
 | `CONSTRUIR` / `DEMOLIR` | benfeitoria (por nível) / desmancha, devolve metade | materiais | harmonia ±1 |
 | `COMPRAR_CANTEIRO` | abre o 10º, 11º, 12º canteiro | 60/90/120 G | — |
 | `PRESENTEAR` / `ABRACAR` / `RECADO` | gestos | — | harmonia +1 |
