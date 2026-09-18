@@ -277,14 +277,17 @@ export const REGRAS = {
       const t = (cmd.texto ?? '').trim();
       if (!t) return 'escreva alguma coisa';
       if (t.length > 140) return 'recado muito longo (max 140)';
+      if (cmd.para && !mundo.jogadores[cmd.para]) return 'esse familiar nao esta na vila';
+      if (cmd.para === cmd.por) return 'recado pra si mesmo nao vale';
       return null;
     },
     emite(mundo, cmd) {
+      const t = cmd.texto.trim().slice(0, 140);
       return [{
         tipo: 'RECADO',
         ator: cmd.por,
-        dados: { texto: cmd.texto.trim().slice(0, 140), xp: XP.recado },
-        texto: `${nome(mundo, cmd.por)}: "${cmd.texto.trim().slice(0, 140)}"`,
+        dados: { texto: t, para: cmd.para || undefined, xp: XP.recado },
+        texto: cmd.para ? `${nome(mundo, cmd.por)} → ${nome(mundo, cmd.para)}: "${t}"` : `${nome(mundo, cmd.por)}: "${t}"`,
       }];
     },
   },

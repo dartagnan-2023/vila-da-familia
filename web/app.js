@@ -232,7 +232,7 @@ function novidadesDesde(seqVisto) {
     else if (l.tipo === 'ANUNCIOU') linhas.push(`🏪 ${l.texto.replace(/\.$/, '')}`);
     else if (l.tipo === 'COMPROU' && r.para === app.eu) linhas.push(`💰 ${l.texto.replace(/\.$/, '')} — o dinheiro já está com você`);
     else if (l.tipo === 'PRESENTEOU' && r.para === app.eu) linhas.push(`🎁 ${l.texto}`);
-    else if (l.tipo === 'RECADO') linhas.push(`💬 ${l.texto}`);
+    else if (l.tipo === 'RECADO' && (!r.para || r.para === app.eu)) linhas.push(`💬 ${r.para ? l.texto.replace(/ → [^:]+:/, ' → você:') : l.texto}`);
     else if (l.tipo === 'JOGADOR_ENTROU') linhas.push(`🏠 ${nomeDe(l.ator)} chegou na vila!`);
     else if (l.tipo === 'OBRA_CONCLUIDA') linhas.push(`🏆 ${l.texto}`);
     else if (l.tipo === 'DESTINO') linhas.push(`🔮 ${l.texto}`);
@@ -976,9 +976,32 @@ function abreModal(qual) {
         <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="anunciar" data-item="${c.cultura}">Anunciar</button>`);
     },
 
-    recado: () => caixa('Recado no mural', `
-      <input class="w-full bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md" id="in-recado" maxlength="140" placeholder="Ex: quem rega minha horta amanhã?"/>
-      <button class="w-full mt-gutter-xs bg-primary text-on-primary font-label-lg uppercase py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="recado">Deixar recado</button>`),
+    recado: () => {
+      const para = app.recadoPara && outros.some((f) => f.id === app.recadoPara) ? app.recadoPara : null;
+      const m = app.motor.mundo;
+      const conversa = m.feed.filter((l) => l.tipo === 'RECADO' && (para
+        ? (l.ator === app.eu && l.ref?.para === para) || (l.ator === para && l.ref?.para === app.eu)
+        : !l.ref?.para)).slice(-12);
+      const quem = para ? outros.find((f) => f.id === para) : null;
+      return caixa(para ? `💬 Conversa com ${esc(quem.nome)}` : '💬 Mural da família', `
+      <div class="flex flex-wrap gap-1 mb-gutter-xs">
+        <button class="font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press ${!para ? 'bg-primary text-on-primary' : 'bg-surface-container'}" data-acao="recado-para" data-para="">📣 Todos</button>
+        ${outros.map((f) => `<button class="font-label-sm text-[10px] uppercase px-gutter-xs py-pixel-unit shadow-[1px_1px_0_0_#221b08] press ${para === f.id ? 'bg-primary text-on-primary' : 'bg-surface-container'}" data-acao="recado-para" data-para="${f.id}">${f.sprite} ${esc(f.nome)}</button>`).join('')}
+      </div>
+      <div class="bg-surface-dim p-gutter-xs shadow-[inset_2px_2px_0_0_#221b08] max-h-[40vh] overflow-y-auto space-y-1 mb-gutter-xs" id="conversa">
+        ${conversa.length ? conversa.map((l) => {
+          const meu = l.ator === app.eu;
+          const texto = l.texto.replace(/^[^:]+: "/, '').replace(/"$/, '');
+          return `<div class="flex ${meu ? 'justify-end' : 'justify-start'}"><div class="max-w-[85%] px-gutter-xs py-pixel-step shadow-[1px_1px_0_0_#221b08] ${meu ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-highest'}">
+            ${meu ? '' : `<span class="font-label-sm text-[9px] uppercase text-secondary block">${esc(m.jogadores[l.ator]?.nome ?? '')}</span>`}
+            <span class="font-body-sm text-[12px] leading-snug">${esc(texto)}</span></div></div>`;
+        }).join('') : `<p class="font-body-sm text-[11px] text-on-surface-variant">${para ? `Nenhum recado entre vocês ainda. Só ${esc(quem.nome)} vê o que você escrever aqui.` : 'Nada no mural ainda. Todo mundo da vila lê o que for escrito aqui.'}</p>`}
+      </div>
+      <div class="flex gap-1">
+        <input class="flex-1 bg-surface-dim px-gutter-xs py-pixel-step shadow-[inset_2px_2px_0_0_#221b08] font-body-md" id="in-recado" maxlength="140" placeholder="${para ? `Escreva pra ${esc(quem.nome)}…` : 'Ex: quem rega minha horta amanhã?'}" autofocus/>
+        <button class="bg-primary text-on-primary font-label-md text-label-md uppercase px-gutter-md py-pixel-step shadow-[2px_2px_0_0_#221b08] press" data-acao="recado" data-para="${para ?? ''}">Enviar</button>
+      </div>`);
+    },
 
     doar: () => {
       const m = v.missao;
@@ -1070,7 +1093,7 @@ function avisaChegada(r) {
     if (ev.ator === app.eu) continue;
     const d = ev.dados ?? {};
     let texto = null;
-    if (ev.tipo === 'RECADO') texto = `💬 ${ev.texto}`;
+    if (ev.tipo === 'RECADO') { if (d.para && d.para !== app.eu) continue; texto = `💬 ${d.para ? ev.texto.replace(/ → [^:]+:/, ' → você:') : ev.texto}`; }
     else if (ev.tipo === 'ABRACOU' && d.para === app.eu) texto = `❤️ ${nomeDe(ev.ator)} te mandou um abraço`;
     else if (ev.tipo === 'PRESENTEOU' && d.para === app.eu) texto = `🎁 ${ev.texto}`;
     else if (ev.tipo === 'COMPROU' && d.de === app.eu) texto = `💰 ${ev.texto}`;
@@ -1271,10 +1294,16 @@ document.addEventListener('click', async (e) => {
       ofereceZap(`${app.motor.mundo.jogadores[app.eu]?.nome} te deixou um presente na ${app.motor.mundo.nome ?? 'vila'}, ${quem}!`);
     },
     recado: async () => {
-      const t = $('in-recado').value; fechaModal();
-      await manda({ tipo: 'RECADO', texto: t });
-      if (t.trim()) ofereceZap(`${app.motor.mundo.jogadores[app.eu]?.nome} deixou um recado na ${app.motor.mundo.nome ?? 'vila'}: "${t.trim()}"`);
+      const t = $('in-recado').value;
+      if (!t.trim()) return aviso('escreva alguma coisa', true);
+      const para = d.para || undefined;
+      const r = await app.sessao.executar({ tipo: 'RECADO', texto: t, para, data: dataLocal() });
+      if (!r.ok) return aviso(r.erro, true);
+      pinta(); abreModal('recado'); // a conversa continua aberta, com a mensagem nova
+      const nomePara = para ? app.motor.mundo.jogadores[para]?.nome : null;
+      ofereceZap(`${app.motor.mundo.jogadores[app.eu]?.nome} te deixou um recado na ${app.motor.mundo.nome ?? 'vila'}${nomePara ? `, ${nomePara}` : ''}: "${t.trim()}"`);
     },
+    'recado-para': () => { app.recadoPara = d.para || null; abreModal('recado'); },
     'preco-sugerido': () => {
       const qtd = Number($('in-qtd').value) || 1;
       const item = $('in-qtd').dataset.item;
@@ -1329,6 +1358,7 @@ document.addEventListener('click', async (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  if (e.target.id === 'in-recado' && e.key === 'Enter') return document.querySelector('#modal [data-acao="recado"]')?.click();
   if (e.target.tagName === 'INPUT' || !app.eu) return;
   if (e.key === 'Escape') return fechaModal();
   const s = SLOTS.find((x) => x.tecla === e.key);
