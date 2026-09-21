@@ -234,6 +234,7 @@ function pinta() {
   const mh = v.minhaHerdade;
   const prontosMeus = mh.canteiros.filter((c) => c.pronto), pedemMeus = mh.canteiros.filter((c) => c.problema);
   const meus = mh.canteiros.map(canteiroMeu).join('')
+    + mh.construcoes.filter((b) => !mh.maquinas.some((q) => q.maquina === b.chave)).map((b) => `<button class="canteiro maquina" data-acao="benfeitoria" data-chave="${b.chave}" title="${esc(b.texto)}">${b.icone}<span class="tempo">${esc(b.nome.toLowerCase())}</span></button>`).join('')
     + mh.maquinas.map((q) => `<button class="canteiro maquina" data-acao="maquina" data-maquina="${q.maquina}">${q.pronta ? q.produto.icone : q.icone}<span class="tempo">${q.pronta ? 'pronto!' : q.ocupada ? min(q.prontaEm) : q.nome.toLowerCase()}</span>${q.pronta ? '<span class="pede">✨</span>' : ''}</button>`).join('')
     + (mh.proximoCanteiro ? `<button class="canteiro compra" data-acao="comprar-canteiro" data-preco="${mh.proximoCanteiro}">＋ canteiro<br>${mh.proximoCanteiro} 🪙</button>` : '');
   const machado = h.machadoEm > 0, picareta = h.picaretaEm > 0;
@@ -453,6 +454,16 @@ function folhaConstruir() {
     }).join('')}</div>`);
 }
 
+function folhaBenfeitoria(chave) {
+  const v = v_();
+  const b = v.minhaHerdade.construcoes.find((x) => x.chave === chave);
+  if (!b) return;
+  const custo = CONSTRUCOES[chave]?.custo ?? {};
+  folha(`<h2>${b.icone} ${esc(b.nome)}</h2><p>${esc(b.texto)} Está funcionando sozinha — não precisa fazer nada.</p>
+    <p class="mini">Desmanchar devolve metade do material (${Object.entries(custo).map(([k, q]) => `${Math.floor(q / 2)} ${k}`).join(' · ')}) e libera a vaga pra outra benfeitoria.</p>
+    <button class="btn cheio fraco" data-acao="demolir" data-construcao="${chave}">🧹 Desmanchar</button>`);
+}
+
 function folhaMaquina(maquina) {
   const v = v_();
   const q = v.minhaHerdade.maquinas.find((x) => x.maquina === maquina);
@@ -601,6 +612,8 @@ document.addEventListener('click', async (e) => {
     doar: async () => { const r = await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); if (r.ok) { toast(`doou ${d.qtd} ${d.recurso} · a vila agradece`, 'bom'); folhaObra(); } },
     construir: folhaConstruir,
     maquina: () => folhaMaquina(d.maquina),
+    benfeitoria: () => folhaBenfeitoria(d.chave),
+    demolir: async () => { if (!confirm('Desmanchar? Volta metade do material.')) return; fecha(); const r = await manda({ tipo: 'DEMOLIR', construcao: d.construcao }); if (r.ok) toast('🧹 desmanchado · vaga livre', 'bom'); },
     cmd: async () => {
       const cmd = { tipo: d.tipo }; if (d.construcao) cmd.construcao = d.construcao; if (d.produto) cmd.produto = d.produto; if (d.maquina) cmd.maquina = d.maquina;
       const antes = v.hud;
