@@ -40,9 +40,9 @@ export const CULTURAS = {
   flor:    { nome: 'Flor',    minutos: 3,   nivel: 2,  xp: 2,  rende: 1, semente: 2,  preco: 4,  agua: 1, solo: 0, estacoes: ESTACOES, poliniza: true, harmonia: 1 },
   milho:   { nome: 'Milho',   minutos: 5,   nivel: 3,  xp: 3,  rende: 2, semente: 2,  preco: 4,  agua: 2, solo: 0, estacoes: ['Primavera', 'Verao', 'Outono'] },
   cenoura: { nome: 'Cenoura', minutos: 10,  nivel: 4,  xp: 5,  rende: 2, semente: 3,  preco: 6,  agua: 2, solo: 1, estacoes: ['Primavera', 'Outono', 'Inverno'] },
-  abobora: { nome: 'Abobora', minutos: 30,  nivel: 5,  xp: 12, rende: 1, semente: 6,  preco: 20, agua: 3, solo: 2, estacoes: ['Verao', 'Outono'] },
+  abobora: { nome: 'Abóbora', minutos: 30,  nivel: 5,  xp: 12, rende: 1, semente: 6,  preco: 20, agua: 3, solo: 2, estacoes: ['Verao', 'Outono'] },
   arroz:   { nome: 'Arroz',   minutos: 60,  nivel: 7,  xp: 20, rende: 2, semente: 8,  preco: 18, agua: 5, solo: 2, estacoes: ['Primavera', 'Verao'] },
-  cafe:    { nome: 'Cafe',    minutos: 240, nivel: 10, xp: 60, rende: 1, semente: 20, preco: 90, agua: 3, solo: 3, estacoes: ['Outono', 'Inverno'] },
+  cafe:    { nome: 'Café',    minutos: 240, nivel: 10, xp: 60, rende: 1, semente: 20, preco: 90, agua: 3, solo: 3, estacoes: ['Outono', 'Inverno'] },
 };
 
 // Cadeia de producao: o segundo loop. "Sempre tem algo no forno".

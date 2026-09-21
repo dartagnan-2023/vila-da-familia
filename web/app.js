@@ -8,6 +8,7 @@ import { CULTURAS, CONSTRUCOES, OBRAS, PRODUTOS, PROBLEMAS, nivelDe, nomeDe, pre
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 import { projetar, estaMadura, duracaoCultura, rotuloDuracao } from '../src/engine/tempo.js';
 import { VERSAO } from './versao.js';
+import { VilaCanvas } from './vila-canvas.js';
 
 // ---------------------------------------------------------------------------
 // A tela nova: uma tela so, o mundo e a interface. Celular em pe.
@@ -201,7 +202,9 @@ function pendenciasDe(v) {
   v.pedidosDeAjuda.forEach((p) => { porPessoa[p.dono] = (porPessoa[p.dono] ?? 0) + 1; });
   Object.entries(porPessoa).forEach(([id, n]) => itens.push({ ic: '🤝', t: `${m.jogadores[id]?.nome ?? 'alguém'} precisa de você (${n})`, vai: `her-${m.jogadores[id]?.herdade}` }));
   v.missoesDoDia.forEach((x) => { if (x.cumprida && !x.recebida) itens.push({ ic: '🎁', t: `Prêmio de hoje: ${x.texto} — ${x.premioTexto}`, acao: 'cumprir-missao', indice: x.indice }); });
-  naoLidas().forEach((n) => itens.push({ ic: '💬', t: `${n.de} te mandou mensagem`, conversa: n.para ? n.ator : 'todos' }));
+  const porRemetente = {};
+  naoLidas().forEach((n) => { const k = n.para ? n.ator : 'todos'; porRemetente[k] = porRemetente[k] ?? { de: n.de, n: 0, para: n.para }; porRemetente[k].n++; });
+  Object.entries(porRemetente).forEach(([k, x]) => itens.push({ ic: '💬', t: x.para ? `${x.de} te mandou ${x.n === 1 ? 'uma mensagem' : `${x.n} mensagens`}` : `${x.de} escreveu no mural${x.n > 1 ? ` (${x.n})` : ''}`, conversa: k }));
   v.vendinha.forEach((l) => { if (l.util && !l.minha) itens.push({ ic: '🏪', t: `${l.vendedor} vende ${l.qtd} ${l.nome.toLowerCase()} — fecha um pedido seu`, vendinha: true }); });
   return itens;
 }
@@ -240,13 +243,14 @@ function pinta() {
     return `
       <div class="titulo" id="her-${x.id}" style="font-size:16px;margin-top:10px">
         <button data-acao="pessoa" data-quem="${x.dono}" style="display:flex;align-items:center;gap:6px;font:inherit">${p.sprite} ${esc(p.nome)}</button>
-        ${precisa ? `<small style="color:var(--orange2)">precisa de você (${precisa})</small>` : '<small>tudo em ordem</small>'}
-        <button class="chip" data-acao="pessoa" data-quem="${x.dono}">❤️ 💬 🎁</button>
+        ${precisa ? `<small style="color:var(--orange2)">precisa de você</small>` : '<small>tudo em ordem</small>'}
+        ${precisa > 1 ? `<button class="chip acao" data-acao="ajudar-tudo" data-herdade="${x.id}">🤝 ajudar ${precisa}</button>` : `<button class="chip" data-acao="pessoa" data-quem="${x.dono}">❤️ 💬 🎁</button>`}
       </div>
       <div class="fazenda outra">${x.tiles.map((t, i) => canteiroOutro(t, i, x.id)).join('')}</div>`;
   }).join('');
 
   const obra = v.missao;
+  const cenaViva = app.cena?.canvas;
   $('mundo').innerHTML = `
     <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
     <div class="fazenda minha">${meus}</div>
@@ -256,6 +260,9 @@ function pinta() {
       <button data-acao="construir"><span class="ic">🔨</span>Construir<small>${mh.vagas} vaga(s)</small></button>
       <button data-acao="celeiro"><span class="ic">🧺</span>Celeiro<small>${h.colheita.reduce((s, c) => s + c.qtd, 0)} itens</small></button>
     </div>
+
+    <div class="titulo" id="sec-vila">🗺️ A vila <small>toque em quem quiser visitar</small></div>
+    <div id="cena" style="border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:#8fae5d;line-height:0"></div>
 
     <div class="titulo" id="sec-rua">🛒 Quem quer comprar <small>toque na loja</small></div>
     <div class="rua">
@@ -274,12 +281,31 @@ function pinta() {
     ${obra ? `<button class="cartaz" data-acao="obra"><span class="ic">${{ ponte: '🌉', praca: '⛲', acude: '💧', escola: '🏫' }[obra.chave] ?? '🏗️'}</span><span class="txt"><b>${esc(obra.nome)} — ${obra.pct}% pronta</b>${esc(obra.chamada)} Depois: ${esc(obra.texto)}<span class="barrao"><i style="--p:${obra.pct}%"></i></span></span><span class="btn fraco">Doar</span></button>`
       : `<div class="cartaz"><span class="ic">🏆</span><span class="txt"><b>Todas as obras prontas</b>${v.obras.map((o) => o.nome).join(', ')}. Isso é raro.</span></div>`}
     ${v.obras.filter((o) => o.concluida).length ? `<p class="mini" style="margin:6px 4px 0">🏆 Prontas: ${v.obras.filter((o) => o.concluida).map((o) => `${o.nome} (${o.texto.toLowerCase().replace(/\.$/, '')})`).join(' · ')}</p>` : ''}
+    <div class="titulo" id="sec-feed">📜 Últimas da vila</div>
+    <div class="lista">${v.feed.slice(0, 8).map((l) => `<div class="item" style="padding:8px 12px"><span class="ic" style="font-size:22px">${l.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(l.autor)} <span class="mini">· ${esc(l.quando)}</span></b>${esc(l.texto)}${l.impacto ? ` <span class="mini">→ ${esc(l.impacto)}</span>` : ''}</span></div>`).join('')}</div>
     <p class="mini" style="margin:14px 4px 0;text-align:center">Vila ${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>`;
+
+  if (!app.cena) app.cena = new VilaCanvas($('cena'), { aoClicar: cliqueNoMapa });
+  else $('cena').replaceChildren(cenaViva);
+  app.cena.atualizar(v, m);
 
   $('rodape').innerHTML = `
     <button data-acao="vai" data-alvo="sec-minha"><span class="ic">🏡</span>Horta${v.minhaHerdade.canteiros.some((c) => c.pronto || c.problema) ? `<b>${v.minhaHerdade.canteiros.filter((c) => c.pronto || c.problema).length}</b>` : ''}</button>
     <button data-acao="vai" data-alvo="sec-familia"><span class="ic">👨‍👩‍👧</span>Família${ajudas ? `<b>${ajudas}</b>` : ''}</button>
     <button data-acao="conversa"><span class="ic">💬</span>Conversa${msgs ? `<b>${msgs}</b>` : ''}</button>`;
+}
+
+// O mapa devolve o toque traduzido: mesma acao dos botoes.
+function cliqueNoMapa(alvo) {
+  const m = app.motor.mundo;
+  if (alvo.rio) return toast(`💧 rio da vila: ${m.comuns.agua}/100 de água`);
+  if (alvo.poco) return folhaObra();
+  if (alvo.loja) return alvo.loja === 'vendinha' ? folhaCeleiro() : folhaLoja(alvo.loja);
+  const h = m.herdades[alvo.herdade];
+  if (!h) return;
+  if (!h.dono) return toast('terra livre — manda a chave pra alguém da família');
+  if (h.dono === app.eu) return $('sec-minha').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  const el = $(`her-${h.id}`); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 // --- folhas (uma decisao por vez) --------------------------------------------
@@ -297,11 +323,10 @@ function folhaPlantar(tile) {
   const v = v_();
   const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio).length;
   folha(`<h2>O que plantar?</h2><p>Toque na semente. Ela cresce sozinha, mesmo com o jogo fechado.</p>
-    <div class="cartoes">${v.catalogo.culturas.map((c) => `<button class="cartao ${c.liberada ? '' : 'bloq'}" data-acao="plantar" data-tile="${tile}" data-cultura="${c.chave}" ${c.liberada ? '' : 'disabled'}>
+    ${vazios > 1 ? `<button class="btn cheio" data-acao="plantar-tudo" data-cultura="${app.cultura}" style="margin:0 0 12px">${iconeDe(app.cultura)} Plantar ${esc(nomeDe(app.cultura).toLowerCase())} nos ${vazios} vazios</button>` : ''}
+    <div class="cartoes tres">${v.catalogo.culturas.map((c) => `<button class="cartao ${c.liberada ? '' : 'bloq'}" data-acao="plantar" data-tile="${tile}" data-cultura="${c.chave}" ${c.liberada ? '' : 'disabled'}>
       <span class="ic">${c.icone}</span><span class="nm">${esc(c.nome)}</span>
-      <span class="dt">${c.minutos >= 60 ? `${Math.round(c.minutos / 60)} h` : `${c.minutos} min`} · custa ${c.semente} 🪙 · vende ${c.preco}${c.daEstacao ? '' : ' · fora de estação'}</span>
-      ${c.liberada ? '' : `<span class="dt">🔒 nível ${c.nivel}</span>`}</button>`).join('')}</div>
-    ${vazios > 1 ? `<button class="btn cheio" data-acao="plantar-tudo" data-cultura="${app.cultura}">${iconeDe(app.cultura)} Plantar ${esc(nomeDe(app.cultura).toLowerCase())} nos ${vazios} vazios</button>` : ''}`);
+      <span class="dt">${c.liberada ? `${c.minutos >= 60 ? `${Math.round(c.minutos / 60)} h` : `${c.minutos} min`} · ${c.semente} 🪙${c.daEstacao ? '' : ' · fora de estação'}` : `🔒 nível ${c.nivel}`}</span></button>`).join('')}</div>`);
 }
 
 function folhaLoja(cliente) {
@@ -314,7 +339,13 @@ function folhaLoja(cliente) {
       <div class="lista">${e.itens.map((i) => `<div class="item"><span class="ic">${i.icone}</span><span class="txt"><b>${i.qtd} ${esc(i.nome.toLowerCase())}</b>você tem ${i.tenho}</span>${i.ok ? '✅' : `<span style="font-weight:900;color:var(--orange2)">faltam ${i.qtd - i.tenho}</span>`}</div>`).join('')}</div>
       <p style="margin-top:10px">Paga <b>${e.moedas} 🪙</b> e ${e.xp} ✨ — 50% a mais que vender na feira.</p>
       ${e.pronta ? `<button class="btn cheio" data-acao="entregar" data-indice="${e.indice}">📦 Entregar e receber ${e.moedas} 🪙</button>`
-        : `<button class="btn cheio fraco" data-acao="vai" data-alvo="sec-minha">🌱 Plantar o que falta</button>`}`).join('<hr style="border:0;border-top:2px solid var(--paper2);margin:14px 0">')
+        : e.itens.filter((i) => !i.ok).map((i) => CULTURAS[i.chave]
+          ? (CULTURAS[i.chave].nivel <= v.hud.nivel
+            ? `<button class="btn cheio fraco" data-acao="plantar-falta" data-cultura="${i.chave}" data-qtd="${i.qtd - i.tenho}">${i.icone} Plantar ${esc(i.nome.toLowerCase())} agora (${CULTURAS[i.chave].minutos} min)</button>`
+            : `<p class="mini">${i.icone} ${esc(i.nome)} abre no nível ${CULTURAS[i.chave].nivel}.</p>`)
+          : PRODUTOS[i.chave]
+            ? `<button class="btn cheio fraco" data-acao="maquina" data-maquina="${PRODUTOS[i.chave].maquina}">${i.icone} Fazer ${esc(i.nome.toLowerCase())} no ${esc(CONSTRUCOES[PRODUTOS[i.chave].maquina].nome.toLowerCase())}</button>`
+            : '').join('')}`).join('<hr style="border:0;border-top:2px solid var(--paper2);margin:14px 0">')
       : `<p>Não tem pedido pra você agora. Quando tiver, aparece um 📋 em cima da loja. Pedido que você já consegue entregar fica amarelo com "!".</p>`}`);
 }
 
@@ -342,7 +373,8 @@ function folhaConversa(com) {
     ? (l.ator === app.eu && l.ref?.para === para) || (l.ator === para && l.ref?.para === app.eu)
     : !l.ref?.para)).slice(-15);
   const quem = para ? outros.find((f) => f.id === para) : null;
-  const pendentes = naoLidas();
+  const pendentes = naoLidas().filter((n) => (para ? !(n.para && n.ator === para) : !!n.para));
+  marcaLidas();
   folha(`<h2>💬 ${para ? `Conversa com ${esc(quem.nome)}` : 'Mural da família'}</h2>
     <div class="quem"><button class="${!para ? 'on' : ''}" data-acao="conversa" data-com="">📣 Todos${pendentes.some((n) => !n.para) ? ' 🔴' : ''}</button>
       ${outros.map((f) => `<button class="${para === f.id ? 'on' : ''}" data-acao="conversa" data-com="${f.id}">${f.sprite} ${esc(f.nome)}${pendentes.some((n) => n.para && n.ator === f.id) ? ' 🔴' : ''}</button>`).join('')}</div>
@@ -350,7 +382,7 @@ function folhaConversa(com) {
     <div class="linha"><input id="in-recado" maxlength="140" placeholder="${para ? `Escreve pra ${esc(quem.nome)}…` : 'Fala com todo mundo…'}" autocomplete="off"/><button class="btn" data-acao="recado" data-para="${para ?? ''}">Enviar</button></div>
     ${para ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn fraco" data-acao="abracar" data-para="${para}">❤️ Abraço</button><button class="btn fraco" data-acao="presente-lista" data-para="${para}">🎁 Presente</button></div>` : ''}`);
   const c = $('conversa'); if (c) c.scrollTop = c.scrollHeight;
-  marcaLidas(); pinta();
+  pinta();
 }
 
 function folhaPessoa(id) {
@@ -517,6 +549,15 @@ document.addEventListener('click', async (e) => {
     'plantar-tudo': async () => { fecha(); const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio); const n = await mandaVarios(vazios.map((c) => ({ tipo: 'PLANTAR', tile: c.i, cultura: d.cultura })), 'nenhum canteiro vazio'); if (n) toast(`${iconeDe(d.cultura)} plantou em ${n} canteiro(s)`, 'bom'); },
     'colher-tudo': async () => { const n = await mandaVarios(v.minhaHerdade.canteiros.filter((c) => c.pronto).map((c) => ({ tipo: 'COLHER', tile: c.i })), 'nada maduro'); if (n) toast(`🌾 colheu ${n} canteiro(s) · foi pro celeiro`, 'bom'); },
     'cuidar-tudo': async () => { const n = await mandaVarios(v.minhaHerdade.canteiros.filter((c) => c.problema).map((c) => ({ tipo: 'CUIDAR', tile: c.i })), 'ninguém pedindo'); if (n) toast(`💧 cuidou de ${n} planta(s)`, 'bom'); },
+    'plantar-falta': async () => {
+      fecha(); app.cultura = d.cultura;
+      const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio);
+      const rende = Math.max(1, CULTURAS[d.cultura].rende);
+      const precisa = Math.min(vazios.length, Math.ceil(Number(d.qtd) / rende));
+      if (!vazios.length) return toast('sem canteiro vazio — colhe alguma coisa primeiro');
+      const n = await mandaVarios(vazios.slice(0, precisa).map((c) => ({ tipo: 'PLANTAR', tile: c.i, cultura: d.cultura })), '');
+      if (n) { toast(`${iconeDe(d.cultura)} plantou ${n} · pronto em ${CULTURAS[d.cultura].minutos} min`, 'bom'); $('sec-minha').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    },
     'comprar-canteiro': () => manda({ tipo: 'COMPRAR_CANTEIRO' }, e).then((r) => r.ok && toast('＋ canteiro novo!', 'bom')),
     ajudar: async () => {
       const m = mundoAgora(); const t = m.herdades[d.herdade]?.tiles[Number(d.tile)]; const dono = m.jogadores[m.herdades[d.herdade]?.dono]?.nome ?? 'alguém';
@@ -591,15 +632,16 @@ const passoGuia = () => Number(localStorage.getItem('vila:guia') ?? 0);
 function guia() {
   document.querySelector('.guia')?.remove(); document.querySelector('.mao')?.remove();
   let n = passoGuia(); if (!app.eu || !PASSOS[n]) return;
-  // Sem canteiro vazio mas com planta pronta? O passo certo e o de colher.
-  while (n < PASSOS.length - 1 && !PASSOS[n].alvo() && PASSOS[n + 1].alvo()) { n++; localStorage.setItem('vila:guia', String(n)); }
+  // Primeira vez sem canteiro vazio mas com planta pronta? O passo certo e o de colher.
+  if (n === 0 && !PASSOS[0].alvo() && PASSOS[1].alvo()) { n = 1; localStorage.setItem('vila:guia', '1'); }
   const p = PASSOS[n];
   const g = document.createElement('div'); g.className = 'guia';
   g.innerHTML = `<span class="ic">👋</span><span>${p.t}</span><button id="pular">${n === PASSOS.length - 1 ? 'Valeu' : 'Pular'}</button>`;
   $('phone').appendChild(g);
   $('pular').onclick = () => { localStorage.setItem('vila:guia', String(n === PASSOS.length - 1 ? 99 : n + 1)); guia(); };
   const alvo = p.alvo(); if (!alvo) return;
-  alvo.scrollIntoView({ block: 'center', behavior: 'instant' });
+  const r0 = alvo.getBoundingClientRect(), ph0 = $('phone').getBoundingClientRect();
+  if (r0.top < ph0.top + 60 || r0.bottom > ph0.bottom - 200) alvo.scrollIntoView({ block: 'center', behavior: 'instant' });
   setTimeout(() => {
     const r = alvo.getBoundingClientRect(), ph = $('phone').getBoundingClientRect();
     const m = document.createElement('div'); m.className = 'mao'; m.textContent = '👆';
