@@ -123,6 +123,24 @@
   .phone:has(.veu) .mao{display:none}
   .mao{position:absolute;z-index:16;font-size:40px;pointer-events:none;animation:aponta .9s infinite;filter:drop-shadow(0 3px 2px rgba(0,0,0,.4))}
   @keyframes aponta{50%{transform:translate(-8px,-8px)}}
+  /* desktop: tres colunas, nada muda de lugar na cabeca de quem joga no celular */
+  @media (min-width:960px){
+    body{background:#5a9a3a}
+    .phone{max-width:none;box-shadow:none}
+    .topo{max-width:1400px;margin:0 auto;width:100%}
+    .rodape{display:none}
+    .mundo{padding:0 20px 40px}
+    .mundo>.bloco{min-width:0}
+    .mundo{display:grid;grid-template-columns:minmax(360px,420px) minmax(420px,1fr) minmax(360px,420px);gap:0 20px;align-items:start;max-width:1400px;margin:0 auto;width:100%}
+    .bloco.a{grid-column:1;grid-row:1} .bloco.d{grid-column:1;grid-row:2}
+    .bloco.b{grid-column:2;grid-row:1/3} .bloco.e{grid-column:2;grid-row:3}
+    .bloco.c{grid-column:3;grid-row:1/4}
+    .veu{align-items:center;justify-content:center}
+    .folha{max-width:560px;border-radius:22px;max-height:85vh}
+    .guia{left:50%;transform:translateX(-50%);max-width:560px;bottom:24px}
+    .toast{bottom:40px}
+    .canteiro{font-size:32px}
+  }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
   *{box-sizing:border-box}

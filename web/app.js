@@ -251,7 +251,7 @@ function pinta() {
 
   const obra = v.missao;
   const cenaViva = app.cena?.canvas;
-  $('mundo').innerHTML = `
+  $('mundo').innerHTML = `<div class="bloco a">
     <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
     <div class="fazenda minha">${meus}</div>
     <div class="ferramentas">
@@ -261,9 +261,11 @@ function pinta() {
       <button data-acao="celeiro"><span class="ic">🧺</span>Celeiro<small>${h.colheita.reduce((s, c) => s + c.qtd, 0)} itens</small></button>
     </div>
 
+    </div><div class="bloco b">
     <div class="titulo" id="sec-vila">🗺️ A vila <small>toque em quem quiser visitar</small></div>
     <div id="cena" style="border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:#8fae5d;line-height:0"></div>
 
+    </div><div class="bloco c">
     <div class="titulo" id="sec-rua">🛒 Quem quer comprar <small>toque na loja</small></div>
     <div class="rua">
       ${LOJAS.map((l) => {
@@ -277,13 +279,16 @@ function pinta() {
     <div class="titulo" id="sec-familia">👨‍👩‍👧 A família <small>toque pra ajudar</small><button class="chip" data-acao="familia-config">➕ convidar</button></div>
     ${outros || `<div class="cartaz"><span class="ic">🌱</span><span class="txt"><b>Só você por enquanto</b>Manda o convite pra família. Sozinho o jogo é metade.</span><button class="btn" data-acao="familia-config">Convidar</button></div>`}
 
+    </div><div class="bloco d">
     <div class="titulo" id="sec-obra">🏗️ Obra da vila</div>
     ${obra ? `<button class="cartaz" data-acao="obra"><span class="ic">${{ ponte: '🌉', praca: '⛲', acude: '💧', escola: '🏫' }[obra.chave] ?? '🏗️'}</span><span class="txt"><b>${esc(obra.nome)} — ${obra.pct}% pronta</b>${esc(obra.chamada)} Depois: ${esc(obra.texto)}<span class="barrao"><i style="--p:${obra.pct}%"></i></span></span><span class="btn fraco">Doar</span></button>`
       : `<div class="cartaz"><span class="ic">🏆</span><span class="txt"><b>Todas as obras prontas</b>${v.obras.map((o) => o.nome).join(', ')}. Isso é raro.</span></div>`}
     ${v.obras.filter((o) => o.concluida).length ? `<p class="mini" style="margin:6px 4px 0">🏆 Prontas: ${v.obras.filter((o) => o.concluida).map((o) => `${o.nome} (${o.texto.toLowerCase().replace(/\.$/, '')})`).join(' · ')}</p>` : ''}
+    </div><div class="bloco e">
     <div class="titulo" id="sec-feed">📜 Últimas da vila</div>
     <div class="lista">${v.feed.slice(0, 8).map((l) => `<div class="item" style="padding:8px 12px"><span class="ic" style="font-size:22px">${l.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(l.autor)} <span class="mini">· ${esc(l.quando)}</span></b>${esc(l.texto)}${l.impacto ? ` <span class="mini">→ ${esc(l.impacto)}</span>` : ''}</span></div>`).join('')}</div>
-    <p class="mini" style="margin:14px 4px 0;text-align:center">Vila ${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>`;
+    <p class="mini" style="margin:14px 4px 0;text-align:center">Vila ${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>
+    </div>`;
 
   if (!app.cena) app.cena = new VilaCanvas($('cena'), { aoClicar: cliqueNoMapa });
   else $('cena').replaceChildren(cenaViva);
