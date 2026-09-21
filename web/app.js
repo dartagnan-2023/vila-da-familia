@@ -253,6 +253,7 @@ function pinta() {
   const cenaViva = app.cena?.canvas;
   $('mundo').innerHTML = `<div class="bloco a">
     <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
+    ${mh.canteiros.every((c) => c.vazio) && v.encomendas.length ? (() => { const e = v.encomendas.find((x) => x.itens.some((i) => CULTURAS[i.chave] && CULTURAS[i.chave].nivel <= h.nivel)) ?? v.encomendas[0]; const i = e.itens.find((x) => CULTURAS[x.chave]) ?? e.itens[0]; return `<button class="cartaz" data-acao="loja" data-cliente="${esc(e.cliente)}" style="margin-bottom:8px"><span class="ic">${i.icone}</span><span class="txt"><b>Horta vazia — plante pra alguém</b>${esc(e.cliente.replace(/^(a|o) /, ''))} quer ${i.qtd} ${esc(i.nome.toLowerCase())} e paga ${e.moedas} 🪙. Toque aqui.</span></button>`; })() : ''}
     <div class="fazenda minha">${meus}</div>
     <div class="ferramentas">
       <button data-acao="cmd" data-tipo="CORTAR" class="${machado ? 'desc' : ''}"><span class="ic">🪓</span>Lenha<small>${machado ? `descansa ${min(h.machadoEm)}` : `tenho ${h.madeira}`}</small></button>
@@ -287,7 +288,7 @@ function pinta() {
     </div><div class="bloco e">
     <div class="titulo" id="sec-feed">📜 Últimas da vila</div>
     <div class="lista">${v.feed.slice(0, 8).map((l) => `<div class="item" style="padding:8px 12px"><span class="ic" style="font-size:22px">${l.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(l.autor)} <span class="mini">· ${esc(l.quando)}</span></b>${esc(l.texto)}${l.impacto ? ` <span class="mini">→ ${esc(l.impacto)}</span>` : ''}</span></div>`).join('')}</div>
-    <p class="mini" style="margin:14px 4px 0;text-align:center">Vila ${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>
+    <p class="mini" style="margin:14px 4px 0;text-align:center">${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>
     </div>`;
 
   if (!app.cena) app.cena = new VilaCanvas($('cena'), { aoClicar: cliqueNoMapa });
@@ -327,11 +328,14 @@ const fecha = () => { document.querySelector('.veu')?.remove(); };
 function folhaPlantar(tile) {
   const v = v_();
   const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio).length;
+  const pedem = {};
+  for (const e of v.encomendas) for (const i of e.itens) if (!i.ok && CULTURAS[i.chave]) pedem[i.chave] = (pedem[i.chave] ?? '') + `${pedem[i.chave] ? ' · ' : ''}${e.cliente.replace(/^(a|o) /, '')} quer ${i.qtd - i.tenho}`;
   folha(`<h2>O que plantar?</h2><p>Toque na semente. Ela cresce sozinha, mesmo com o jogo fechado.</p>
     ${vazios > 1 ? `<button class="btn cheio" data-acao="plantar-tudo" data-cultura="${app.cultura}" style="margin:0 0 12px">${iconeDe(app.cultura)} Plantar ${esc(nomeDe(app.cultura).toLowerCase())} nos ${vazios} vazios</button>` : ''}
     <div class="cartoes tres">${v.catalogo.culturas.map((c) => `<button class="cartao ${c.liberada ? '' : 'bloq'}" data-acao="plantar" data-tile="${tile}" data-cultura="${c.chave}" ${c.liberada ? '' : 'disabled'}>
       <span class="ic">${c.icone}</span><span class="nm">${esc(c.nome)}</span>
-      <span class="dt">${c.liberada ? `${c.minutos >= 60 ? `${Math.round(c.minutos / 60)} h` : `${c.minutos} min`} · ${c.semente} 🪙${c.daEstacao ? '' : ' · fora de estação'}` : `🔒 nível ${c.nivel}`}</span></button>`).join('')}</div>`);
+      <span class="dt">${c.liberada ? `${c.minutos >= 60 ? `${Math.round(c.minutos / 60)} h` : `${c.minutos} min`} · ${c.semente} 🪙${c.daEstacao ? '' : ' · fora de estação'}` : `🔒 nível ${c.nivel}`}</span>
+      ${pedem[c.chave] && c.liberada ? `<span class="dt" style="color:var(--orange2);font-weight:900">📋 ${esc(pedem[c.chave])}</span>` : ''}</button>`).join('')}</div>`);
 }
 
 function folhaLoja(cliente) {
@@ -362,9 +366,8 @@ function folhaCeleiro() {
     <div class="lista">${v.vendinha.filter((l) => !l.minha).map((l) => `<div class="item ${l.util ? '' : ''}"><span class="ic">${l.icone}</span><span class="txt"><b>${l.qtd} ${esc(l.nome.toLowerCase())}</b>de ${esc(l.vendedor)}${l.util ? ' · <span style="color:var(--good)">fecha um pedido seu</span>' : ''}</span><button class="btn" data-acao="comprar" data-de="${l.de}" data-lote="${l.lote}" ${l.possoPagar ? '' : 'disabled'}>${l.preco} 🪙</button></div>`).join('') || '<p>Nada à venda agora.</p>'}</div>
     ${v.vendinha.some((l) => l.minha) ? `<h3>À venda por você</h3><div class="lista">${v.vendinha.filter((l) => l.minha).map((l) => `<div class="item"><span class="ic">${l.icone}</span><span class="txt"><b>${l.qtd} ${esc(l.nome.toLowerCase())}</b>por ${l.preco} 🪙</span><button class="btn fraco" data-acao="retirar" data-lote="${l.lote}">Tirar</button></div>`).join('')}</div>` : ''}
     <h3>Seu celeiro <span class="mini">· ${v.hud.moedas} 🪙 no bolso</span></h3>
-    <div class="lista">${v.hud.colheita.map((c) => `<div class="item"><span class="ic">${c.icone}</span><span class="txt"><b>${c.qtd} ${esc(c.nome.toLowerCase())}</b>${reservado[c.cultura] ? `guarda ${Math.min(c.qtd, reservado[c.cultura])} pra um pedido · ` : ''}feira paga ${c.preco} 🪙 cada</span>
-      <button class="btn fraco" data-acao="anunciar" data-item="${c.cultura}" title="pôr na vendinha por 1,5x">Vender pra família</button>
-      <button class="btn fraco" data-acao="vender" data-item="${c.cultura}" data-qtd="${Math.max(0, c.qtd - (reservado[c.cultura] ?? 0))}">Feira</button></div>`).join('') || '<p>Celeiro vazio. Colhe alguma coisa primeiro.</p>'}</div>
+    <div class="lista">${v.hud.colheita.map((c) => { const livre = Math.max(0, c.qtd - (reservado[c.cultura] ?? 0)); return `<div class="item duas"><span class="ic">${c.icone}</span><span class="txt"><b>${c.qtd} ${esc(c.nome.toLowerCase())}</b>${reservado[c.cultura] ? `${Math.min(c.qtd, reservado[c.cultura])} guardado(s) pra um pedido · ` : ''}feira paga ${c.preco} 🪙 cada</span>
+      <span class="acoes"><button class="btn fraco" data-acao="anunciar" data-item="${c.cultura}" ${livre ? '' : 'disabled'}>🏪 Pra família</button><button class="btn fraco" data-acao="vender" data-item="${c.cultura}" data-qtd="${livre}" ${livre ? '' : 'disabled'}>Feira ${livre ? `${livre * c.preco} 🪙` : ''}</button></span></div>`; }).join('') || '<p>Celeiro vazio. Colhe alguma coisa primeiro.</p>'}</div>
     <p class="mini" style="margin-top:10px">Vender pra família põe na vendinha por 1,5× o preço da feira (${v.minhaVendinha.lotes}/${v.minhaVendinha.maximo} lotes). "Feira" vende na hora pelo preço de feira, guardando o que seus pedidos precisam.</p>`);
 }
 

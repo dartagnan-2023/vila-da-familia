@@ -133,8 +133,8 @@
     .mundo>.bloco{min-width:0}
     .mundo{display:grid;grid-template-columns:minmax(360px,420px) minmax(420px,1fr) minmax(360px,420px);gap:0 20px;align-items:start;max-width:1400px;margin:0 auto;width:100%}
     .bloco.a{grid-column:1;grid-row:1} .bloco.d{grid-column:1;grid-row:2}
-    .bloco.b{grid-column:2;grid-row:1/3} .bloco.e{grid-column:2;grid-row:3}
-    .bloco.c{grid-column:3;grid-row:1/4}
+    .bloco.b{grid-column:2;grid-row:1} .bloco.e{grid-column:2;grid-row:2}
+    .bloco.c{grid-column:3;grid-row:1/3}
     .veu{align-items:center;justify-content:center}
     .folha{max-width:560px;border-radius:22px;max-height:85vh}
     .guia{left:50%;transform:translateX(-50%);max-width:560px;bottom:24px}
@@ -175,6 +175,9 @@
   .item{width:100%;text-align:left}
   .item .ic{flex:none}
   .item.apagado{opacity:.55}
+  .item.duas{flex-wrap:wrap}
+  .item.duas .acoes{display:flex;gap:8px;width:100%;justify-content:flex-end}
+  .item.duas .acoes .btn{font-size:14px;padding:8px 14px}
   .btn{flex:none}
   .btn.cheio{white-space:normal}
   .btn.zap{background:#25d366;box-shadow:0 4px 0 #128c7e}
