@@ -253,7 +253,8 @@ function pinta() {
 
   const obra = v.missao;
   const cenaViva = app.cena?.canvas;
-  $('mundo').innerHTML = `<div class="bloco a">
+  // Cada pedaco da tela e um bloco; no celular vao em fila, no PC viram telas.
+  const blocoHorta = `
     <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
     ${mh.canteiros.every((c) => c.vazio) && v.encomendas.length ? (() => { const e = v.encomendas.find((x) => x.itens.some((i) => CULTURAS[i.chave] && CULTURAS[i.chave].nivel <= h.nivel)) ?? v.encomendas[0]; const i = e.itens.find((x) => CULTURAS[x.chave]) ?? e.itens[0]; return `<button class="cartaz" data-acao="loja" data-cliente="${esc(e.cliente)}" style="margin-bottom:8px"><span class="ic">${i.icone}</span><span class="txt"><b>Horta vazia — plante pra alguém</b>${esc(e.cliente.replace(/^(a|o) /, ''))} quer ${i.qtd} ${esc(i.nome.toLowerCase())} e paga ${e.moedas} 🪙. Toque aqui.</span></button>`; })() : ''}
     <div class="fazenda minha">${meus}</div>
@@ -264,13 +265,9 @@ function pinta() {
       <button data-acao="cmd" data-tipo="MINERAR" class="${picareta ? 'desc' : ''}"><span class="ic">⛏️</span>Pedra<small>${picareta ? `descansa ${min(h.picaretaEm)}` : `tenho ${h.pedra}`}</small></button>
       <button data-acao="construir"><span class="ic">🔨</span>Construir<small>${mh.vagas} vaga(s)</small></button>
       <button data-acao="celeiro"><span class="ic">🧺</span>Celeiro<small>${h.colheita.reduce((s, c) => s + c.qtd, 0)} itens</small></button>
-    </div>
+    </div>`;
 
-    </div><div class="bloco b">
-    <div class="titulo" id="sec-vila">🗺️ A vila <small>toque em quem quiser visitar</small></div>
-    <div id="cena" style="border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:#8fae5d;line-height:0"></div>
-
-    </div><div class="bloco c">
+  const blocoRua = `
     <div class="titulo" id="sec-rua">🛒 Quem quer comprar <small>toque na loja</small></div>
     <div class="rua">
       ${LOJAS.map((l) => {
@@ -279,30 +276,65 @@ function pinta() {
         return `<button class="loja ${pronta ? 'pronta' : ''}" data-acao="loja" data-cliente="${esc(l.cliente)}"><span class="ic">${l.icone}</span><span class="nm">${l.nome}</span>${pronta ? '<span class="bilhete">!</span>' : enc.length ? '<span class="bilhete">📋</span>' : ''}</button>`;
       }).join('')}
       <button class="loja" data-acao="celeiro"><span class="ic">🏪</span><span class="nm">Vendinha</span>${v.vendinha.filter((l) => !l.minha).length ? `<span class="bilhete">${v.vendinha.filter((l) => !l.minha).length}</span>` : ''}</button>
-    </div>
+    </div>`;
 
+  const blocoFamilia = `
     <div class="titulo" id="sec-familia">👨‍👩‍👧 A família <small>toque pra ajudar</small><button class="chip" data-acao="familia-config">➕ convidar</button></div>
-    ${outros || `<div class="cartaz"><span class="ic">🌱</span><span class="txt"><b>Só você por enquanto</b>Manda o convite pra família. Sozinho o jogo é metade.</span><button class="btn" data-acao="familia-config">Convidar</button></div>`}
+    ${outros || `<div class="cartaz"><span class="ic">🌱</span><span class="txt"><b>Só você por enquanto</b>Manda o convite pra família. Sozinho o jogo é metade.</span><button class="btn" data-acao="familia-config">Convidar</button></div>`}`;
 
-    </div><div class="bloco d">
+  const blocoObra = `
     <div class="titulo" id="sec-obra">🏗️ Obra da vila</div>
     ${obra ? `<button class="cartaz" data-acao="obra"><span class="ic">${{ ponte: '🌉', praca: '⛲', acude: '💧', escola: '🏫' }[obra.chave] ?? '🏗️'}</span><span class="txt"><b>${esc(obra.nome)} — ${obra.pct}% pronta</b>${esc(obra.chamada)} Depois: ${esc(obra.texto)}<span class="barrao"><i style="--p:${obra.pct}%"></i></span></span><span class="btn fraco">Doar</span></button>`
       : `<div class="cartaz"><span class="ic">🏆</span><span class="txt"><b>Todas as obras prontas</b>${v.obras.map((o) => o.nome).join(', ')}. Isso é raro.</span></div>`}
-    ${v.obras.filter((o) => o.concluida).length ? `<p class="mini" style="margin:6px 4px 0">🏆 Prontas: ${v.obras.filter((o) => o.concluida).map((o) => `${o.nome} (${o.texto.toLowerCase().replace(/\.$/, '')})`).join(' · ')}</p>` : ''}
-    </div><div class="bloco e">
+    ${v.obras.filter((o) => o.concluida).length ? `<p class="mini" style="margin:6px 4px 0">🏆 Prontas: ${v.obras.filter((o) => o.concluida).map((o) => `${o.nome} (${o.texto.toLowerCase().replace(/\.$/, '')})`).join(' · ')}</p>` : ''}`;
+
+  const rodapeVila = `<p class="mini" style="margin:14px 4px 0;text-align:center">${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>`;
+  const blocoFeed = `
     <div class="titulo" id="sec-feed">📜 Últimas da vila</div>
-    <div class="lista">${v.feed.slice(0, 8).map((l) => `<div class="item" style="padding:8px 12px"><span class="ic" style="font-size:22px">${l.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(l.autor)} <span class="mini">· ${esc(l.quando)}</span></b>${esc(l.texto)}${l.impacto ? ` <span class="mini">→ ${esc(l.impacto)}</span>` : ''}</span></div>`).join('')}</div>
-    <p class="mini" style="margin:14px 4px 0;text-align:center">${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>
-    </div>`;
+    <div class="lista">${v.feed.slice(0, 12).map((l) => `<div class="item" style="padding:8px 12px"><span class="ic" style="font-size:22px">${l.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(l.autor)} <span class="mini">· ${esc(l.quando)}</span></b>${esc(l.texto)}${l.impacto ? ` <span class="mini">→ ${esc(l.impacto)}</span>` : ''}</span></div>`).join('')}</div>
+    ${rodapeVila}`;
+
+  const meusPendentes = v.minhaHerdade.canteiros.filter((c) => c.pronto || c.problema).length;
+  if (desktop()) {
+    // PC: o mapa e o jogo. O resto abre por cima, uma tela de cada vez.
+    $('mundo').innerHTML = `<div class="palco"><div id="cena"></div>${rodapeVila.replace('class="mini"', 'class="mini legenda"')}</div>`;
+    app.blocos = { horta: ['🏡 Minha horta', blocoHorta + blocoObra], lojas: ['🛒 Quem quer comprar', blocoRua], familia: ['👨‍👩‍👧 A família', blocoFamilia], feed: ['📜 Últimas da vila', blocoFeed] };
+    pintaTelaDesk();
+    $('rodape').innerHTML = `
+      <button class="${app.tela === 'horta' ? 'ativo' : ''}" data-acao="tela" data-tela="horta"><span class="ic">🏡</span>Horta${meusPendentes ? `<b>${meusPendentes}</b>` : ''}</button>
+      <button class="${app.tela === 'lojas' ? 'ativo' : ''}" data-acao="tela" data-tela="lojas"><span class="ic">🛒</span>Lojas${v.encomendas.filter((e) => e.pronta).length ? `<b>${v.encomendas.filter((e) => e.pronta).length}</b>` : ''}</button>
+      <button class="${app.tela === 'familia' ? 'ativo' : ''}" data-acao="tela" data-tela="familia"><span class="ic">👨‍👩‍👧</span>Família${ajudas ? `<b>${ajudas}</b>` : ''}</button>
+      <button data-acao="conversa"><span class="ic">💬</span>Conversa${msgs ? `<b>${msgs}</b>` : ''}</button>
+      <button class="${app.tela === 'feed' ? 'ativo' : ''}" data-acao="tela" data-tela="feed"><span class="ic">📜</span>Últimas</button>`;
+  } else {
+    app.tela = null; $('tela')?.remove();
+    $('mundo').innerHTML = `<div class="bloco a">${blocoHorta}</div><div class="bloco b">
+      <div class="titulo" id="sec-vila">🗺️ A vila <small>toque em quem quiser visitar</small></div>
+      <div id="cena" style="border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:#8fae5d;line-height:0"></div>
+      </div><div class="bloco c">${blocoRua}${blocoFamilia}</div><div class="bloco d">${blocoObra}</div><div class="bloco e">${blocoFeed}</div>`;
+    $('rodape').innerHTML = `
+      <button data-acao="vai" data-alvo="sec-minha"><span class="ic">🏡</span>Horta${meusPendentes ? `<b>${meusPendentes}</b>` : ''}</button>
+      <button data-acao="vai" data-alvo="sec-familia"><span class="ic">👨‍👩‍👧</span>Família${ajudas ? `<b>${ajudas}</b>` : ''}</button>
+      <button data-acao="conversa"><span class="ic">💬</span>Conversa${msgs ? `<b>${msgs}</b>` : ''}</button>`;
+  }
 
   if (!app.cena) app.cena = new VilaCanvas($('cena'), { aoClicar: cliqueNoMapa });
   else $('cena').replaceChildren(cenaViva);
   app.cena.atualizar(v, m);
+}
 
-  $('rodape').innerHTML = `
-    <button data-acao="vai" data-alvo="sec-minha"><span class="ic">🏡</span>Horta${v.minhaHerdade.canteiros.some((c) => c.pronto || c.problema) ? `<b>${v.minhaHerdade.canteiros.filter((c) => c.pronto || c.problema).length}</b>` : ''}</button>
-    <button data-acao="vai" data-alvo="sec-familia"><span class="ic">👨‍👩‍👧</span>Família${ajudas ? `<b>${ajudas}</b>` : ''}</button>
-    <button data-acao="conversa"><span class="ic">💬</span>Conversa${msgs ? `<b>${msgs}</b>` : ''}</button>`;
+const desktop = () => window.matchMedia('(min-width: 960px)').matches;
+window.matchMedia('(min-width: 960px)').addEventListener('change', () => { app.tela = null; pinta(); });
+
+// A tela aberta por cima do mapa (so no PC).
+function pintaTelaDesk() {
+  let el = $('tela');
+  if (!app.tela || !app.blocos?.[app.tela]) { el?.remove(); return; }
+  const [titulo, html] = app.blocos[app.tela];
+  if (!el) { el = document.createElement('div'); el.id = 'tela'; el.className = 'tela'; $('phone').appendChild(el); }
+  const rolagem = el.querySelector('.tela-corpo')?.scrollTop ?? 0;
+  el.innerHTML = `<div class="tela-caixa"><button class="fechar" data-acao="tela" data-tela="" title="voltar pra vila (Esc)">✕</button><div class="tela-corpo">${html}</div></div>`;
+  el.querySelector('.tela-corpo').scrollTop = rolagem;
 }
 
 // O mapa devolve o toque traduzido: mesma acao dos botoes.
@@ -314,7 +346,8 @@ function cliqueNoMapa(alvo) {
   const h = m.herdades[alvo.herdade];
   if (!h) return;
   if (!h.dono) return toast('terra livre — manda a chave pra alguém da família');
-  if (h.dono === app.eu) return $('sec-minha').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  if (h.dono === app.eu) { if (desktop()) { app.tela = 'horta'; pinta(); } else $('sec-minha').scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+  if (desktop()) { app.tela = 'familia'; pinta(); }
   const el = $(`her-${h.id}`); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
@@ -558,7 +591,8 @@ document.addEventListener('click', async (e) => {
     'usar-chave': () => { const nome = $('in-nome').value.trim(); if (!nome) return toast('diga seu nome primeiro', 'ruim'); usarChave($('in-chave').value, nome); },
     'abrir-vila': () => abrirVila(d.chave, $('in-nome')?.value.trim() || null),
     fundar: () => { const vila = $('in-vila').value.trim(), nome = $('in-nome').value.trim(); const k = extrairChave(vila); if (k) return usarChave(k, nome); if (!vila || !nome) return toast('preencha o nome da vila e o seu', 'ruim'); fundar(vila, nome); },
-    fecha, vai: () => { fecha(); $(d.alvo)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+    fecha, vai: () => { fecha(); if (desktop()) { app.tela = { 'sec-minha': 'horta', 'sec-rua': 'lojas', 'sec-familia': 'familia', 'sec-feed': 'feed', 'sec-obra': 'horta' }[d.alvo] ?? app.tela; pinta(); } $(d.alvo)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+    tela: () => { app.tela = d.tela || null; pinta(); },
 
     canteiro: () => {
       const c = v.minhaHerdade.canteiros[Number(d.tile)];
@@ -606,7 +640,7 @@ document.addEventListener('click', async (e) => {
     conversa: () => folhaConversa(d.com || null),
     recado: async () => { const t = $('in-recado').value.trim(); if (!t) return toast('escreve alguma coisa'); const r = await manda({ tipo: 'RECADO', texto: t, para: d.para || undefined }); if (r.ok) { folhaConversa(d.para || null); ofereceZap(`${v.hud.nome} te deixou um recado na ${app.motor.mundo.nome}: "${t}"`); } },
     pendencias: folhaPendencias,
-    pendencia: () => { const x = app.pendencias?.[Number(d.i)]; if (!x) return; fecha(); if (x.conversa) return folhaConversa(x.conversa === 'todos' ? null : x.conversa); if (x.vendinha) return folhaCeleiro(); if (x.acao === 'cumprir-missao') return manda({ tipo: 'CUMPRIR_MISSAO', indice: x.indice }, e); $(x.vai)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
+    pendencia: () => { const x = app.pendencias?.[Number(d.i)]; if (!x) return; fecha(); if (x.conversa) return folhaConversa(x.conversa === 'todos' ? null : x.conversa); if (x.vendinha) return folhaCeleiro(); if (x.acao === 'cumprir-missao') return manda({ tipo: 'CUMPRIR_MISSAO', indice: x.indice }, e); if (desktop()) { app.tela = x.vai === 'sec-rua' ? 'lojas' : x.vai.startsWith('her-') ? 'familia' : 'horta'; pinta(); } $(x.vai)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
     'cumprir-missao': async () => { const r = await manda({ tipo: 'CUMPRIR_MISSAO', indice: Number(d.indice) }, e); if (r.ok) { toast('🎁 prêmio recebido', 'bom'); folhaPendencias(); } },
     obra: folhaObra,
     doar: async () => { const r = await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); if (r.ok) { toast(`doou ${d.qtd} ${d.recurso} · a vila agradece`, 'bom'); folhaObra(); } },
@@ -644,7 +678,7 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'in-recado') document.querySelector('.folha [data-acao="recado"]')?.click();
   if (e.key === 'Enter' && (e.target.id === 'in-nome' || e.target.id === 'in-chave')) document.querySelector('[data-acao="usar-chave"]')?.click();
-  if (e.key === 'Escape') fecha();
+  if (e.key === 'Escape') { if (document.querySelector('.veu')) fecha(); else if (app.tela) { app.tela = null; pinta(); } }
 });
 
 // --- guia dos primeiros minutos ------------------------------------------------

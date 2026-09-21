@@ -123,23 +123,35 @@
   .phone:has(.veu) .mao{display:none}
   .mao{position:absolute;z-index:16;font-size:40px;pointer-events:none;animation:aponta .9s infinite;filter:drop-shadow(0 3px 2px rgba(0,0,0,.4))}
   @keyframes aponta{50%{transform:translate(-8px,-8px)}}
-  /* desktop: tres colunas, nada muda de lugar na cabeca de quem joga no celular */
+  /* PC: o mapa e o jogo; o resto abre por cima como tela */
   @media (min-width:960px){
-    body{background:#5a9a3a}
-    .phone{max-width:none;box-shadow:none}
-    .topo{max-width:1400px;margin:0 auto;width:100%}
-    .rodape{display:none}
-    .mundo{padding:0 20px 40px}
-    .mundo>.bloco{min-width:0}
-    .mundo{display:grid;grid-template-columns:minmax(360px,420px) minmax(420px,1fr) minmax(360px,420px);gap:0 20px;align-items:start;max-width:1400px;margin:0 auto;width:100%}
-    .bloco.a{grid-column:1;grid-row:1} .bloco.d{grid-column:1;grid-row:2}
-    .bloco.b{grid-column:2;grid-row:1} .bloco.e{grid-column:2;grid-row:2}
-    .bloco.c{grid-column:3;grid-row:1/3}
+    body{background:#3f7a2a}
+    .phone{max-width:none;box-shadow:none;background:radial-gradient(ellipse at 50% 30%,#8bc34a,#5a9a3a 70%)}
+    .topo{max-width:1400px;margin:0 auto;width:100%;background:none}
+    .mundo{padding:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .palco{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px 0}
+    .palco #cena{height:calc(100vh - 168px);aspect-ratio:464/576;max-width:100%;border-radius:12px;overflow:hidden;box-shadow:0 12px 0 rgba(62,39,35,.25),0 0 0 6px #c68642,0 0 0 10px #8d5524}
+    .palco #cena canvas{width:100%!important;height:100%!important}
+    .legenda{color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.4);font-size:13px!important;margin:0!important}
+    .rodape{grid-template-columns:repeat(5,minmax(0,140px));justify-content:center;gap:12px;background:none;box-shadow:none;padding-bottom:14px}
+    .rodape button{background:var(--paper);box-shadow:var(--shadow);padding:10px 8px;font-size:15px}
+    .rodape button.ativo{background:var(--orange);color:#fff;box-shadow:0 6px 0 var(--orange2)}
+    .rodape button b{right:10px}
+    .tela{position:absolute;inset:0;z-index:12;display:flex;align-items:center;justify-content:center;background:rgba(62,39,35,.35);padding:70px 16px 90px}
+    .tela-caixa{width:min(760px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--grass2);border:6px solid #c68642;border-radius:22px;box-shadow:0 12px 0 rgba(62,39,35,.25);overflow:hidden}
+    .tela-caixa{position:relative}
+    .tela-caixa>.fechar{position:absolute;right:12px;top:12px;z-index:2;background:var(--paper)}
+    .tela-corpo{overflow-y:auto;padding:0 16px 16px}
+    .tela-corpo>.titulo:first-child{margin-right:48px}
+    .tela-corpo .titulo{font-size:18px}
+    .tela-corpo .fazenda.minha{grid-template-columns:repeat(4,1fr)}
+    .tela-corpo .canteiro{font-size:34px}
+    .tela-corpo .rua{grid-template-columns:repeat(3,1fr)}
+    .tela-corpo .loja .ic{font-size:40px}
     .veu{align-items:center;justify-content:center}
     .folha{max-width:560px;border-radius:22px;max-height:85vh}
-    .guia{left:50%;transform:translateX(-50%);max-width:560px;bottom:24px}
-    .toast{bottom:40px}
-    .canteiro{font-size:32px}
+    .guia{left:50%;transform:translateX(-50%);max-width:560px;bottom:96px}
+    .toast{bottom:110px}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
