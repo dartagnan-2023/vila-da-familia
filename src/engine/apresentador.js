@@ -182,7 +182,8 @@ function pedidos(mundo, jogadorId) {
       if (!t) return;
       const c = CULTURAS[t.cultura];
       if (t.problema) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'CUIDAR', icone: PROBLEMAS[t.problema].icone, motivo: `${c.nome} com ${PROBLEMAS[t.problema].nome} em ${v.nome}` });
-      else if (estaMadura(t)) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', icone: '🌾', motivo: `${c.nome} passando do ponto em ${v.nome}` });
+      // Madura ha pouco nao e pedido: o dono provavelmente vem colher. Depois de um tempo, vira.
+      else if (estaMadura(t) && (t.maduraEm == null || mundo.agora - t.maduraEm >= TEMPO.passandoDoPontoMinutos * TEMPO.minuto)) out.push({ herdade: v.id, dono: v.dono, tile: i, acao: 'COLHER', icone: '🌾', motivo: `${c.nome} passando do ponto em ${v.nome}` });
     });
   }
   return out.slice(0, 8);

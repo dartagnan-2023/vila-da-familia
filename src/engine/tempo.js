@@ -65,6 +65,8 @@ export function avancarTempo(mundo, ate) {
         t.problema = proximo.tipo;
         t.pedidos.shift();
       }
+      // Ficou madura agora: guarda quando, pra saber se esta "passando do ponto".
+      if (novo >= total && t.progresso < total) t.maduraEm = ate;
       t.progresso = novo;
     }
     // maquinas: prontoEm e absoluto, nao precisa avancar

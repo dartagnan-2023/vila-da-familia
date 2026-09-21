@@ -180,12 +180,13 @@ function canteiroMeu(c) {
     ${c.problema ? `<span class="pede">${c.problemaIcone}</span>` : c.pronto ? '' : `<span class="tempo">${c.prontaEm ? min(c.prontaEm - app.motor.mundo.agora) : ''}</span><span class="barra"><i style="--p:${c.progresso}%"></i></span>`}
   </button>`;
 }
-function canteiroOutro(t, i, herdade) {
+function canteiroOutro(t, i, herdade, pede = false) {
   if (!t) return `<span class="canteiro vazio"></span>`;
   const pronto = estaMadura(t);
+  const brilha = t.problema || pede; // madura ha pouco nao brilha: e do dono
   const p = Math.min(100, Math.round((t.progresso / duracaoCultura(t.cultura)) * 100));
   const c = CULTURAS[t.cultura];
-  return `<button class="canteiro ${pronto ? 'pronto' : 'crescendo'}" data-acao="ajudar" data-herdade="${herdade}" data-tile="${i}" data-sub="${pronto ? 'COLHER' : 'CUIDAR'}" aria-label="${esc(c.nome)}">
+  return `<button class="canteiro ${brilha ? 'pronto' : 'crescendo'}" data-acao="ajudar" data-herdade="${herdade}" data-tile="${i}" data-sub="${pronto ? 'COLHER' : 'CUIDAR'}" aria-label="${esc(c.nome)}">
     ${pronto ? iconeDe(t.cultura) : p < 40 ? '🌱' : '🌿'}
     ${t.problema ? `<span class="pede">${PROBLEMAS[t.problema].icone}</span>` : pronto ? '' : `<span class="barra"><i style="--p:${p}%"></i></span>`}
   </button>`;
@@ -239,14 +240,14 @@ function pinta() {
 
   const outros = Object.values(m.herdades).filter((x) => x.dono && x.dono !== app.eu).map((x) => {
     const p = m.jogadores[x.dono];
-    const precisa = x.tiles.filter((t) => t && (t.problema || estaMadura(t))).length;
+    const precisa = v.pedidosDeAjuda.filter((p) => p.herdade === x.id).length;
     return `
       <div class="titulo" id="her-${x.id}" style="font-size:16px;margin-top:10px">
         <button data-acao="pessoa" data-quem="${x.dono}" style="display:flex;align-items:center;gap:6px;font:inherit">${p.sprite} ${esc(p.nome)}</button>
         ${precisa ? `<small style="color:var(--orange2)">precisa de você</small>` : '<small>tudo em ordem</small>'}
         ${precisa > 1 ? `<button class="chip acao" data-acao="ajudar-tudo" data-herdade="${x.id}">🤝 ajudar ${precisa}</button>` : `<button class="chip" data-acao="pessoa" data-quem="${x.dono}">❤️ 💬 🎁</button>`}
       </div>
-      <div class="fazenda outra">${x.tiles.map((t, i) => canteiroOutro(t, i, x.id)).join('')}</div>`;
+      <div class="fazenda outra">${x.tiles.map((t, i) => canteiroOutro(t, i, x.id, v.pedidosDeAjuda.some((p) => p.herdade === x.id && p.tile === i))).join('')}</div>`;
   }).join('');
 
   const obra = v.missao;
@@ -255,6 +256,8 @@ function pinta() {
     <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
     ${mh.canteiros.every((c) => c.vazio) && v.encomendas.length ? (() => { const e = v.encomendas.find((x) => x.itens.some((i) => CULTURAS[i.chave] && CULTURAS[i.chave].nivel <= h.nivel)) ?? v.encomendas[0]; const i = e.itens.find((x) => CULTURAS[x.chave]) ?? e.itens[0]; return `<button class="cartaz" data-acao="loja" data-cliente="${esc(e.cliente)}" style="margin-bottom:8px"><span class="ic">${i.icone}</span><span class="txt"><b>Horta vazia — plante pra alguém</b>${esc(e.cliente.replace(/^(a|o) /, ''))} quer ${i.qtd} ${esc(i.nome.toLowerCase())} e paga ${e.moedas} 🪙. Toque aqui.</span></button>`; })() : ''}
     <div class="fazenda minha">${meus}</div>
+    ${prontosMeus.length >= 3 ? `<button class="btn cheio" data-acao="colher-tudo" style="margin-top:10px">🌾 Colher tudo (${prontosMeus.length})</button>` : ''}
+    ${pedemMeus.length >= 2 ? `<button class="btn cheio" data-acao="cuidar-tudo" style="margin-top:10px">💧 Cuidar de tudo (${pedemMeus.length})</button>` : ''}
     <div class="ferramentas">
       <button data-acao="cmd" data-tipo="CORTAR" class="${machado ? 'desc' : ''}"><span class="ic">🪓</span>Lenha<small>${machado ? `descansa ${min(h.machadoEm)}` : `tenho ${h.madeira}`}</small></button>
       <button data-acao="cmd" data-tipo="MINERAR" class="${picareta ? 'desc' : ''}"><span class="ic">⛏️</span>Pedra<small>${picareta ? `descansa ${min(h.picaretaEm)}` : `tenho ${h.pedra}`}</small></button>
@@ -570,10 +573,13 @@ document.addEventListener('click', async (e) => {
     ajudar: async () => {
       const m = mundoAgora(); const t = m.herdades[d.herdade]?.tiles[Number(d.tile)]; const dono = m.jogadores[m.herdades[d.herdade]?.dono]?.nome ?? 'alguém';
       if (t && !t.problema && !estaMadura(t)) return toast(`${CULTURAS[t.cultura].nome} de ${dono} está bem — pronta em ${min(duracaoCultura(t.cultura) - t.progresso)}`);
+      if (t && !t.problema && estaMadura(t) && !v.pedidosDeAjuda.some((p) => p.herdade === d.herdade && p.tile === Number(d.tile)) && !d.forca) {
+        return toast(`${CULTURAS[t.cultura].nome} de ${dono} acabou de ficar pronta — deixa ${dono} colher; se passar de 10 min, ela pede`, '', () => manda({ tipo: 'AJUDAR', herdade: d.herdade, tile: Number(d.tile), acao: 'COLHER' }, e).then((r) => r.ok && toast(`🌾 colheu pra ${dono}`, 'bom')));
+      }
       const r = await manda({ tipo: 'AJUDAR', herdade: d.herdade, tile: Number(d.tile), acao: d.sub }, e);
       if (r.ok) toast(d.sub === 'COLHER' ? `🌾 colheu pra ${dono} · +5 ✨ · +harmonia` : `🤝 cuidou da planta de ${dono} · +5 ✨`, 'bom');
     },
-    'ajudar-tudo': async () => { fecha(); const m = mundoAgora(); const h = m.herdades[d.herdade]; const cmds = h.tiles.map((t, i) => t && (estaMadura(t) || t.problema) ? { tipo: 'AJUDAR', herdade: h.id, tile: i, acao: estaMadura(t) ? 'COLHER' : 'CUIDAR' } : null).filter(Boolean); const n = await mandaVarios(cmds, 'nada pra ajudar aqui agora'); if (n) toast(`🤝 ajudou em ${n} canteiro(s)`, 'bom'); },
+    'ajudar-tudo': async () => { fecha(); const cmds = v.pedidosDeAjuda.filter((p) => p.herdade === d.herdade).map((p) => ({ tipo: 'AJUDAR', herdade: p.herdade, tile: p.tile, acao: p.acao })); const n = await mandaVarios(cmds, 'nada pra ajudar aqui agora'); if (n) toast(`🤝 ajudou em ${n} canteiro(s)`, 'bom'); },
     loja: () => folhaLoja(d.cliente),
     entregar: async () => { fecha(); const r = await manda({ tipo: 'CUMPRIR_ENCOMENDA', indice: Number(d.indice) }, e); if (r.ok) toast('📦 entregue! o dinheiro já está com você', 'bom'); },
     celeiro: folhaCeleiro,

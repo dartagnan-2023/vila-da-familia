@@ -518,5 +518,15 @@ await teste('vendinha: 3 lotes gratis, retirar devolve ao celeiro, sem dinheiro 
   igual(m2.hash, m.hash, 'hash igual nas duas maquinas');
 });
 
+await teste('planta madura ha pouco nao vira pedido de ajuda; depois de 10 min vira', () => {
+  const m = vilaCom('Ana', 'Bia');
+  manda(m, { tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'trigo' });
+  espera(m, 3 * MIN);
+  ok(estaMadura(m.mundo.herdades.h00.tiles[0]), 'madura');
+  igual(visao(m.mundo, 'bia').pedidosDeAjuda.length, 0, 'acabou de ficar pronta: e da Ana');
+  espera(m, 10 * MIN);
+  igual(visao(m.mundo, 'bia').pedidosDeAjuda.length, 1, 'passou do ponto: pede');
+});
+
 console.log(`\n${passou} passaram, ${falhou} falharam\n`);
 process.exit(falhou ? 1 : 0);

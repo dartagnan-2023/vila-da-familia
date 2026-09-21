@@ -93,6 +93,7 @@ export const TEMPO = {
   // So culturas de 10 min ou mais; nos pontos abaixo do crescimento.
   pedidoMinimoMinutos: 10,
   pontosDePedido: [0.4, 0.75],
+  passandoDoPontoMinutos: 10,   // madura ha tanto tempo = pede pra alguem colher
   chanceSegundoPedido: 0.5,
 };
 
