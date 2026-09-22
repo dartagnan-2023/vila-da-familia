@@ -261,7 +261,7 @@ function pinta() {
     ${prontosMeus.length >= 3 ? `<button class="btn cheio" data-acao="colher-tudo" style="margin-top:10px">🌾 Colher tudo (${prontosMeus.length})</button>` : ''}
     ${pedemMeus.length >= 2 ? `<button class="btn cheio" data-acao="cuidar-tudo" style="margin-top:10px">💧 Cuidar de tudo (${pedemMeus.length})</button>` : ''}
     <div class="ferramentas">
-      <button data-acao="cmd" data-tipo="CORTAR" class="${machado ? 'desc' : ''}"><span class="ic">🪓</span>Lenha<small>${machado ? `descansa ${min(h.machadoEm)}` : `tenho ${h.madeira}`}</small></button>
+      <button data-acao="mata" class="${machado ? 'desc' : ''}"><span class="ic">🌳</span>Mata<small>${machado ? `machado descansa ${min(h.machadoEm)}` : `tenho ${h.madeira} 🪵`}</small></button>
       <button data-acao="cmd" data-tipo="MINERAR" class="${picareta ? 'desc' : ''}"><span class="ic">⛏️</span>Pedra<small>${picareta ? `descansa ${min(h.picaretaEm)}` : `tenho ${h.pedra}`}</small></button>
       <button data-acao="construir"><span class="ic">🔨</span>Construir<small>${mh.vagas} vaga(s)</small></button>
       <button data-acao="celeiro"><span class="ic">🧺</span>Celeiro<small>${h.colheita.reduce((s, c) => s + c.qtd, 0)} itens</small></button>
@@ -487,6 +487,23 @@ function folhaConstruir() {
     }).join('')}</div>`);
 }
 
+// A mata e de todos: aqui se tira lenha e se repoe. O numero grande e o da vila.
+function folhaMata() {
+  const v = v_();
+  const mata = v.comuns.find((c) => c.chave === 'floresta');
+  const h = v.hud;
+  const [corte] = acoesPossiveis(app.motor.mundo, app.eu, [{ tipo: 'CORTAR' }]);
+  const [muda] = acoesPossiveis(app.motor.mundo, app.eu, [{ tipo: 'PLANTAR_ARVORE' }]);
+  folha(`<h2>🌳 A mata da vila</h2>
+    <p>${mata.valor}/100 de árvore em pé — é de todo mundo. Mata cheia faz chover mais e dá lenha melhor; mata rala traz seca e erosão pra família inteira.</p>
+    <div class="barrao" style="margin-bottom:12px"><i style="--p:${mata.pct}%;background:${mata.valor < 40 ? 'var(--red)' : 'var(--good)'}"></i></div>
+    <div class="lista">
+      <button class="item ${corte.habilitado ? '' : 'apagado'}" data-acao="cmd" data-tipo="CORTAR"><span class="ic">🪓</span><span class="txt"><b>Cortar lenha</b>${corte.habilitado ? '+4 a 6 🪵 (mais por nível) · tira 3 da mata · machado descansa 2 min' : esc(corte.motivo)}</span>${corte.habilitado ? '›' : ''}</button>
+      <button class="item ${muda.habilitado ? '' : 'apagado'}" data-acao="cmd" data-tipo="PLANTAR_ARVORE"><span class="ic">🌱</span><span class="txt"><b>Plantar mudas</b>${muda.habilitado ? 'custa 1 🪵 · devolve +4 de mata · +1 harmonia' : esc(muda.motivo)}</span>${muda.habilitado ? '›' : ''}</button>
+    </div>
+    <p class="mini" style="margin-top:10px">Você tem ${h.madeira} 🪵 e ${h.pedra} 🪨. Madeira serve pras benfeitorias da sua horta e pras obras da vila.</p>`);
+}
+
 function folhaBenfeitoria(chave) {
   const v = v_();
   const b = v.minhaHerdade.construcoes.find((x) => x.chave === chave);
@@ -647,6 +664,7 @@ document.addEventListener('click', async (e) => {
     construir: folhaConstruir,
     maquina: () => folhaMaquina(d.maquina),
     benfeitoria: () => folhaBenfeitoria(d.chave),
+    mata: folhaMata,
     demolir: async () => { if (!confirm('Desmanchar? Volta metade do material.')) return; fecha(); const r = await manda({ tipo: 'DEMOLIR', construcao: d.construcao }); if (r.ok) toast('🧹 desmanchado · vaga livre', 'bom'); },
     cmd: async () => {
       const cmd = { tipo: d.tipo }; if (d.construcao) cmd.construcao = d.construcao; if (d.produto) cmd.produto = d.produto; if (d.maquina) cmd.maquina = d.maquina;
@@ -654,7 +672,8 @@ document.addEventListener('click', async (e) => {
       const r = await manda(cmd, e);
       if (!r.ok) return;
       const dep = v_().hud;
-      if (d.tipo === 'CORTAR') toast(`🪓 +${dep.madeira - antes.madeira} madeira`, 'bom');
+      if (d.tipo === 'CORTAR') { toast(`🪓 +${dep.madeira - antes.madeira} madeira · −3 de mata`, 'bom'); folhaMata(); }
+      else if (d.tipo === 'PLANTAR_ARVORE') { toast('🌱 mudas plantadas · +4 de mata · +1 harmonia', 'bom'); folhaMata(); }
       else if (d.tipo === 'MINERAR') toast(`⛏️ +${dep.pedra - antes.pedra} pedra`, 'bom');
       else if (d.tipo === 'CONSTRUIR') { fecha(); toast(`🔨 ${CONSTRUCOES[d.construcao].nome} pronto!`, 'bom'); }
       else if (d.tipo === 'PRODUZIR') { fecha(); toast(`${iconeDe(d.produto)} fazendo ${nomeDe(d.produto).toLowerCase()}`, 'bom'); }
