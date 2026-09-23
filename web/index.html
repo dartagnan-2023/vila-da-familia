@@ -115,6 +115,7 @@
   /* avisos e mão do tutorial */
   .toast{position:absolute;left:50%;transform:translateX(-50%);bottom:110px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-family:"Baloo 2";font-weight:800;font-size:16px;z-index:30;box-shadow:var(--shadow);animation:sobe .2s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
   .toast.bom{background:var(--good)}
+  body.ocupado .canteiro,body.ocupado .loja,body.ocupado .ferramentas button,body.ocupado .rodape button{pointer-events:none;opacity:.7}
   .moeda{position:absolute;font-family:"Baloo 2";font-weight:800;font-size:22px;color:var(--gold);text-shadow:0 2px 0 var(--orange2);z-index:30;animation:voa 1s forwards;pointer-events:none}
   @keyframes voa{to{transform:translateY(-70px);opacity:0}}
   .guia{position:absolute;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;border-radius:16px;padding:12px 14px;z-index:15;font-weight:700;font-size:15px;display:flex;gap:10px;align-items:center;box-shadow:var(--shadow);animation:sobe .3s}
