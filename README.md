@@ -276,8 +276,13 @@ O Pipo tem duas metades, de propósito:
 | | o que faz | custa |
 |---|---|---|
 | `npm run pipo:rotina -- CHAVE` | **o corpo**: rega, colhe, socorre quem está pedindo, replanta o que a família precisa pras encomendas, doa pra obra, cuida da mata | nada — regra escrita à mão, zero API |
-| `npm run pipo -- CHAVE` | **o cérebro**: lê a vila e decide como gente — o que falar, a quem dar, quando calar | uma chamada de API por rodada |
+| `npm run pipo:falar -- CHAVE recado "..." [--para nome]` | **a boca**: o Pipo diz, abraça ou presenteia. Quem escreve a frase é uma pessoa — ou o Claude do app, pela assinatura | nada |
+| `npm run pipo -- CHAVE` | **o cérebro pago** (opcional): o modelo decide sozinho o que falar e fazer | precisa de `ANTHROPIC_API_KEY` |
 
 A rotina também é o **olho**: tudo que a família escreve no mural, manda pro Pipo
 ou sente (😍😂😐😤🤯💡) vai pra `.pipo-caixa.jsonl`, com 🔥 no que é reclamação.
 O cérebro só é acionado quando a caixa tem algo — silêncio não custa nada.
+
+Não precisa de crédito de API: a tarefa agendada do app roda o corpo, lê a caixa
+e escreve a resposta do Pipo com `pipo:falar`. O `scripts/pipo.mjs` fica como
+alternativa pra quem quiser o Pipo decidindo sozinho, 24h, sem app aberto.

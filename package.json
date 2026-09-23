@@ -15,7 +15,8 @@
     "sentir": "node scripts/sentimentos.mjs",
     "icone": "node scripts/icone.mjs",
     "pipo": "node scripts/pipo.mjs",
-    "pipo:rotina": "node scripts/pipo-rotina.mjs"
+    "pipo:rotina": "node scripts/pipo-rotina.mjs",
+    "pipo:falar": "node scripts/pipo-falar.mjs"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.128.0"
