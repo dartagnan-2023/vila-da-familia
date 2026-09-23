@@ -54,19 +54,19 @@ export const PRODUTOS = {
 
 export const CONSTRUCOES = {
   moinho:      { nome: 'Moinho',      nivel: 3, custo: { madeira: 10, moedas: 40 }, efeito: 'moinho',     texto: 'Moi trigo em farinha (3 min). Farinha vale 3x o trigo.' },
-  forno:       { nome: 'Forno',       nivel: 5, custo: { madeira: 15, pedra: 5, moedas: 80 }, efeito: 'forno', texto: 'Assa pao (5 min) e bolo (12 min) com farinha.' },
-  poco:        { nome: 'Poco',        nivel: 2, custo: { madeira: 8,  moedas: 20 }, efeito: 'agua',      texto: 'Cuidar da sede consome metade da agua comum.' },
+  forno:       { nome: 'Forno',       nivel: 5, custo: { madeira: 15, pedra: 5, moedas: 80 }, efeito: 'forno', texto: 'Assa pão (5 min) e bolo (12 min) com farinha.' },
+  poco:        { nome: 'Poço',        nivel: 2, custo: { madeira: 8,  moedas: 20 }, efeito: 'agua',      texto: 'Cuidar da sede consome metade da água comum.' },
   colmeia:     { nome: 'Colmeia',     nivel: 4, custo: { madeira: 6,  moedas: 15 }, efeito: 'poliniza',  texto: '+15% de colheita para as herdades VIZINHAS.' },
   composteira: { nome: 'Composteira', nivel: 3, custo: { madeira: 5,  moedas: 10 }, efeito: 'solo',      texto: 'Recupera 2 de fertilidade por dia.' },
-  celeiro:     { nome: 'Celeiro',     nivel: 6, custo: { madeira: 12, moedas: 30 }, efeito: 'estoque',   texto: '+20% no preco de venda.' },
+  celeiro:     { nome: 'Celeiro',     nivel: 6, custo: { madeira: 12, moedas: 30 }, efeito: 'estoque',   texto: '+20% no preço de venda.' },
   forja:       { nome: 'Forja',       nivel: 8, custo: { madeira: 14, pedra: 10, moedas: 40 }, efeito: 'ferramenta', poluicao: 2, texto: 'Machado e picareta descansam na metade do tempo, mas polui os vizinhos.' },
 };
 
 // Obras coletivas: ninguem conclui sozinho. E o contrato social do jogo.
 export const OBRAS = {
-  ponte:    { nome: 'Ponte',   custo: { madeira: 40, pedra: 20 },  bonus: 'velocidade', texto: 'Tudo cresce 10% mais rapido para TODOS.' },
-  praca:    { nome: 'Praca',   custo: { madeira: 25, moedas: 100 }, bonus: 'harmonia',   texto: '+2 de harmonia por dia.' },
-  acude:    { nome: 'Acude',   custo: { pedra: 35, moedas: 60 },   bonus: 'agua',       texto: 'A agua comum recarrega 50% mais rapido.' },
+  ponte:    { nome: 'Ponte',   custo: { madeira: 40, pedra: 20 },  bonus: 'velocidade', texto: 'Tudo cresce 10% mais rápido para TODOS.' },
+  praca:    { nome: 'Praça',   custo: { madeira: 25, moedas: 100 }, bonus: 'harmonia',   texto: '+2 de harmonia por dia.' },
+  acude:    { nome: 'Açude',   custo: { pedra: 35, moedas: 60 },   bonus: 'agua',       texto: 'A água comum recarrega 50% mais rápido.' },
   escola:   { nome: 'Escola',  custo: { madeira: 30, pedra: 15, moedas: 80 }, bonus: 'sabedoria', texto: 'Colheitas rendem +1 unidade.' },
 };
 

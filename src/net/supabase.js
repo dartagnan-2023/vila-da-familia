@@ -65,7 +65,7 @@ export class TransporteSupabase {
     // Uma recuperacao que ja estava em andamento pode ter lido o banco antes
     // do nosso insert; insiste ate o nosso comando estar aplicado.
     for (let tentativa = 0; this.ultima < carimbado.ordem; tentativa++) {
-      if (tentativa >= 3) throw new Error('o comando foi salvo, mas a vila nao respondeu — recarregue');
+      if (tentativa >= 3) throw new Error('o comando foi salvo, mas a vila não respondeu — recarregue');
       await this.recuperar();
     }
     this.canal?.send({ type: 'broadcast', event: 'cmd', payload: carimbado }).catch(() => {});
@@ -128,7 +128,7 @@ export class TransporteSupabase {
 
 const traduz = (e) => {
   const m = e?.message ?? String(e);
-  if (/chave_em_uso/.test(m)) return 'essa chave ja existe — tente fundar de novo';
+  if (/chave_em_uso/.test(m)) return 'essa chave já existe — tente fundar de novo';
   if (/muitas_vilas/.test(m)) return 'muitas vilas fundadas na ultima hora — tente mais tarde';
   if (/vila_nao_encontrada/.test(m)) return 'nenhuma vila com essa chave';
   if (/Failed to fetch|NetworkError/.test(m)) return 'sem conexao com a vila';

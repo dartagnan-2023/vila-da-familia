@@ -51,7 +51,7 @@ export function lerChave(chave) {
   if (s.length !== TAMANHO + 2) return { valida: false, erro: 'a chave tem 10 caracteres' };
   const corpo = s.slice(0, TAMANHO);
   if (digitos(corpo) !== s.slice(TAMANHO)) {
-    return { valida: false, erro: 'chave invalida — confira se digitou certo' };
+    return { valida: false, erro: 'chave inválida — confira se digitou certo' };
   }
   return { valida: true, chave: formata(s) };
 }

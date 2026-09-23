@@ -111,7 +111,7 @@ function presagios(mundo, tick, { seca, clima }) {
     out.push(presagio('seca', `O rio comum baixou. As plantas de todo mundo murcham.`));
   }
   if (mundo.comuns.floresta < LIMIARES.desmatamento) {
-    out.push(presagio('desmatamento', `A mata comum esta rala — as chuvas andam sumindo.`));
+    out.push(presagio('desmatamento', `A mata comum está rala — as chuvas andam sumindo.`));
   }
   if (mundo.comuns.solo < LIMIARES.soloExausto && sorte(rnd, 0.25)) {
     const alvo = escolhe(rnd, Object.keys(CULTURAS).filter((k) => k !== 'flor'));
@@ -121,7 +121,7 @@ function presagios(mundo, tick, { seca, clima }) {
     });
   }
   if (mundo.comuns.harmonia >= LIMIARES.harmoniaAlta) {
-    out.push(presagio('festa', `A vila esta em festa. Tudo cresce mais rapido para todo mundo.`));
+    out.push(presagio('festa', `A vila está em festa. Tudo cresce mais rápido para todo mundo.`));
   } else if (mundo.comuns.harmonia <= LIMIARES.harmoniaBaixa) {
     out.push(presagio('discordia', `Anda todo mundo emburrado. Tudo cresce mais devagar.`));
   }

@@ -90,7 +90,7 @@ await teste('nao tem energia: planta os 9 canteiros de uma vez', () => {
 await teste('cultura fechada abre por nivel', () => {
   const m = vilaCom('Ana');
   let r = manda(m, { tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'milho' });
-  ok(!r.ok && /nivel 3/.test(r.erro), r.erro);
+  ok(!r.ok && /n[ií]vel 3/.test(r.erro), r.erro);
   daXp(m, 'ana', xpParaNivel(3));
   igual(nivelDe(m.mundo.jogadores.ana.xp), 3);
   ok(manda(m, { tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'milho' }).ok);
@@ -159,7 +159,7 @@ await teste('nao da para ajudar na propria terra nem mexer na do outro sem ser c
   manda(m, { tipo: 'PLANTAR', por: 'beto', tile: 0, cultura: 'trigo' });
   ok(!manda(m, { tipo: 'AJUDAR', por: 'beto', herdade: 'h10', tile: 0, acao: 'COLHER' }).ok);
   const r = manda(m, { tipo: 'COLHER', por: 'ana', herdade: 'h10', tile: 0 });
-  ok(!r.ok && /nao e sua/.test(r.erro), r.erro);
+  ok(!r.ok && /não é sua/.test(r.erro), r.erro);
 });
 
 await teste('machado derruba a mata e descansa 3 min; replantar devolve', () => {
@@ -432,7 +432,7 @@ await teste('comprar canteiro: a herdade cresce ate 12, o preco sobe', () => {
   ok(manda(m, { tipo: 'COMPRAR_CANTEIRO', por: 'ana' }).ok);
   igual(m.mundo.jogadores.ana.inventario.moedas, 300 - 60 - 1 - 90 - 120);
   r = manda(m, { tipo: 'COMPRAR_CANTEIRO', por: 'ana' });
-  ok(!r.ok && /maximo/.test(r.erro), r.erro);
+  ok(!r.ok && /m[aá]ximo/.test(r.erro), r.erro);
 });
 
 await teste('demolir libera a vaga e devolve metade do material', () => {

@@ -22,7 +22,7 @@ function alvo(mundo, cmd) {
 }
 
 function checaBase(mundo, cmd) {
-  if (!mundo.jogadores[cmd.por]) return 'jogador nao esta na vila';
+  if (!mundo.jogadores[cmd.por]) return 'jogador não está na vila';
   return null;
 }
 
@@ -114,8 +114,8 @@ const temNoCeleiro = (p, itens) => Object.entries(itens).every(([k, q]) => (p.co
 export const REGRAS = {
   ENTRAR: {
     valida(mundo, cmd) {
-      if (mundo.jogadores[cmd.por]) return 'esse familiar ja entrou';
-      if (!herdadeLivre(mundo)) return 'a vila esta lotada';
+      if (mundo.jogadores[cmd.por]) return 'esse familiar já entrou';
+      if (!herdadeLivre(mundo)) return 'a vila está lotada';
       if (!cmd.nome) return 'informe o nome';
       return null;
     },
@@ -144,10 +144,10 @@ export const REGRAS = {
       const her = alvo(mundo, cmd);
       const p = mundo.jogadores[cmd.por];
       if (!her) return 'herdade inexistente';
-      if (her.dono !== cmd.por) return 'essa herdade nao e sua';
+      if (her.dono !== cmd.por) return 'essa herdade não é sua';
       const c = CULTURAS[cmd.cultura];
       if (!c) return 'cultura desconhecida';
-      if (nivel(p) < c.nivel) return `${c.nome} abre no nivel ${c.nivel}`;
+      if (nivel(p) < c.nivel) return `${c.nome} abre no nível ${c.nivel}`;
       if (cmd.tile == null || cmd.tile < 0 || cmd.tile >= her.tiles.length) return 'canteiro invalido';
       if (her.tiles[cmd.tile]) return 'canteiro ocupado';
       if (p.inventario.moedas < c.semente) return `semente custa ${c.semente} G`;
@@ -175,10 +175,10 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const her = alvo(mundo, cmd);
-      if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
+      if (!her || her.dono !== cmd.por) return 'essa herdade não é sua';
       const t = her.tiles[cmd.tile];
-      if (!t) return 'nao ha nada plantado ai';
-      if (!t.problema) return estaMadura(t) ? 'ja esta pronta — e so colher' : 'essa planta esta bem';
+      if (!t) return 'não há nada plantado aí';
+      if (!t.problema) return estaMadura(t) ? 'já está pronta — é só colher' : 'essa planta está bem';
       if (PROBLEMAS[t.problema].agua && mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o rio comum secou';
       return null;
     },
@@ -197,10 +197,10 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const her = alvo(mundo, cmd);
-      if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
+      if (!her || her.dono !== cmd.por) return 'essa herdade não é sua';
       const t = her.tiles[cmd.tile];
-      if (!t) return 'nao ha nada plantado ai';
-      if (!estaMadura(t)) return 'ainda nao esta no ponto';
+      if (!t) return 'não há nada plantado aí';
+      if (!estaMadura(t)) return 'ainda não está no ponto';
       return null;
     },
     emite(mundo, cmd) {
@@ -217,12 +217,12 @@ export const REGRAS = {
       if (!her || !her.dono) return 'herdade sem dono';
       if (her.dono === cmd.por) return 'na sua propria terra isso se chama trabalho';
       const acao = cmd.acao === 'REGAR' ? 'CUIDAR' : cmd.acao;
-      if (!['CUIDAR', 'COLHER'].includes(acao)) return 'so da para ajudar cuidando ou colhendo';
+      if (!['CUIDAR', 'COLHER'].includes(acao)) return 'só dá para ajudar cuidando ou colhendo';
       const t = her.tiles[cmd.tile];
-      if (!t) return 'nao ha nada plantado ai';
-      if (acao === 'CUIDAR' && !t.problema) return 'essa planta esta bem';
+      if (!t) return 'não há nada plantado aí';
+      if (acao === 'CUIDAR' && !t.problema) return 'essa planta está bem';
       if (acao === 'CUIDAR' && PROBLEMAS[t.problema].agua && mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o rio comum secou';
-      if (acao === 'COLHER' && !estaMadura(t)) return 'ainda nao esta no ponto';
+      if (acao === 'COLHER' && !estaMadura(t)) return 'ainda não está no ponto';
       return null;
     },
     emite(mundo, cmd) {
@@ -254,9 +254,9 @@ export const REGRAS = {
     valida(mundo, cmd) {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
-      if (!mundo.jogadores[cmd.para]) return 'esse familiar nao esta na vila';
-      if (cmd.para === cmd.por) return 'abraco em si mesmo nao conta';
-      if (mundo.jogadores[cmd.por].gestos?.[cmd.para] === mundo.tick) return 'ja abracou essa pessoa hoje';
+      if (!mundo.jogadores[cmd.para]) return 'esse familiar não está na vila';
+      if (cmd.para === cmd.por) return 'abraço em si mesmo não conta';
+      if (mundo.jogadores[cmd.por].gestos?.[cmd.para] === mundo.tick) return 'já abraçou essa pessoa hoje';
       return null;
     },
     emite(mundo, cmd) {
@@ -265,7 +265,7 @@ export const REGRAS = {
         ator: cmd.por,
         dados: { para: cmd.para, xp: XP.abraco },
         comuns: { harmonia: 1 },
-        texto: `${nome(mundo, cmd.por)} mandou um abraco para ${nome(mundo, cmd.para)}.`,
+        texto: `${nome(mundo, cmd.por)} mandou um abraço para ${nome(mundo, cmd.para)}.`,
       }];
     },
   },
@@ -277,8 +277,8 @@ export const REGRAS = {
       const t = (cmd.texto ?? '').trim();
       if (!t) return 'escreva alguma coisa';
       if (t.length > 140) return 'recado muito longo (max 140)';
-      if (cmd.para && !mundo.jogadores[cmd.para]) return 'esse familiar nao esta na vila';
-      if (cmd.para === cmd.por) return 'recado pra si mesmo nao vale';
+      if (cmd.para && !mundo.jogadores[cmd.para]) return 'esse familiar não está na vila';
+      if (cmd.para === cmd.por) return 'recado pra si mesmo não vale';
       return null;
     },
     emite(mundo, cmd) {
@@ -296,7 +296,7 @@ export const REGRAS = {
     valida(mundo, cmd) {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
-      if (mundo.comuns.floresta <= 0) return 'nao sobrou nenhuma arvore';
+      if (mundo.comuns.floresta <= 0) return 'não sobrou nenhuma árvore';
       return ferramentaDescansando(mundo, mundo.jogadores[cmd.por], 'machado');
     },
     emite(mundo, cmd, rnd) {
@@ -308,7 +308,7 @@ export const REGRAS = {
         ator: cmd.por,
         dados: { madeira, xp: XP.cortar, descansaAte: mundo.agora + descansoDe(mundo, p, 'machado') },
         comuns: { floresta: -3 },
-        texto: `${nome(mundo, cmd.por)} derrubou arvores e levou ${madeira} de madeira (-3 de floresta).`,
+        texto: `${nome(mundo, cmd.por)} derrubou árvores e levou ${madeira} de madeira (-3 de floresta).`,
       }];
     },
   },
@@ -356,12 +356,12 @@ export const REGRAS = {
       if (erro) return erro;
       const her = alvo(mundo, cmd);
       const p = mundo.jogadores[cmd.por];
-      if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
+      if (!her || her.dono !== cmd.por) return 'essa herdade não é sua';
       const b = CONSTRUCOES[cmd.construcao];
-      if (!b) return 'construcao desconhecida';
-      if (nivel(p) < b.nivel) return `${b.nome} abre no nivel ${b.nivel}`;
-      if (her.construcoes.includes(b.efeito)) return 'ja existe uma dessas aqui';
-      if (her.construcoes.length >= CONFIG.construcoesPorHerdade) return 'a herdade esta cheia';
+      if (!b) return 'construção desconhecida';
+      if (nivel(p) < b.nivel) return `${b.nome} abre no nível ${b.nivel}`;
+      if (her.construcoes.includes(b.efeito)) return 'já existe uma dessas aqui';
+      if (her.construcoes.length >= CONFIG.construcoesPorHerdade) return 'a herdade está cheia';
       for (const [rec, qtd] of Object.entries(b.custo)) {
         if ((p.inventario[rec] ?? 0) < qtd) return `faltam ${qtd - (p.inventario[rec] ?? 0)} de ${rec}`;
       }
@@ -389,7 +389,7 @@ export const REGRAS = {
       const prod = PRODUTOS[cmd.produto];
       if (!prod) return 'produto desconhecido';
       if (!her.construcoes.includes(prod.maquina)) return `precisa de ${CONSTRUCOES[prod.maquina].nome}`;
-      if (her.producao?.[prod.maquina]) return `${CONSTRUCOES[prod.maquina].nome} ja esta ocupado`;
+      if (her.producao?.[prod.maquina]) return `${CONSTRUCOES[prod.maquina].nome} ja está ocupado`;
       if (!temNoCeleiro(mundo.jogadores[cmd.por], prod.entrada)) {
         return `precisa de ${Object.entries(prod.entrada).map(([k, q]) => `${q} ${nomeDe(k).toLowerCase()}`).join(' + ')}`;
       }
@@ -413,7 +413,7 @@ export const REGRAS = {
       if (erro) return erro;
       const her = herdadeDe(mundo, cmd.por);
       const em = her.producao?.[cmd.maquina];
-      if (!em) return 'nao tem nada nessa maquina';
+      if (!em) return 'não tem nada nessa máquina';
       if (em.prontoEm > mundo.agora) return `fica pronto em ${rotuloDuracao(em.prontoEm - mundo.agora)}`;
       return null;
     },
@@ -459,7 +459,7 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const her = herdadeDe(mundo, cmd.por);
-      if (her.tiles.length >= CONFIG.canteirosMax) return 'a herdade ja esta no tamanho maximo';
+      if (her.tiles.length >= CONFIG.canteirosMax) return 'a herdade ja está no tamanho máximo';
       const preco = CONFIG.precoCanteiro[her.tiles.length - CONFIG.tilesPorHerdade];
       if (mundo.jogadores[cmd.por].inventario.moedas < preco) return `custa ${preco} moedas`;
       return null;
@@ -484,7 +484,7 @@ export const REGRAS = {
       if (!missao) return 'missao inexistente';
       const p = mundo.jogadores[cmd.por];
       if ((p.missoesFeitas ?? []).includes(cmd.indice)) return 'premio ja recebido hoje';
-      if ((p.hoje?.[missao.chave] ?? 0) < missao.meta) return 'ainda nao cumpriu';
+      if ((p.hoje?.[missao.chave] ?? 0) < missao.meta) return 'ainda não cumpriu';
       return null;
     },
     emite(mundo, cmd) {
@@ -504,11 +504,11 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const her = alvo(mundo, cmd);
-      if (!her || her.dono !== cmd.por) return 'essa herdade nao e sua';
+      if (!her || her.dono !== cmd.por) return 'essa herdade não é sua';
       const b = CONSTRUCOES[cmd.construcao];
-      if (!b) return 'construcao desconhecida';
-      if (!her.construcoes.includes(b.efeito)) return 'nao tem isso na sua herdade';
-      if (her.producao?.[b.efeito]) return 'tem coisa fazendo ai dentro — recolha antes';
+      if (!b) return 'construção desconhecida';
+      if (!her.construcoes.includes(b.efeito)) return 'não tem isso na sua herdade';
+      if (her.producao?.[b.efeito]) return 'tem coisa fazendo aí dentro — recolha antes';
       return null;
     },
     emite(mundo, cmd) {
@@ -530,8 +530,8 @@ export const REGRAS = {
       if (erro) return erro;
       const p = mundo.jogadores[cmd.por];
       if (!precoDe(cmd.cultura)) return 'item desconhecido';
-      if (!(cmd.quantidade > 0)) return 'quantidade invalida';
-      if ((p.colheita[cmd.cultura] ?? 0) < cmd.quantidade) return 'voce nao tem essa quantidade';
+      if (!(cmd.quantidade > 0)) return 'quantidade inválida';
+      if ((p.colheita[cmd.cultura] ?? 0) < cmd.quantidade) return 'você não tem essa quantidade';
       return null;
     },
     emite(mundo, cmd) {
@@ -557,10 +557,10 @@ export const REGRAS = {
       if (!base) return 'item desconhecido';
       const qtd = Number(cmd.quantidade), preco = Number(cmd.preco);
       if (!(qtd > 0 && qtd <= VENDINHA.qtdMax && Number.isInteger(qtd))) return `quantidade de 1 a ${VENDINHA.qtdMax}`;
-      if ((p.colheita[cmd.item] ?? 0) < qtd) return 'voce nao tem essa quantidade';
+      if ((p.colheita[cmd.item] ?? 0) < qtd) return 'você não tem essa quantidade';
       const [min, max] = faixaDePreco(cmd.item, qtd);
       if (!(preco >= min && preco <= max && Number.isInteger(preco))) return `preco entre ${min} e ${max} G`;
-      if ((p.vendinha ?? []).length >= lotesDe(mundo, p)) return 'sua vendinha esta cheia — retire ou espere vender';
+      if ((p.vendinha ?? []).length >= lotesDe(mundo, p)) return 'sua vendinha está cheia — retire ou espere vender';
       return null;
     },
     emite(mundo, cmd) {
@@ -580,7 +580,7 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const p = mundo.jogadores[cmd.por];
-      if (!(p.vendinha ?? []).some((l) => l.id === Number(cmd.lote))) return 'esse lote ja saiu da vendinha';
+      if (!(p.vendinha ?? []).some((l) => l.id === Number(cmd.lote))) return 'esse lote já saiu da vendinha';
       return null;
     },
     emite(mundo, cmd) {
@@ -594,10 +594,10 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const de = mundo.jogadores[cmd.de];
-      if (!de) return 'esse familiar nao esta na vila';
-      if (cmd.de === cmd.por) return 'comprar de si mesmo nao vale — retire o lote';
+      if (!de) return 'esse familiar não está na vila';
+      if (cmd.de === cmd.por) return 'comprar de si mesmo não vale — retire o lote';
       const l = (de.vendinha ?? []).find((x) => x.id === Number(cmd.lote));
-      if (!l) return 'ja vendido — alguem chegou antes';
+      if (!l) return 'já vendido — alguém chegou antes';
       if (mundo.jogadores[cmd.por].inventario.moedas < l.preco) return `faltam ${l.preco - mundo.jogadores[cmd.por].inventario.moedas} G`;
       return null;
     },
@@ -618,13 +618,13 @@ export const REGRAS = {
       const erro = checaBase(mundo, cmd);
       if (erro) return erro;
       const de = mundo.jogadores[cmd.por];
-      if (!mundo.jogadores[cmd.para]) return 'esse familiar nao esta na vila';
-      if (cmd.para === cmd.por) return 'presentear a si mesmo nao vale';
-      if (!(cmd.quantidade > 0)) return 'quantidade invalida';
+      if (!mundo.jogadores[cmd.para]) return 'esse familiar não está na vila';
+      if (cmd.para === cmd.por) return 'presentear a si mesmo não vale';
+      if (!(cmd.quantidade > 0)) return 'quantidade inválida';
       if (cmd.recurso === 'colheita') {
-        if ((de.colheita[cmd.item] ?? 0) < cmd.quantidade) return 'voce nao tem isso no celeiro';
+        if ((de.colheita[cmd.item] ?? 0) < cmd.quantidade) return 'você não tem isso no celeiro';
       } else if ((de.inventario[cmd.recurso] ?? 0) < cmd.quantidade) {
-        return 'voce nao tem esse recurso';
+        return 'você não tem esse recurso';
       }
       return null;
     },
@@ -646,14 +646,14 @@ export const REGRAS = {
       if (erro) return erro;
       const obra = OBRAS[cmd.obra];
       if (!obra) return 'obra desconhecida';
-      if (mundo.vila.concluidas.includes(obra.bonus)) return 'essa obra ja ficou pronta';
+      if (mundo.vila.concluidas.includes(obra.bonus)) return 'essa obra já ficou pronta';
       const inv = mundo.jogadores[cmd.por].inventario;
       const rec = cmd.recursos ?? {};
       if (!Object.keys(rec).length) return 'doe alguma coisa';
       for (const [k, qtd] of Object.entries(rec)) {
-        if (!(qtd > 0)) return 'quantidade invalida';
-        if (!(k in obra.custo)) return `${k} nao serve para essa obra`;
-        if ((inv[k] ?? 0) < qtd) return `voce nao tem ${qtd} de ${k}`;
+        if (!(qtd > 0)) return 'quantidade inválida';
+        if (!(k in obra.custo)) return `${k} não serve para essa obra`;
+        if ((inv[k] ?? 0) < qtd) return `você não tem ${qtd} de ${k}`;
       }
       return null;
     },

@@ -591,10 +591,25 @@ async function manda(cmd, ev) {
   guiaAvanca(cmd.tipo);
   return r;
 }
+// Varios comandos seguidos levam ~1s cada na rede. Sem sinal, parece travado:
+// mostra um contador que anda e trava o botao ate terminar.
+let emLote = false;
 async function mandaVarios(cmds, seVazio) {
   if (!cmds.length) return toast(seVazio);
+  if (emLote) return 0;
+  emLote = true;
+  document.body.classList.add('ocupado');
+  const barra = document.createElement('div');
+  barra.className = 'toast'; $('phone').appendChild(barra);
   let feitos = 0;
-  for (const c of cmds) { const r = await manda(c); if (!r.ok) break; feitos++; }
+  try {
+    for (const c of cmds) {
+      barra.textContent = `⏳ ${feitos + 1} de ${cmds.length}…`;
+      const r = await manda(c);
+      if (!r.ok) break;
+      feitos++;
+    }
+  } finally { barra.remove(); emLote = false; document.body.classList.remove('ocupado'); }
   return feitos;
 }
 

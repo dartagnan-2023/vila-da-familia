@@ -220,7 +220,7 @@ function missaoAtual(mundo) {
   return {
     ...m,
     chamada: falta.length
-      ? `Faltam ${falta.map((i) => `${i.falta} de ${i.recurso}`).join(' e ')} para a familia terminar.`
+      ? `Faltam ${falta.map((i) => `${i.falta} de ${i.recurso}`).join(' e ')} para a família terminar.`
       : 'Pronta para ser concluida!',
   };
 }
@@ -228,7 +228,7 @@ function missaoAtual(mundo) {
 const ROTULO_CLIMA = { sol: 'Sol firme', sol_forte: 'Sol rachando', chuva: 'Chuva boa', tempestade: 'Temporal' };
 const ROTULO_COMUM = { agua: 'agua', floresta: 'mata', solo: 'terra', harmonia: 'harmonia' };
 
-/** "-2 agua - +2 harmonia": o que aquela atitude tirou ou deu para todo mundo. */
+/** "-2 água - +2 harmonia": o que aquela atitude tirou ou deu para todo mundo. */
 function impactoTexto(comuns) {
   if (!comuns) return null;
   const partes = Object.entries(comuns)
@@ -241,17 +241,17 @@ function impactoTexto(comuns) {
 function sinergia(mundo) {
   const h = mundo.comuns.harmonia;
   const v = Math.round((velocidade(mundo) - 1) * 100);
-  let bonus = v > 0 ? `★ Tudo cresce ${v}% mais rapido para todo mundo!` : v < 0 ? `Tudo cresce ${-v}% mais devagar. Abraço e ajuda resolvem.` : 'A vila esta em paz.';
+  let bonus = v > 0 ? `★ Tudo cresce ${v}% mais rápido para todo mundo!` : v < 0 ? `Tudo cresce ${-v}% mais devagar. Abraço e ajuda resolvem.` : 'A vila está em paz.';
   if (mundo.comuns.agua < LIMIARES.secaAgua) bonus = 'Rio seco: tudo murcha. Replantem a mata.';
   return { valor: h, pct: h, nivel: 1 + Math.floor(h / 20), bonus, estado: estadoComum('harmonia', h) };
 }
 
-const rotuloQuando = (dias) => (dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : `ha ${dias} dias`);
+const rotuloQuando = (dias) => (dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`);
 
 const laco = (rep, souEu) => {
   if (souEu) return 'voce';
   if (rep >= 10) return 'inseparaveis';
-  if (rep >= 6) return 'muito proximos';
+  if (rep >= 6) return 'muito próximos';
   if (rep >= 3) return 'proximos';
   if (rep >= 1) return 'se falam';
   return 'distantes';
