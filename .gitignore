@@ -1,4 +1,6 @@
-node_modules/
-layout/
 .claude/
 .env
+.pipo-caixa.jsonl
+.pipo-estado.json
+layout/
+node_modules/

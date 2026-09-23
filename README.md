@@ -268,3 +268,16 @@ anunciar na vendinha, ou **nada** — que é resposta legítima e a mais comum.
 
 Do outro lado do canal, `npm run sentir -- CHAVE` traz o que a família sentiu
 (😍😂😐😤🤯💡 + texto) como dado pra próxima versão.
+
+### O corpo e o cérebro
+
+O Pipo tem duas metades, de propósito:
+
+| | o que faz | custa |
+|---|---|---|
+| `npm run pipo:rotina -- CHAVE` | **o corpo**: rega, colhe, socorre quem está pedindo, replanta o que a família precisa pras encomendas, doa pra obra, cuida da mata | nada — regra escrita à mão, zero API |
+| `npm run pipo -- CHAVE` | **o cérebro**: lê a vila e decide como gente — o que falar, a quem dar, quando calar | uma chamada de API por rodada |
+
+A rotina também é o **olho**: tudo que a família escreve no mural, manda pro Pipo
+ou sente (😍😂😐😤🤯💡) vai pra `.pipo-caixa.jsonl`, com 🔥 no que é reclamação.
+O cérebro só é acionado quando a caixa tem algo — silêncio não custa nada.

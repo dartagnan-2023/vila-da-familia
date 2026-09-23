@@ -14,7 +14,8 @@
     "publicar": "node scripts/versao.mjs && git add -A && git commit -q -m \"publica\" && git push -q",
     "sentir": "node scripts/sentimentos.mjs",
     "icone": "node scripts/icone.mjs",
-    "pipo": "node scripts/pipo.mjs"
+    "pipo": "node scripts/pipo.mjs",
+    "pipo:rotina": "node scripts/pipo-rotina.mjs"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.128.0"
