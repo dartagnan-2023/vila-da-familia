@@ -94,6 +94,12 @@ const REDUCERS = {
     conta(mundo, ev.ator, 'vendas');
   },
 
+  SENTIU(mundo, ev, d) {
+    (mundo.sentimentos ??= []).push({ seq: ev.seq, tick: ev.tick, quem: ev.ator, emocao: d.emocao, sobre: d.sobre, texto: d.texto });
+    while (mundo.sentimentos.length > 200) mundo.sentimentos.shift();
+    xp(mundo, ev.ator, d.xp);
+  },
+
   ANUNCIOU(mundo, ev, d) {
     const p = j(mundo, ev.ator);
     p.colheita[d.item] -= d.qtd;

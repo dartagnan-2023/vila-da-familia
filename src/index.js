@@ -14,3 +14,4 @@ export { missoesDoDia, gerarEncomenda } from './engine/regras.js';
 export { PRODUTOS, XP, nivelDe, xpParaNivel, precoDe, nomeDe } from './engine/conteudo.js';
 export { faixaDePreco, lotesDe } from './engine/regras.js';
 export { VENDINHA } from './engine/conteudo.js';
+export { EMOCOES, MOMENTOS } from './engine/conteudo.js';

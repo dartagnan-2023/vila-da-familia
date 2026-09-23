@@ -35,6 +35,7 @@ export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l:
     comuns: { agua: 100, floresta: 100, solo: 100, harmonia: 50 },
     vila: { obras: {}, concluidas: [], doado: { madeira: 0, pedra: 0, moedas: 0 } },
     destino: { presagios: [], marcos: [] },
+    sentimentos: [],   // o que a familia sentiu: combustivel das proximas atualizacoes
     seq: 0,
     feed: [],
     aplicados: {},

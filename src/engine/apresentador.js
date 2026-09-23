@@ -1,5 +1,5 @@
 import {
-  CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG, PROBLEMAS, TEMPO,
+  CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG, PROBLEMAS, TEMPO, EMOCOES,
   nivelDe, xpParaNivel, precoDe, nomeDe,
 } from './conteudo.js';
 import { vizinhas, temConstrucao } from './mundo.js';
@@ -75,6 +75,11 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       })))
       .sort((a, b) => (a.minha ? 1 : 0) - (b.minha ? 1 : 0) || (b.util ? 1 : 0) - (a.util ? 1 : 0)),
     minhaVendinha: eu ? { lotes: (eu.vendinha ?? []).length, maximo: lotesDe(mundo, eu) } : null,
+    // O humor da familia, do mais novo pro mais velho.
+    sentimentos: (mundo.sentimentos ?? []).slice(-20).reverse().map((s) => ({
+      ...s, nome: mundo.jogadores[s.quem]?.nome ?? 'alguém', icone: EMOCOES[s.emocao]?.icone ?? '·',
+      rotulo: EMOCOES[s.emocao]?.nome ?? s.emocao, meu: s.quem === jogadorId,
+    })),
     encomendas: eu ? (eu.encomendas ?? []).map((e, i) => ({
       indice: i, cliente: e.cliente, moedas: e.moedas, xp: e.xp,
       itens: Object.entries(e.itens).map(([k, q]) => ({ chave: k, nome: nomeDe(k), icone: iconeDe(k), qtd: q, tenho: eu.colheita[k] ?? 0, ok: (eu.colheita[k] ?? 0) >= q })),

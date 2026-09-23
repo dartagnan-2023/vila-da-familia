@@ -74,7 +74,7 @@ export const OBRAS = {
 export const XP = {
   plantar: 1, cuidar: 1, ajudar: 5, cortar: 2, minerar: 2, arvore: 4,
   construir: 10, doar: 3, presente: 2, abraco: 1, recado: 1, encomendaBase: 5, missao: 5,
-  anunciar: 1, comprar: 2,
+  anunciar: 1, comprar: 2, sentir: 2,
 };
 /** XP acumulado necessario para estar no nivel n: 10, 30, 60, 100, 150... */
 export const xpParaNivel = (n) => 5 * (n - 1) * n;
@@ -101,6 +101,29 @@ export const PROBLEMAS = {
   sede:  { nome: 'sede',  icone: '💧', verbo: 'regou', agua: true },
   praga: { nome: 'praga', icone: '🐛', verbo: 'tirou a praga de' },
   mato:  { nome: 'mato',  icone: '🌿', verbo: 'capinou' },
+};
+
+// O que dá pra sentir. Uma batida, sem texto: é assim que a vila fala rápido.
+// O texto é opcional — quando vem, é ouro pra próxima atualização.
+export const EMOCOES = {
+  amei:    { icone: '😍', nome: 'Amei',        cor: 'bom' },
+  ri:      { icone: '😂', nome: 'Me diverti',  cor: 'bom' },
+  tantofaz:{ icone: '😐', nome: 'Tanto faz',   cor: '' },
+  irritou: { icone: '😤', nome: 'Me irritou',  cor: 'ruim' },
+  travei:  { icone: '🤯', nome: 'Não entendi', cor: 'ruim' },
+  ideia:   { icone: '💡', nome: 'Tenho ideia',  cor: '' },
+};
+
+// Momentos em que o Pipo puxa conversa. Um por vez, no máximo um por hora.
+export const MOMENTOS = {
+  nivel:      'Subiu de nível. Valeu a pena chegar aqui?',
+  encomenda:  'Entregou o pedido. Foi fácil demais, difícil demais, ou no ponto?',
+  ajudou:     'Você ajudou alguém agora. Isso é o melhor do jogo ou é obrigação?',
+  ajudaram:   'Alguém cuidou da sua horta. O que você sentiu?',
+  obra:       'A obra ficou pronta. A família merece o quê agora?',
+  praga:      'Perdeu planta pra praga. Isso é desafio bom ou sacanagem?',
+  voltou:     'Faz tempo que você não aparecia. O que te trouxe de volta?',
+  primeiraColheita: 'Primeira colheita. Deu vontade de continuar?',
 };
 
 // Missoes do dia: 3 sorteadas por dia (semente + dia), iguais para todos.

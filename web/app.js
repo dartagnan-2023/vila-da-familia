@@ -4,7 +4,7 @@ import { visao, acoesPossiveis, iconeDe } from '../src/engine/apresentador.js';
 import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 import { TransporteSupabase, criarVila, acharVila } from '../src/net/supabase.js';
-import { CULTURAS, CONSTRUCOES, OBRAS, PRODUTOS, PROBLEMAS, nivelDe, nomeDe, precoDe } from '../src/engine/conteudo.js';
+import { CULTURAS, CONSTRUCOES, OBRAS, PRODUTOS, PROBLEMAS, EMOCOES, MOMENTOS, nivelDe, nomeDe, precoDe } from '../src/engine/conteudo.js';
 import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 import { projetar, estaMadura, duracaoCultura, rotuloDuracao } from '../src/engine/tempo.js';
 import { VERSAO } from './versao.js';
@@ -146,6 +146,7 @@ async function virarDiasPendentes() {
     const datas = diasPendentes(app.motor.mundo.dataDoDia, hoje);
     for (const data of datas) { const r = await app.sessao.executar(comandoDoDia(data)); if (!r.ok) break; }
     if (datas.length) toast(datas.length === 1 ? '🌅 amanheceu na vila' : `🌅 passaram ${datas.length} dias na vila`);
+    if (datas.length >= 2) setTimeout(() => pipoPergunta('voltou', 'voltar depois de uns dias'), 5000);
   })().finally(() => { virando = null; });
   return virando;
 }
@@ -290,6 +291,8 @@ function pinta() {
 
   const rodapeVila = `<p class="mini" style="margin:14px 4px 0;text-align:center">${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>`;
   const blocoFeed = `
+    ${v.sentimentos.length ? `<div class="titulo">💗 Como a família está</div>
+    <button class="cartaz" data-acao="pipo"><span class="ic">${v.sentimentos[0].icone}</span><span class="txt"><b>${esc(v.sentimentos[0].nome)}${v.sentimentos[0].meu ? ' (você)' : ''} — ${esc(v.sentimentos[0].rotulo.toLowerCase())}</b>${v.sentimentos[0].texto ? `"${esc(v.sentimentos[0].texto)}"` : 'Toque pra dizer como você está.'}</span><span class="btn fraco">Falar</span></button>` : ''}
     <div class="titulo" id="sec-feed">📜 Últimas da vila</div>
     <div class="lista">${v.feed.slice(0, 12).map((l) => `<div class="item" style="padding:8px 12px"><span class="ic" style="font-size:22px">${l.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(l.autor)} <span class="mini">· ${esc(l.quando)}</span></b>${esc(l.texto)}${l.impacto ? ` <span class="mini">→ ${esc(l.impacto)}</span>` : ''}</span></div>`).join('')}</div>
     ${rodapeVila}`;
@@ -551,6 +554,7 @@ function folhaFamiliaConfig() {
     <h3>Avisos</h3>
     <div class="lista">
       ${'Notification' in window && Notification.permission !== 'denied' ? `<button class="item" data-acao="sino"><span class="ic">${sinoLigado() ? '🔔' : '🔕'}</span><span class="txt"><b>${sinoLigado() ? 'Avisos ligados' : 'Ligar avisos'}</b>recado, abraço, presente e planta pronta, mesmo com o jogo em outra aba</span></button>` : ''}
+      <button class="item" data-acao="pipo"><span class="ic">👧</span><span class="txt"><b>Falar com o Pipo</b>reclamar, elogiar, dar ideia — ele leva pra quem mexe no jogo</span></button>
       <button class="item" data-acao="trocar-vila"><span class="ic">🔁</span><span class="txt"><b>Trocar de vila</b>voltar pra tela de entrada</span></button>
       <button class="item" data-acao="guia-de-novo"><span class="ic">👋</span><span class="txt"><b>Ver o guia de novo</b>os primeiros passos</span></button>
       <a class="item" href="../web-classico/" style="text-decoration:none;color:inherit"><span class="ic">🕹️</span><span class="txt"><b>Tela clássica</b>a versão antiga, 8-bit</span></a>
@@ -584,9 +588,13 @@ async function manda(cmd, ev) {
   const ganho = (depois?.inventario.moedas ?? 0) - moedasAntes;
   if (ganho > 0 && ev) moeda(ev.clientX, ev.clientY, ganho);
   const nv = nivelDe(depois?.xp ?? 0);
+  if (cmd.tipo === 'CUMPRIR_ENCOMENDA') setTimeout(() => pipoPergunta('encomenda', 'a encomenda'), 2500);
+  else if (cmd.tipo === 'AJUDAR') setTimeout(() => pipoPergunta('ajudou', 'ajudar alguém'), 2500);
+  else if (cmd.tipo === 'COLHER' && (depois?.feitos?.colheitas ?? 0) <= 2) setTimeout(() => pipoPergunta('primeiraColheita', 'a primeira colheita'), 2500);
   if (nv > nivelAntes) {
     const novidades = [...Object.values(CULTURAS).filter((c) => c.nivel === nv).map((c) => c.nome), ...Object.values(CONSTRUCOES).filter((b) => b.nivel === nv).map((b) => b.nome)];
     setTimeout(() => toast(`⬆ Nível ${nv}!${novidades.length ? ` Liberou: ${novidades.join(', ')}` : ''}`, 'bom'), 400);
+    setTimeout(() => pipoPergunta('nivel', `o nível ${nv}`), 3000);
   }
   guiaAvanca(cmd.tipo);
   return r;
@@ -698,6 +706,19 @@ document.addEventListener('click', async (e) => {
     copiar: async () => { try { await navigator.clipboard.writeText(d.texto); toast('copiado', 'bom'); } catch { toast(d.texto); } },
     trocar: () => { trocarDeFamiliar(d.quem); fecha(); pinta(); toast(`agora você é ${app.motor.mundo.jogadores[d.quem]?.nome}`); },
     'trocar-vila': () => { localStorage.removeItem('vila:ultima'); app.transporte?.fechar?.(); fecha(); telaEntrada(); },
+    sentir: async () => {
+      document.querySelector('.pipo')?.remove(); app.perguntando = null;
+      const r = await manda({ tipo: 'SENTIR', emocao: d.emocao, sobre: d.sobre });
+      if (r.ok) folhaSentir(d.emocao, d.sobre);
+    },
+    'sentir-texto': async () => {
+      const t = $('in-sentir').value.trim();
+      if (!t) return fecha();
+      const r = await manda({ tipo: 'SENTIR', emocao: d.emocao, sobre: d.sobre, texto: t });
+      if (r.ok) { fecha(); toast('📨 chegou no Pipo — obrigado de verdade', 'bom'); }
+    },
+    'pipo-fecha': () => { document.querySelector('.pipo')?.remove(); app.perguntando = null; },
+    pipo: folhaPipo,
     'guia-de-novo': () => { fecha(); localStorage.setItem('vila:guia', '0'); guia(); },
     sino: async () => {
       if (sinoLigado()) { localStorage.setItem('vila:sino', 'off'); toast('🔕 avisos desligados'); return folhaFamiliaConfig(); }
@@ -750,7 +771,47 @@ function guiaAvanca(tipo) {
   else if (p && !document.querySelector('.mao')) setTimeout(guia, 700); // o alvo pode ter aparecido agora
 }
 
-// --- avisos de fora da tela ----------------------------------------------------
+// --- o Pipo puxa conversa -------------------------------------------------------
+// Uma pergunta curta na hora quente, resposta de um toque. É o canal entre quem
+// joga e quem muda o jogo: cada batida dessas vira decisão na próxima versão.
+const ESPERA_PIPO = 40 * 60e3;   // no máximo uma pergunta a cada 40 min
+const chavePipo = () => `vila:pipo:${app.chave}`;
+const podePerguntar = () => Date.now() - Number(localStorage.getItem(chavePipo()) ?? 0) > ESPERA_PIPO;
+
+function pipoPergunta(momento, sobre) {
+  if (!MOMENTOS[momento] || !podePerguntar() || document.querySelector('.veu') || app.perguntando) return;
+  app.perguntando = { momento, sobre };
+  localStorage.setItem(chavePipo(), String(Date.now()));
+  const cx = document.createElement('div');
+  cx.className = 'pipo';
+  cx.innerHTML = `
+    <div class="pipo-fala"><b>Pipo</b> ${esc(MOMENTOS[momento])}</div>
+    <div class="pipo-emocoes">${Object.entries(EMOCOES).map(([k, e]) => `<button data-acao="sentir" data-emocao="${k}" data-sobre="${esc(sobre ?? momento)}" title="${esc(e.nome)}">${e.icone}</button>`).join('')}</div>
+    <button class="pipo-x" data-acao="pipo-fecha" aria-label="agora não">✕</button>`;
+  $('phone').appendChild(cx);
+  setTimeout(() => cx.classList.add('some'), 25000);
+  setTimeout(() => cx.remove(), 26000);
+}
+
+// Depois da batida, a chance de escrever — sem obrigar.
+function folhaSentir(emocao, sobre) {
+  const e = EMOCOES[emocao];
+  folha(`<h2>${e.icone} ${esc(e.nome)}</h2>
+    <p>Anotado, e o Pipo lê tudo. Quer contar em uma linha? Isso é o que vira mudança no jogo.</p>
+    <div class="linha"><input id="in-sentir" maxlength="200" placeholder="Ex: a encomenda de 13 arroz é impossível" autocomplete="off"/><button class="btn" data-acao="sentir-texto" data-emocao="${emocao}" data-sobre="${esc(sobre ?? '')}">Enviar</button></div>
+    <button class="btn cheio fraco" data-acao="fecha" style="margin-top:8px">Agora não, valeu</button>`);
+  setTimeout(() => $('in-sentir')?.focus(), 100);
+}
+
+// A caixa do Pipo: falar quando quiser, e ver o humor da vila.
+function folhaPipo() {
+  const v = v_();
+  folha(`<h2>👧 Falar com o Pipo</h2>
+    <p>O Pipo é o zelador da vila: ele lê o que a família sente e leva pra quem mexe no jogo. Reclamação vale mais que elogio.</p>
+    <div class="pipo-emocoes grande">${Object.entries(EMOCOES).map(([k, e]) => `<button data-acao="sentir" data-emocao="${k}" data-sobre="conversa" title="${esc(e.nome)}">${e.icone}<small>${esc(e.nome)}</small></button>`).join('')}</div>
+    ${v.sentimentos.length ? `<h3>O que a família andou sentindo</h3>
+      <div class="lista">${v.sentimentos.slice(0, 8).map((s) => `<div class="item" style="padding:8px 12px"><span class="ic">${s.icone}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(s.nome)}${s.meu ? ' (você)' : ''}</b>${s.texto ? esc(s.texto) : `${esc(s.rotulo.toLowerCase())}${s.sobre ? ` · ${esc(s.sobre)}` : ''}`}</span></div>`).join('')}</div>` : ''}`);
+}
 const ICONE_NOTIF = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#7cb342"/><text x="32" y="46" font-size="40" text-anchor="middle">🌳</text></svg>');
 const tituloBase = document.title;
 let naoLidos = 0;
@@ -770,12 +831,14 @@ function avisaChegada(r) {
     else if (ev.tipo === 'PRESENTEOU' && d.para === app.eu) { texto = `🎁 ${ev.texto}`; abre = () => folhaPessoa(ev.ator); }
     else if (ev.tipo === 'COMPROU' && d.de === app.eu) texto = `💰 ${ev.texto}`;
     else if (ev.tipo === 'ANUNCIOU') { texto = `🏪 ${ev.texto}`; abre = folhaCeleiro; }
+    else if (ev.tipo === 'OBRA_CONCLUIDA') { texto = `🏆 ${ev.texto}`; setTimeout(() => pipoPergunta('obra', 'a obra da vila'), 4000); }
     else if ((ev.tipo === 'CUIDOU' || ev.tipo === 'COLHEU') && d.herdade === minha) {
       const k = `horta:${ev.ator}`; if (Date.now() - (ultimoAviso.get(k) ?? 0) < 5 * 60e3) continue; ultimoAviso.set(k, Date.now());
       texto = `🤝 ${nomeDe_(ev.ator)} está cuidando da sua horta`;
+      setTimeout(() => pipoPergunta('ajudaram', 'alguém cuidar da sua horta'), 4000);
     }
     else if (ev.tipo === 'JOGADOR_ENTROU') texto = `🏠 ${nomeDe_(ev.ator)} chegou na vila!`;
-    else if (ev.tipo === 'OBRA_CONCLUIDA') texto = `🏆 ${ev.texto}`;
+    else if (ev.tipo === 'SENTIU' && d.texto) texto = `${EMOCOES[d.emocao]?.icone ?? '💬'} ${ev.texto}`;
     if (!texto) continue;
     notifica(texto, abre);
   }

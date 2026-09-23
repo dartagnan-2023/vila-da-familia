@@ -121,6 +121,18 @@
 
   /* avisos e mão do tutorial */
   .toast{position:absolute;left:50%;transform:translateX(-50%);bottom:110px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-family:"Baloo 2";font-weight:800;font-size:16px;z-index:30;box-shadow:var(--shadow);animation:sobe .2s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+  /* o Pipo puxando conversa: aparece de baixo, sai sozinho, nunca bloqueia */
+  .pipo{position:absolute;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:18;background:var(--ink);color:#fff;border-radius:18px;padding:12px 14px;box-shadow:var(--shadow);animation:sobe .3s;transition:opacity .8s}
+  .pipo.some{opacity:0}
+  .pipo-fala{font-weight:700;font-size:15px;line-height:1.25;margin-right:26px}
+  .pipo-fala b{font-family:"Baloo 2";font-size:16px;color:var(--gold);margin-right:4px}
+  .pipo-emocoes{display:flex;gap:6px;margin-top:10px}
+  .pipo-emocoes button{flex:1;background:rgba(255,255,255,.14);border-radius:12px;padding:8px 0;font-size:24px;line-height:1}
+  .pipo-emocoes button:active{transform:scale(.92);background:rgba(255,255,255,.3)}
+  .pipo-emocoes.grande{flex-wrap:wrap}
+  .pipo-emocoes.grande button{flex:1 1 30%;background:var(--paper2);color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 4px;box-shadow:var(--shadow)}
+  .pipo-emocoes.grande button small{font-size:11px;font-weight:900}
+  .pipo-x{position:absolute;right:10px;top:10px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.16);font-weight:900;font-size:13px}
   .toast.bom{background:var(--good)}
   body.ocupado .canteiro,body.ocupado .loja,body.ocupado .ferramentas button,body.ocupado .rodape button{pointer-events:none;opacity:.7}
   .moeda{position:absolute;font-family:"Baloo 2";font-weight:800;font-size:22px;color:var(--gold);text-shadow:0 2px 0 var(--orange2);z-index:30;animation:voa 1s forwards;pointer-events:none}
@@ -159,6 +171,7 @@
     .veu{align-items:center;justify-content:center}
     .folha{max-width:560px;border-radius:22px;max-height:85vh}
     .guia{left:50%;transform:translateX(-50%);max-width:560px;bottom:96px}
+    .pipo{left:50%;transform:translateX(-50%);max-width:560px;bottom:96px}
     .toast{bottom:110px}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

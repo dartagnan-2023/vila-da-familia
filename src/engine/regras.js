@@ -1,6 +1,6 @@
 import {
   CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, CONFIG, SPRITES, TEMPO, PROBLEMAS, MISSOES, XP,
-  nivelDe, precoDe, nomeDe, xpDe, VENDINHA,
+  nivelDe, precoDe, nomeDe, xpDe, VENDINHA, EMOCOES,
 } from './conteudo.js';
 import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida } from './mundo.js';
 import { rngPara } from './rng.js';
@@ -266,6 +266,28 @@ export const REGRAS = {
         dados: { para: cmd.para, xp: XP.abraco },
         comuns: { harmonia: 1 },
         texto: `${nome(mundo, cmd.por)} mandou um abraço para ${nome(mundo, cmd.para)}.`,
+      }];
+    },
+  },
+
+  // O jogo pergunta, a pessoa responde com uma batida. Vira dado, vira mudanca.
+  SENTIR: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      if (!EMOCOES[cmd.emocao]) return 'escolha como você se sentiu';
+      if ((cmd.texto ?? '').length > 200) return 'texto muito longo (máx 200)';
+      return null;
+    },
+    emite(mundo, cmd) {
+      const e = EMOCOES[cmd.emocao];
+      const texto = (cmd.texto ?? '').trim().slice(0, 200);
+      const sobre = (cmd.sobre ?? '').slice(0, 40);
+      return [{
+        tipo: 'SENTIU',
+        ator: cmd.por,
+        dados: { emocao: cmd.emocao, sobre, texto, xp: XP.sentir },
+        texto: texto ? `${nome(mundo, cmd.por)}: ${e.icone} "${texto}"` : `${nome(mundo, cmd.por)} reagiu ${e.icone}${sobre ? ` a ${sobre}` : ''}.`,
       }];
     },
   },
