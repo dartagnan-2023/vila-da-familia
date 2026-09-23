@@ -246,3 +246,25 @@ explicar pra vovó por que a mata sumiu.
 - Balanceamento fino: os números de `conteudo.js` seguram uma partida inteira,
   mas só o playtest com a família de verdade vai dizer se a água aperta na hora
   certa.
+
+## O Pipo (ator de IA na vila)
+
+O Pipo é um morador como os outros — tem herdade, celeiro e nível — só que quem
+decide o que ele faz é um modelo da Anthropic. Ele **joga pelas mesmas regras**:
+cada decisão vira um comando, o motor valida antes de sair, e o comando entra no
+mesmo log da família. Sem recurso de graça, sem atalho.
+
+```bash
+npm run pipo -- VILA-XXXXX-XXXXX --briefing   # só mostra o que ele vê (não gasta API)
+npm run pipo -- VILA-XXXXX-XXXXX --seco       # decide e explica, sem mandar nada
+npm run pipo -- VILA-XXXXX-XXXXX              # uma rodada de verdade
+npm run pipo -- VILA-XXXXX-XXXXX --vigiar     # fica olhando a vila (15 em 15 min)
+```
+
+Precisa de `ANTHROPIC_API_KEY` no ambiente de quem roda — a chave fica nessa
+máquina; o jogo publicado nunca a vê. As ações que ele pode tomar são só as do
+jogo: ajudar, falar (mural ou particular), presentear, abraçar, doar pra obra,
+anunciar na vendinha, ou **nada** — que é resposta legítima e a mais comum.
+
+Do outro lado do canal, `npm run sentir -- CHAVE` traz o que a família sentiu
+(😍😂😐😤🤯💡 + texto) como dado pra próxima versão.
