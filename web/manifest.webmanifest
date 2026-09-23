@@ -1,0 +1,17 @@
+{
+  "name": "Vila Raízes",
+  "short_name": "Vila",
+  "description": "A vila da família: cada um tem sua horta, e o que um faz muda o dia do outro.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#7cb342",
+  "theme_color": "#7cb342",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
