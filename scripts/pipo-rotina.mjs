@@ -69,10 +69,12 @@ function melhorSemente(v, mundo, eu) {
       }
     }
   }
+  const rioBaixo = mundo.comuns.agua < 25;
   const candidatos = Object.entries(querem).filter(([, falta]) => falta > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([k]) => k)
-    .filter((k) => CULTURAS[k].semente <= eu.inventario.moedas);
+    .filter((k) => CULTURAS[k].semente <= eu.inventario.moedas)
+    .filter((k) => !rioBaixo || CULTURAS[k].agua <= 2);   // rio seco: nada de arroz/café
   // Nada pedido? Trigo: barato, rápido, sempre serve.
   return candidatos[0] ?? (CULTURAS.trigo.semente <= eu.inventario.moedas ? 'trigo' : null);
 }
@@ -86,12 +88,19 @@ function tarefas(motor, euId) {
   const minha = m.herdades[eu.herdade];
   const fila = [];
 
+  // O rio é de todos: regar cobra dele. Com o rio baixo o Pipo só tira praga e
+  // mato (de graça) e deixa a água pra quem plantou — e vai cuidar da nascente.
+  const rioBaixo = m.comuns.agua < 25;
+  const podeCuidar = (tipo) => !rioBaixo || tipo !== 'sede';
+
   // 1. Quem está pedindo socorro vem antes de tudo — inclusive antes da minha horta.
   for (const p of v.pedidosDeAjuda.filter((x) => x.acao === 'CUIDAR')) {
+    const t = m.herdades[p.herdade]?.tiles[p.tile];
+    if (!podeCuidar(t?.problema)) continue;
     fila.push({ cmd: { tipo: 'AJUDAR', herdade: p.herdade, tile: p.tile, acao: 'CUIDAR' }, conta: `socorro: ${p.motivo}` });
   }
   // 2. Minha própria horta pedindo.
-  minha.tiles.forEach((t, i) => { if (t?.problema) fila.push({ cmd: { tipo: 'CUIDAR', tile: i }, conta: `cuidei do meu ${t.cultura}` }); });
+  minha.tiles.forEach((t, i) => { if (t?.problema && podeCuidar(t.problema)) fila.push({ cmd: { tipo: 'CUIDAR', tile: i }, conta: `cuidei do meu ${t.cultura}` }); });
   // 3. Colher o meu que está pronto.
   minha.tiles.forEach((t, i) => { if (t && estaMadura(t)) fila.push({ cmd: { tipo: 'COLHER', tile: i }, conta: `colhi meu ${t.cultura}` }); });
   // 4. Salvar o que ia passar do ponto na horta dos outros.
@@ -112,9 +121,18 @@ function tarefas(motor, euId) {
     }
   }
   // 7. Lenha e pedra quando a ferramenta descansou e a mata aguenta.
-  if (!v.hud.machadoEm && m.comuns.floresta >= 60 && eu.inventario.madeira < 40) fila.push({ cmd: { tipo: 'CORTAR' }, conta: 'cortei lenha' });
-  if (!v.hud.machadoEm && m.comuns.floresta < 60 && eu.inventario.madeira >= 2) fila.push({ cmd: { tipo: 'PLANTAR_ARVORE' }, conta: 'plantei mudas (a mata estava baixa)' });
+  // Mata em pé = nascente e chuva. Rio baixo? Plantar árvore é a dança da chuva.
+  if ((rioBaixo || m.comuns.floresta < 80) && eu.inventario.madeira >= 2) {
+    fila.push({ cmd: { tipo: 'PLANTAR_ARVORE' }, conta: `plantei mudas (${rioBaixo ? 'o rio está seco' : 'a mata estava baixa'})` });
+  }
+  if (!v.hud.machadoEm && !rioBaixo && m.comuns.floresta >= 70 && eu.inventario.madeira < 40) fila.push({ cmd: { tipo: 'CORTAR' }, conta: 'cortei lenha' });
   if (!v.hud.picaretaEm && eu.inventario.pedra < 30) fila.push({ cmd: { tipo: 'MINERAR' }, conta: 'tirei pedra' });
+  // 7b. Benfeitoria que a vila precisa: poço (metade da água) e composteira (solo).
+  const temPoco = minha.construcoes.includes('agua'), temComposteira = minha.construcoes.includes('solo');
+  const vaga = minha.construcoes.length < 3;
+  if (vaga && !temPoco && eu.inventario.madeira >= 8 && eu.inventario.moedas >= 20) fila.push({ cmd: { tipo: 'CONSTRUIR', construcao: 'poco' }, conta: 'construí um poço (gasta metade da água)' });
+  else if (vaga && !temComposteira && eu.inventario.madeira >= 5 && eu.inventario.moedas >= 10) fila.push({ cmd: { tipo: 'CONSTRUIR', construcao: 'composteira' }, conta: 'construí uma composteira (devolve terra)' });
+
   // 8. O que sobra no celeiro e alguém precisa vai pra vendinha por preço de feira.
   const lotes = (eu.vendinha ?? []).length;
   if (lotes < 3) {
