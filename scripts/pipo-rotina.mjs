@@ -133,6 +133,16 @@ function tarefas(motor, euId) {
   if (vaga && !temPoco && eu.inventario.madeira >= 8 && eu.inventario.moedas >= 20) fila.push({ cmd: { tipo: 'CONSTRUIR', construcao: 'poco' }, conta: 'construí um poço (gasta metade da água)' });
   else if (vaga && !temComposteira && eu.inventario.madeira >= 5 && eu.inventario.moedas >= 10) fila.push({ cmd: { tipo: 'CONSTRUIR', construcao: 'composteira' }, conta: 'construí uma composteira (devolve terra)' });
 
+  // 7c. Quem não tem madeira não constrói nada. Se eu tenho de sobra, divido.
+  if (eu.inventario.madeira >= 12) {
+    for (const p of Object.values(m.jogadores)) {
+      const dele = m.herdades[p.herdade];
+      if (p.id === euId || p.inventario.madeira >= 5 || dele.construcoes.length >= 3) continue;
+      fila.push({ cmd: { tipo: 'PRESENTEAR', para: p.id, recurso: 'madeira', quantidade: 5 }, conta: `dei 5 madeiras pro ${p.nome} (ele não tinha nenhuma)` });
+      break;
+    }
+  }
+
   // 8. O que sobra no celeiro e alguém precisa vai pra vendinha por preço de feira.
   const lotes = (eu.vendinha ?? []).length;
   if (lotes < 3) {

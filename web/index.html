@@ -122,6 +122,7 @@
   /* avisos e mão do tutorial */
   .toast{position:absolute;left:50%;transform:translateX(-50%);bottom:110px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-family:"Baloo 2";font-weight:800;font-size:16px;z-index:30;box-shadow:var(--shadow);animation:sobe .2s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
   /* o Pipo puxando conversa: aparece de baixo, sai sozinho, nunca bloqueia */
+  @keyframes chama{to{outline:4px solid var(--red);outline-offset:-3px}}
   .pipo{position:absolute;left:12px;right:12px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:18;background:var(--ink);color:#fff;border-radius:18px;padding:12px 14px;box-shadow:var(--shadow);animation:sobe .3s;transition:opacity .8s}
   .pipo.some{opacity:0}
   .pipo-fala{font-weight:700;font-size:15px;line-height:1.25;margin-right:26px}
@@ -200,6 +201,8 @@
   .loja{min-width:0}
   .cartaz{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:16px;padding:10px 12px;box-shadow:var(--shadow);width:100%;text-align:left}
   .cartaz .ic{font-size:36px;flex:none}
+  .cartaz.crise{background:#ffe0dc;border:3px solid var(--red);margin-bottom:8px;animation:chama .6s steps(2,start) 4}
+  .cartaz.crise .txt b{color:#b3261e}
   .cartaz .txt{flex:1;font-weight:700;font-size:14px;min-width:0}
   .cartaz .txt b{display:block;font-family:"Baloo 2";font-size:17px}
   .folha{max-height:85%}

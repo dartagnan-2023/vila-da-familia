@@ -252,10 +252,21 @@ function pinta() {
       <div class="fazenda outra">${x.tiles.map((t, i) => canteiroOutro(t, i, x.id, v.pedidosDeAjuda.some((p) => p.herdade === x.id && p.tile === i))).join('')}</div>`;
   }).join('');
 
+  // Bem comum em crise: a vila inteira sente, entao a vila inteira precisa ver.
+  const comum = (chave) => v.comuns.find((c) => c.chave === chave).valor;
+  const crises = [];
+  if (comum('agua') < 25) crises.push({ icone: '🏜️', acao: 'mata', titulo: `O rio secou — ${comum('agua')} de 100`,
+    texto: 'Regar gasta a água de todos. Segure o arroz e o café (bebem 5 e 3), e plante mudas: mata em pé enche o rio e chama chuva.', botao: 'Plantar mudas' });
+  if (comum('solo') < 25) crises.push({ icone: '🪨', acao: 'construir', titulo: `A terra está cansada — ${comum('solo')} de 100`,
+    texto: 'Colheita demais sem descanso. Cada Composteira na vila devolve 3 de terra por dia — 5 madeira e 10 moedas.', botao: 'Construir' });
+  if (comum('floresta') < 40) crises.push({ icone: '🪵', acao: 'mata', titulo: `A mata está rala — ${comum('floresta')} de 100`,
+    texto: 'Sem árvore a chuva some e a enxurrada leva a terra. Uma muda custa 1 madeira e devolve 4 de mata.', botao: 'Plantar mudas' });
+
   const obra = v.missao;
   const cenaViva = app.cena?.canvas;
   // Cada pedaco da tela e um bloco; no celular vao em fila, no PC viram telas.
   const blocoHorta = `
+    ${crises.length ? crises.map((c) => `<button class="cartaz crise" data-acao="${c.acao}"><span class="ic">${c.icone}</span><span class="txt"><b>${esc(c.titulo)}</b>${esc(c.texto)}</span><span class="btn">${esc(c.botao)}</span></button>`).join('') : ''}
     <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
     ${mh.canteiros.every((c) => c.vazio) && v.encomendas.length ? (() => { const e = v.encomendas.find((x) => x.itens.some((i) => CULTURAS[i.chave] && CULTURAS[i.chave].nivel <= h.nivel)) ?? v.encomendas[0]; const i = e.itens.find((x) => CULTURAS[x.chave]) ?? e.itens[0]; return `<button class="cartaz" data-acao="loja" data-cliente="${esc(e.cliente)}" style="margin-bottom:8px"><span class="ic">${i.icone}</span><span class="txt"><b>Horta vazia — plante pra alguém</b>${esc(e.cliente.replace(/^(a|o) /, ''))} quer ${i.qtd} ${esc(i.nome.toLowerCase())} e paga ${e.moedas} 🪙. Toque aqui.</span></button>`; })() : ''}
     <div class="fazenda minha">${meus}</div>
@@ -427,7 +438,7 @@ function folhaConversa(com) {
     <div class="quem"><button class="${!para ? 'on' : ''}" data-acao="conversa" data-com="">📣 Todos${pendentes.some((n) => !n.para) ? ' 🔴' : ''}</button>
       ${outros.map((f) => `<button class="${para === f.id ? 'on' : ''}" data-acao="conversa" data-com="${f.id}">${f.sprite} ${esc(f.nome)}${pendentes.some((n) => n.para && n.ator === f.id) ? ' 🔴' : ''}</button>`).join('')}</div>
     <div class="conversa" id="conversa">${conversa.map((l) => { const meu = l.ator === app.eu; const texto = l.texto.replace(/^[^:]+: "/, '').replace(/"$/, ''); return `<div class="balao ${meu ? 'meu' : ''}">${meu ? '' : `<small>${esc(m.jogadores[l.ator]?.nome ?? '')}</small>`}${esc(texto)}</div>`; }).join('') || `<p>${para ? `Nenhum recado entre vocês ainda. Só ${esc(quem.nome)} vê o que você escrever aqui.` : 'Nada no mural ainda. Todo mundo da vila lê o que for escrito aqui.'}</p>`}</div>
-    <div class="linha"><input id="in-recado" maxlength="140" placeholder="${para ? `Escreve pra ${esc(quem.nome)}…` : 'Fala com todo mundo…'}" autocomplete="off"/><button class="btn" data-acao="recado" data-para="${para ?? ''}">Enviar</button></div>
+    <div class="linha"><input id="in-recado" maxlength="280" placeholder="${para ? `Escreve pra ${esc(quem.nome)}…` : 'Fala com todo mundo…'}" autocomplete="off"/><button class="btn" data-acao="recado" data-para="${para ?? ''}">Enviar</button></div>
     ${para ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn fraco" data-acao="abracar" data-para="${para}">❤️ Abraço</button><button class="btn fraco" data-acao="presente-lista" data-para="${para}">🎁 Presente</button></div>` : ''}`);
   const c = $('conversa'); if (c) c.scrollTop = c.scrollHeight;
   pinta();

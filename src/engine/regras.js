@@ -298,13 +298,13 @@ export const REGRAS = {
       if (erro) return erro;
       const t = (cmd.texto ?? '').trim();
       if (!t) return 'escreva alguma coisa';
-      if (t.length > 140) return 'recado muito longo (max 140)';
+      if (t.length > 280) return 'recado muito longo (máx 280)';
       if (cmd.para && !mundo.jogadores[cmd.para]) return 'esse familiar não está na vila';
       if (cmd.para === cmd.por) return 'recado pra si mesmo não vale';
       return null;
     },
     emite(mundo, cmd) {
-      const t = cmd.texto.trim().slice(0, 140);
+      const t = cmd.texto.trim().slice(0, 280);
       return [{
         tipo: 'RECADO',
         ator: cmd.por,

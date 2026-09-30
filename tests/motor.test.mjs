@@ -393,7 +393,7 @@ await teste('abraco e recado: os gestos baratos que seguram a familia', () => {
   ok(manda(m, { tipo: 'RECADO', por: 'beto', texto: 'quem cuida da minha horta?' }).ok);
   ok(m.mundo.feed.at(-1).texto.includes('quem cuida'), 'recado deveria entrar no feed');
   ok(!manda(m, { tipo: 'RECADO', por: 'beto', texto: '   ' }).ok);
-  ok(!manda(m, { tipo: 'RECADO', por: 'beto', texto: 'x'.repeat(200) }).ok);
+  ok(!manda(m, { tipo: 'RECADO', por: 'beto', texto: 'x'.repeat(400) }).ok);
 });
 
 await teste('missoes do dia: 3 iguais para todos, premio uma vez, zera a meia-noite', () => {
