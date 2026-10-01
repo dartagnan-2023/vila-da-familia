@@ -26,6 +26,12 @@ function checaBase(mundo, cmd) {
   return null;
 }
 
+/** Vagas livres: as benfeitorias de bem comum (semVaga) nao contam. */
+export function vagasDe(her) {
+  const ocupam = her.construcoes.filter((e) => !Object.values(CONSTRUCOES).find((b) => b.efeito === e)?.semVaga).length;
+  return CONFIG.construcoesPorHerdade - ocupam;
+}
+
 /** Faixa de preco permitida na vendinha para `qtd` unidades de `item`. */
 export function faixaDePreco(item, qtd) {
   const base = precoDe(item) * qtd;
@@ -179,7 +185,7 @@ export const REGRAS = {
       const t = her.tiles[cmd.tile];
       if (!t) return 'não há nada plantado aí';
       if (!t.problema) return estaMadura(t) ? 'já está pronta — é só colher' : 'essa planta está bem';
-      if (PROBLEMAS[t.problema].agua && mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o rio comum secou';
+      if (PROBLEMAS[t.problema].agua && mundo.comuns.agua < custoAgua(her, t.cultura)) return 'o rio da vila secou — plante mudas na Mata (mata em pé enche o rio) e espere a chuva';
       return null;
     },
     emite(mundo, cmd) {
@@ -383,7 +389,8 @@ export const REGRAS = {
       if (!b) return 'construção desconhecida';
       if (nivel(p) < b.nivel) return `${b.nome} abre no nível ${b.nivel}`;
       if (her.construcoes.includes(b.efeito)) return 'já existe uma dessas aqui';
-      if (her.construcoes.length >= CONFIG.construcoesPorHerdade) return 'a herdade está cheia';
+      // Benfeitoria que cuida do bem comum nao disputa vaga com as que so servem a voce.
+      if (!b.semVaga && vagasDe(her) <= 0) return 'a herdade está cheia';
       for (const [rec, qtd] of Object.entries(b.custo)) {
         if ((p.inventario[rec] ?? 0) < qtd) return `faltam ${qtd - (p.inventario[rec] ?? 0)} de ${rec}`;
       }

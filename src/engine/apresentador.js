@@ -3,7 +3,7 @@ import {
   nivelDe, xpParaNivel, precoDe, nomeDe,
 } from './conteudo.js';
 import { vizinhas, temConstrucao } from './mundo.js';
-import { REGRAS, missoesDoDia, lotesDe } from './regras.js';
+import { REGRAS, missoesDoDia, lotesDe, vagasDe } from './regras.js';
 import { projetar, estaMadura, prontaEm, duracaoCultura, rotuloDuracao, velocidade } from './tempo.js';
 
 // ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ function herdadeView(mundo, h, eu) {
       const [chave, b] = Object.entries(CONSTRUCOES).find(([, x]) => x.efeito === e) ?? [e, { nome: e, texto: '' }];
       return { efeito: e, chave, nome: b.nome, texto: b.texto, icone: ICONE_CONSTRUCAO[e] };
     }),
-    vagas: CONFIG.construcoesPorHerdade - h.construcoes.length,
+    vagas: vagasDe(h),
     proximoCanteiro: h.tiles.length < CONFIG.canteirosMax ? CONFIG.precoCanteiro[h.tiles.length - CONFIG.tilesPorHerdade] : null,
     canteiros: h.tiles.map((t, i) => canteiroView(mundo, t, i)),
     // As maquinas: o que esta fazendo, quando fica pronto, o que da pra por.

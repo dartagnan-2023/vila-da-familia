@@ -13,6 +13,7 @@ import { abrirVila, enviar } from './vila-remota.mjs';
 import { visao } from '../src/engine/apresentador.js';
 import { projetar, estaMadura } from '../src/engine/tempo.js';
 import { CULTURAS, EMOCOES, nivelDe, precoDe } from '../src/engine/conteudo.js';
+import { dataLocal, diasPendentes, comandoDoDia } from '../src/engine/calendario.js';
 
 const args = process.argv.slice(2);
 const chave = args.find((a) => a.startsWith('VILA-'));
@@ -56,6 +57,11 @@ function caixaDeEntrada(mundo, euId, visto) {
     }
   }
   return itens;
+}
+
+/** Alguém da família está esperando esse item pra fechar um pedido? */
+function pedidoDaFamilia(mundo, eu, item) {
+  return Object.values(mundo.jogadores).some((p) => (p.encomendas ?? []).some((e) => e.itens[item] && (p.colheita[item] ?? 0) < e.itens[item]));
 }
 
 /** O que plantar: o que a família está precisando pra fechar pedido. */
@@ -107,9 +113,12 @@ function tarefas(motor, euId) {
   for (const p of v.pedidosDeAjuda.filter((x) => x.acao === 'COLHER')) {
     fila.push({ cmd: { tipo: 'AJUDAR', herdade: p.herdade, tile: p.tile, acao: 'COLHER' }, conta: `salvei: ${p.motivo}` });
   }
-  // 5. Replantar o que ficou vazio, com o que a família precisa.
+  // 5. Replantar o que ficou vazio — mas o Pipo não corre na frente da família.
+  // Se ele já está muito acima de quem mais joga, só planta o que é pedido.
+  const maiorHumano = Math.max(...Object.values(m.jogadores).filter((p) => p.id !== euId).map((p) => nivelDe(p.xp ?? 0)), 1);
+  const naFrente = nivelDe(eu.xp ?? 0) > maiorHumano + 5;
   const semente = melhorSemente(v, m, eu);
-  if (semente) {
+  if (semente && !(naFrente && !pedidoDaFamilia(m, eu, semente))) {
     minha.tiles.forEach((t, i) => { if (!t) fila.push({ cmd: { tipo: 'PLANTAR', tile: i, cultura: semente }, conta: `plantei ${semente}` }); });
   }
   // 6. Sobra de madeira/pedra vai pra obra da vila.
@@ -167,6 +176,15 @@ async function passada() {
   const { vila, motor } = await abrirVila(chave);
   const eu = Object.values(motor.mundo.jogadores).find((p) => p.nome === NOME_PIPO);
   if (!eu) { console.error(`O ${NOME_PIPO} não está nessa vila. Entre uma vez com esse nome pelo jogo.`); return; }
+
+  // Sem virada de dia a vila congela: água, terra e mata só se refazem aí. Quem
+  // abre o jogo vira o dia; se ninguém abriu, o Pipo vira — ele mora lá.
+  const hoje = dataLocal();
+  for (const data of diasPendentes(motor.mundo.dataDoDia, hoje)) {
+    const r = await enviar(vila, motor, comandoDoDia(data));
+    if (r.ok) console.log(`   🌅 amanheceu: ${data}`);
+    else break;
+  }
 
   const estado = leEstado();
   const caixa = caixaDeEntrada(motor.mundo, eu.id, estado.visto ?? 0);

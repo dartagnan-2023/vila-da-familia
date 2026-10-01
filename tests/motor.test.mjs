@@ -435,16 +435,28 @@ await teste('comprar canteiro: a herdade cresce ate 12, o preco sobe', () => {
   ok(!r.ok && /m[aá]ximo/.test(r.erro), r.erro);
 });
 
-await teste('demolir libera a vaga e devolve metade do material', () => {
+await teste('a composteira cuida do bem comum: nao ocupa vaga', () => {
   const m = vilaCom('Ana');
   daXp(m, 'ana', xpParaNivel(4));
   m.mundo.jogadores.ana.inventario = { madeira: 40, pedra: 0, moedas: 200 };
+  for (const c of ['poco', 'colmeia', 'moinho']) ok(manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: c }).ok, c);
+  ok(!manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'celeiro' }).ok, 'as 3 vagas estao tomadas');
+  ok(manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'composteira' }).ok, 'mas a composteira entra do mesmo jeito');
+  igual(m.mundo.herdades.h00.construcoes.length, 4);
+  igual(visao(m.mundo, 'ana').minhaHerdade.vagas, 0, 'e nao mente dizendo que sobrou vaga');
+});
+
+await teste('demolir libera a vaga e devolve metade do material', () => {
+  const m = vilaCom('Ana');
+  daXp(m, 'ana', xpParaNivel(6));
+  m.mundo.jogadores.ana.inventario = { madeira: 80, pedra: 0, moedas: 300 };
   for (const c of ['poco', 'colmeia', 'composteira']) ok(manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: c }).ok, c);
-  ok(!manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'moinho' }).ok, 'cheia');
+  ok(manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'moinho' }).ok, 'moinho cabe: a composteira nao ocupa');
+  ok(!manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'celeiro' }).ok, 'cheia');
   const madeira = m.mundo.jogadores.ana.inventario.madeira;
   ok(manda(m, { tipo: 'DEMOLIR', por: 'ana', construcao: 'colmeia' }).ok);
   igual(m.mundo.jogadores.ana.inventario.madeira, madeira + 3, 'colmeia custa 6 de madeira, volta 3');
-  ok(manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'moinho' }).ok, 'abriu vaga');
+  ok(manda(m, { tipo: 'CONSTRUIR', por: 'ana', construcao: 'celeiro' }).ok, 'abriu vaga');
 });
 
 await teste('vila antiga (sem xp, sem encomendas) ganha os campos novos ao mexer', () => {
