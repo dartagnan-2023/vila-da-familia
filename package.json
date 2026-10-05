@@ -16,9 +16,11 @@
     "icone": "node scripts/icone.mjs",
     "pipo": "node scripts/pipo.mjs",
     "pipo:rotina": "node scripts/pipo-rotina.mjs",
-    "pipo:falar": "node scripts/pipo-falar.mjs"
+    "pipo:falar": "node scripts/pipo-falar.mjs",
+    "pipo:avisar": "node scripts/pipo-avisar.mjs"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.128.0"
+    "@anthropic-ai/sdk": "^0.128.0",
+    "web-push": "^3.6.7"
   }
 }

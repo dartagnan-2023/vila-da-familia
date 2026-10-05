@@ -4,3 +4,8 @@
 .pipo-estado.json
 layout/
 node_modules/
+
+# a chave privada que assina os avisos do Pipo: nunca vai pro git
+.pipo-vapid.json
+
+.pipo-avisos.json

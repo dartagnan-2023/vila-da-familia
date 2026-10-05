@@ -121,6 +121,7 @@ async function abrirVila(chave, nomeJogador) {
   app.sessao = new Sessao({ motor: app.motor, transporte: app.transporte, jogadorId: app.eu ?? 'convidado', aoAtualizar: (mundo, r) => { pinta(); avisaChegada(r); } });
   try { await app.sessao.sincronizar(); } catch (e) { return toast(`não deu para carregar a vila: ${e.message}`, 'ruim'); }
   await virarDiasPendentes();
+  if (sinoLigado()) inscrevePush().catch(() => {});
   const salvo = app.eu && app.motor.mundo.jogadores[app.eu];
   const mesmoNome = (a, b) => a && b && a.trim().toLowerCase() === b.trim().toLowerCase();
   if (nomeJogador && !mesmoNome(salvo?.nome, nomeJogador)) {
@@ -640,7 +641,8 @@ function folhaFamiliaConfig() {
     <div class="lista">${v.familia.map((f) => `<div class="item"><span class="ic">${f.sprite}</span><span class="txt"><b>${esc(f.nome)}${f.id === app.eu ? ' (você)' : ''}</b>nível ${f.nivel}${f.id !== app.eu ? ` · laço ${esc(f.laco)}` : ''}</span>${f.id !== app.eu ? `<button class="btn fraco" data-acao="trocar" data-quem="${f.id}" title="jogar como esta pessoa neste aparelho">Jogar como</button>` : ''}</div>`).join('')}</div>
     <h3>Avisos</h3>
     <div class="lista">
-      ${'Notification' in window && Notification.permission !== 'denied' ? `<button class="item" data-acao="sino"><span class="ic">${sinoLigado() ? '🔔' : '🔕'}</span><span class="txt"><b>${sinoLigado() ? 'Avisos ligados' : 'Ligar avisos'}</b>recado, abraço, presente e planta pronta, mesmo com o jogo em outra aba</span></button>` : ''}
+      ${precisaInstalar() ? `<button class="item" data-acao="instalar"><span class="ic">📲</span><span class="txt"><b>Receber avisos no celular</b>no iPhone, primeiro adicione o jogo à tela de início — toque pra ver como</span></button>`
+        : 'Notification' in window && Notification.permission !== 'denied' ? `<button class="item" data-acao="sino"><span class="ic">${sinoLigado() ? '🔔' : '🔕'}</span><span class="txt"><b>${sinoLigado() ? 'Avisos ligados' : 'Ligar avisos'}</b>${sinoLigado() ? 'o Pipo te chama quando a vila precisar, mesmo com o jogo fechado' : 'o Pipo avisa quando sua planta ficar pronta ou alguém falar com você — mesmo com o jogo fechado'}</span></button>` : ''}
       <button class="item" data-acao="pipo"><span class="ic">👧</span><span class="txt"><b>Falar com o Pipo</b>reclamar, elogiar, dar ideia — ele leva pra quem mexe no jogo</span></button>
       <button class="item" data-acao="trocar-vila"><span class="ic">🔁</span><span class="txt"><b>Trocar de vila</b>voltar pra tela de entrada</span></button>
       <button class="item" data-acao="guia-de-novo"><span class="ic">👋</span><span class="txt"><b>Ver o guia de novo</b>os primeiros passos</span></button>
@@ -828,12 +830,27 @@ document.addEventListener('click', async (e) => {
     cobrar: () => { folhaConversa(null); setTimeout(() => { const i = $('in-recado'); if (i && !i.value) { i.value = 'A terra da vila tá no chão. Quem ainda não tem Composteira, faz a sua: 5 madeira e 10 moedas, e não ocupa vaga.'; i.focus(); } }, 150); },
     'guia-de-novo': () => { fecha(); localStorage.setItem('vila:guia', '0'); guia(); },
     sino: async () => {
-      if (sinoLigado()) { localStorage.setItem('vila:sino', 'off'); toast('🔕 avisos desligados'); return folhaFamiliaConfig(); }
+      if (sinoLigado()) {
+        localStorage.setItem('vila:sino', 'off');
+        await desinscrevePush();
+        toast('🔕 avisos desligados');
+        return folhaFamiliaConfig();
+      }
       const p = await Notification.requestPermission();
-      if (p === 'granted') { localStorage.setItem('vila:sino', 'on'); toast('🔔 combinado', 'bom'); try { new Notification(app.motor.mundo.nome, { body: 'Quando alguém falar com você, aparece aqui.', icon: ICONE_NOTIF }); } catch {} }
-      else toast('sem permissão — dá pra ligar nas configurações do navegador', 'ruim');
+      if (p !== 'granted') { toast('sem permissão — dá pra ligar nas configurações do navegador', 'ruim'); return folhaFamiliaConfig(); }
+      localStorage.setItem('vila:sino', 'on');
+      const r = await inscrevePush();
+      toast(r ? '🔔 pronto — o Pipo te acha mesmo com o jogo fechado' : '🔔 avisos ligados (só com o jogo aberto)', 'bom');
       folhaFamiliaConfig();
     },
+    instalar: () => folha(`<h2>📲 Receber avisos no celular</h2>
+      <p>O iPhone só manda aviso de jogo que está na tela de início. É rápido:</p>
+      <div class="lista">
+        <div class="item"><span class="ic">1️⃣</span><span class="txt"><b>Toque no botão de compartilhar</b>aquele quadradinho com a seta pra cima, embaixo da tela</span></div>
+        <div class="item"><span class="ic">2️⃣</span><span class="txt"><b>Role e toque em "Adicionar à Tela de Início"</b></span></div>
+        <div class="item"><span class="ic">3️⃣</span><span class="txt"><b>Abra a Vila pelo ícone novo</b>e aqui mesmo aparece o botão de ligar os avisos</span></div>
+      </div>
+      <p class="mini" style="margin-top:10px">No Android não precisa disso — se este aviso apareceu pra você, é porque está no iPhone.</p>`),
   };
   await acoes[d.acao]?.();
 });
@@ -919,6 +936,57 @@ function folhaPipo() {
     ${v.sentimentos.length ? `<h3>O que a família andou sentindo</h3>
       <div class="lista">${v.sentimentos.slice(0, 8).map((s) => `<div class="item" style="padding:8px 12px"><span class="ic">${s.icone}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(s.nome)}${s.meu ? ' (você)' : ''}</b>${s.texto ? esc(s.texto) : `${esc(s.rotulo.toLowerCase())}${s.sobre ? ` · ${esc(s.sobre)}` : ''}`}</span></div>`).join('')}</div>` : ''}`);
 }
+// --- o carteiro: a unica coisa que alcanca a pessoa com o jogo fechado -------
+// `new Notification()` (abaixo) so funciona com a aba viva. Quem entrega de
+// verdade e o service worker, e ele precisa de uma inscricao guardada no banco
+// para a rotina do Pipo saber onde achar cada um.
+let registroSW = null;
+async function registraCarteiro() {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    registroSW = await navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.de === 'pipo') window.focus?.(); });
+    // Quem ja tinha ligado o sino antes do push existir entra na lista sozinho.
+    if (sinoLigado()) inscrevePush().catch(() => {});
+    return registroSW;
+  } catch (e) { console.warn('[vila] carteiro não registrou', e); return null; }
+}
+
+const temPush = () => 'serviceWorker' in navigator && 'PushManager' in window;
+// iPhone so entrega aviso para jogo adicionado a tela de inicio. Sem isso o
+// botao de ligar o sino so ia frustrar — melhor ensinar o caminho primeiro.
+const noIphone = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+const instalado = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+const precisaInstalar = () => noIphone() && !instalado();
+
+const base64ParaBytes = (s) => {
+  const b = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+};
+
+async function inscrevePush() {
+  if (!temPush() || !nuvem || !app.chave || !app.eu) return false;
+  try {
+    const cfg = await import('./config.js');
+    if (!cfg.VAPID_PUBLICA) return false;
+    const reg = registroSW ?? (await navigator.serviceWorker.ready);
+    const inscricao = (await reg.pushManager.getSubscription())
+      ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ParaBytes(cfg.VAPID_PUBLICA) }));
+    const { error } = await nuvem.rpc('salvar_aviso', { p_chave: app.chave, p_jogador: app.eu, p_inscricao: inscricao.toJSON() });
+    if (error) throw error;
+    return true;
+  } catch (e) { console.warn('[vila] push não inscreveu', e); return false; }
+}
+
+async function desinscrevePush() {
+  try {
+    const reg = registroSW ?? (await navigator.serviceWorker?.ready);
+    const i = await reg?.pushManager.getSubscription();
+    await i?.unsubscribe();
+    if (nuvem && app.chave && app.eu) await nuvem.rpc('apagar_aviso', { p_chave: app.chave, p_jogador: app.eu });
+  } catch (e) { console.warn('[vila] push não saiu da lista', e); }
+}
+
 const ICONE_NOTIF = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#7cb342"/><text x="32" y="46" font-size="40" text-anchor="middle">🌳</text></svg>');
 const tituloBase = document.title;
 let naoLidos = 0;
@@ -1003,6 +1071,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) conf
 setTimeout(conferirVersao, 3000);
 
 // --- vai ------------------------------------------------------------------------
+registraCarteiro();
 telaEntrada();
 {
   const ultima = localStorage.getItem('vila:ultima');

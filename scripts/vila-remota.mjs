@@ -14,7 +14,8 @@ export async function rpc(fn, corpo) {
     body: JSON.stringify(corpo),
   });
   if (!r.ok) throw new Error(`${fn}: ${r.status} ${await r.text()}`);
-  return r.json();
+  const resposta = await r.text();     // funcao que devolve void vem com corpo vazio
+  return resposta ? JSON.parse(resposta) : null;
 }
 
 /** Abre a vila pela chave e reproduz o log inteiro. `projetar` dá o agora. */
