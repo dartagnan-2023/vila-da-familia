@@ -280,6 +280,25 @@ function pinta() {
     </div>`;
 
   const blocoRua = `
+    <div class="titulo" id="sec-pedidos">📦 Meus pedidos <small>${v.encomendas.filter((e) => e.pronta).length ? 'tem pedido pronto!' : 'entregue e receba'}</small></div>
+    <div class="lista" style="margin-bottom:12px">
+      ${v.encomendas.map((e) => {
+        const falta = e.itens.filter((i) => !i.ok);
+        return `<div class="pedido ${e.pronta ? 'pronto' : ''}">
+          <div class="pedido-topo">
+            <span>${LOJAS.find((l) => l.cliente === e.cliente)?.icone ?? '📦'} ${esc(e.cliente.replace(/^(a|o) /, ''))}</span>
+            <b>${e.moedas} 🪙 · ${e.xp} ✨</b>
+          </div>
+          <div class="pedido-itens">
+            ${e.itens.map((i) => `<span class="${i.ok ? 'ok' : ''}">${i.icone} ${i.tenho}/${i.qtd} ${esc(i.nome.toLowerCase())}</span>`).join('')}
+          </div>
+          ${e.pronta
+            ? `<button class="btn cheio" data-acao="entregar" data-indice="${e.indice}" style="margin-top:8px">📦 Entregar e receber ${e.moedas} 🪙</button>`
+            : `<button class="btn cheio fraco" data-acao="loja" data-cliente="${esc(e.cliente)}" style="margin-top:8px">Faltam ${falta.map((i) => `${i.qtd - i.tenho} ${i.nome.toLowerCase()}`).join(', ')} — resolver</button>`}
+        </div>`;
+      }).join('') || '<p class="mini">Nenhum pedido agora.</p>'}
+    </div>
+
     <div class="titulo" id="sec-rua">🛒 Quem quer comprar <small>toque na loja</small></div>
     <div class="rua">
       ${LOJAS.map((l) => {
@@ -312,11 +331,11 @@ function pinta() {
   if (desktop()) {
     // PC: o mapa e o jogo. O resto abre por cima, uma tela de cada vez.
     $('mundo').innerHTML = `<div class="palco"><div id="cena"></div>${rodapeVila.replace('class="mini"', 'class="mini legenda"')}</div>`;
-    app.blocos = { horta: ['🏡 Minha horta', blocoHorta + blocoObra], lojas: ['🛒 Quem quer comprar', blocoRua], familia: ['👨‍👩‍👧 A família', blocoFamilia], feed: ['📜 Últimas da vila', blocoFeed] };
+    app.blocos = { horta: ['🏡 Minha horta', blocoHorta + blocoObra], lojas: ['📦 Pedidos e lojas', blocoRua], familia: ['👨‍👩‍👧 A família', blocoFamilia], feed: ['📜 Últimas da vila', blocoFeed] };
     pintaTelaDesk();
     $('rodape').innerHTML = `
       <button class="${app.tela === 'horta' ? 'ativo' : ''}" data-acao="tela" data-tela="horta"><span class="ic">🏡</span>Horta${meusPendentes ? `<b>${meusPendentes}</b>` : ''}</button>
-      <button class="${app.tela === 'lojas' ? 'ativo' : ''}" data-acao="tela" data-tela="lojas"><span class="ic">🛒</span>Lojas${v.encomendas.filter((e) => e.pronta).length ? `<b>${v.encomendas.filter((e) => e.pronta).length}</b>` : ''}</button>
+      <button class="${app.tela === 'lojas' ? 'ativo' : ''}" data-acao="tela" data-tela="lojas"><span class="ic">📦</span>Pedidos${v.encomendas.filter((e) => e.pronta).length ? `<b>${v.encomendas.filter((e) => e.pronta).length}</b>` : ''}</button>
       <button class="${app.tela === 'familia' ? 'ativo' : ''}" data-acao="tela" data-tela="familia"><span class="ic">👨‍👩‍👧</span>Família${ajudas ? `<b>${ajudas}</b>` : ''}</button>
       <button data-acao="conversa"><span class="ic">💬</span>Conversa${msgs ? `<b>${msgs}</b>` : ''}</button>
       <button class="${app.tela === 'feed' ? 'ativo' : ''}" data-acao="tela" data-tela="feed"><span class="ic">📜</span>Últimas</button>`;

@@ -200,6 +200,14 @@
   .ferramentas button small{font-weight:700;color:var(--ink2);font-size:10px}
   .loja{min-width:0}
   .cartaz{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:16px;padding:10px 12px;box-shadow:var(--shadow);width:100%;text-align:left}
+  .pedido{background:var(--paper);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+  .pedido.pronto{background:var(--gold);animation:brilho 1.4s infinite}
+  .pedido-topo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:"Baloo 2";font-weight:800;font-size:16px}
+  .pedido-topo b{font-size:14px;color:var(--orange2);white-space:nowrap}
+  .pedido.pronto .pedido-topo b{color:var(--ink)}
+  .pedido-itens{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .pedido-itens span{background:var(--paper2);border-radius:999px;padding:3px 10px;font-weight:900;font-size:13px}
+  .pedido-itens span.ok{background:#c5e1a5}
   .cartaz .ic{font-size:36px;flex:none}
   .cartaz.crise{background:#ffe0dc;border:3px solid var(--red);margin-bottom:8px;animation:chama .6s steps(2,start) 4}
   .cartaz.crise .txt b{color:#b3261e}

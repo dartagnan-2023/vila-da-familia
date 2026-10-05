@@ -22,6 +22,7 @@ const seco = args.includes('--seco');
 const soCaixa = args.includes('--caixa');
 const INTERVALO = 5 * 60e3;
 const MAX_ACOES = 12;          // teto por passada: o Pipo não vira trator
+const MAX_DIA = 60;            // teto por dia: a vila é da família, ele só mora lá
 const NOME_PIPO = 'Pipo';
 
 if (!chave) { console.error('uso: npm run pipo:rotina -- VILA-XXXXX-XXXXX [--vigiar] [--seco] [--caixa]'); process.exit(1); }
@@ -107,8 +108,9 @@ function tarefas(motor, euId) {
   }
   // 2. Minha própria horta pedindo.
   minha.tiles.forEach((t, i) => { if (t?.problema && podeCuidar(t.problema)) fila.push({ cmd: { tipo: 'CUIDAR', tile: i }, conta: `cuidei do meu ${t.cultura}` }); });
-  // 3. Colher o meu que está pronto.
-  minha.tiles.forEach((t, i) => { if (t && estaMadura(t)) fila.push({ cmd: { tipo: 'COLHER', tile: i }, conta: `colhi meu ${t.cultura}` }); });
+  // 3. Colher o meu que está pronto — mas não se já estou muito à frente.
+  const naFrenteAgora = nivelDe(eu.xp ?? 0) > Math.max(...Object.values(m.jogadores).filter((p) => p.id !== euId).map((p) => nivelDe(p.xp ?? 0)), 1) + 5;
+  if (!naFrenteAgora) minha.tiles.forEach((t, i) => { if (t && estaMadura(t)) fila.push({ cmd: { tipo: 'COLHER', tile: i }, conta: `colhi meu ${t.cultura}` }); });
   // 4. Salvar o que ia passar do ponto na horta dos outros.
   for (const p of v.pedidosDeAjuda.filter((x) => x.acao === 'COLHER')) {
     fila.push({ cmd: { tipo: 'AJUDAR', herdade: p.herdade, tile: p.tile, acao: 'COLHER' }, conta: `salvei: ${p.motivo}` });
@@ -204,7 +206,13 @@ async function passada() {
 
   if (soCaixa) { if (!seco) gravaEstado({ ...estado, visto: motor.mundo.seq }); return; }
 
-  const fila = tarefas(motor, eu.id).slice(0, MAX_ACOES);
+  // Teto do dia: a vila é da família. Ele ajuda, não toca o lugar sozinho.
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const feitasHoje = estado.dia === hojeStr ? (estado.feitasHoje ?? 0) : 0;
+  const sobra = Math.max(0, MAX_DIA - feitasHoje);
+  if (!sobra) { console.log(`
+😴 ${marca} · o Pipo já fez as ${MAX_DIA} do dia. Amanhã tem mais.`); if (!seco) gravaEstado({ ...estado, visto: motor.mundo.seq, dia: hojeStr, feitasHoje }); return; }
+  const fila = tarefas(motor, eu.id).slice(0, Math.min(MAX_ACOES, sobra));
   console.log(`\n🌱 ${marca} · ${vila.nome} · ${fila.length ? `${fila.length} coisa(s) pra fazer` : 'nada a fazer, a vila está em dia'}`);
   let feitas = 0;
   for (const t of fila) {
@@ -213,7 +221,7 @@ async function passada() {
     if (r.ok) { console.log(`   ✓ ${t.conta}`); feitas++; }
     else console.log(`   – ${t.conta}: ${r.erro}`);
   }
-  if (!seco) gravaEstado({ ...estado, visto: motor.mundo.seq, ultima: marca, feitas });
+  if (!seco) gravaEstado({ ...estado, visto: motor.mundo.seq, ultima: marca, feitas, dia: hojeStr, feitasHoje: feitasHoje + feitas });
 }
 
 await passada();

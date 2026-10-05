@@ -748,12 +748,25 @@ export function gerarEncomenda(mundo, p, n) {
   const itens = {};
   for (let i = 0; i < quantos; i++) {
     const k = opcoes[Math.floor(rnd() * opcoes.length)];
-    const base = CULTURAS[k] ? 2 + Math.floor(rnd() * 5) : 1 + Math.floor(rnd() * 2);
+    // A quantidade sai do relogio, nao do acaso: o cliente pede o que cabe em
+    // meia hora de espera. Senao vinha "11 cafes" = dois dias de jogo.
+    const porUnidade = CULTURAS[k] ? CULTURAS[k].minutos / Math.max(1, CULTURAS[k].rende) : PRODUTOS[k].minutos;
+    const alvo = 4 + Math.floor(rnd() * 16);
+    const base = Math.max(1, Math.min(10, Math.round(alvo / porUnidade)));
     itens[k] = (itens[k] ?? 0) + base;
   }
   const valor = Object.entries(itens).reduce((s, [k, q]) => s + precoDe(k) * q, 0);
   const xp = Object.entries(itens).reduce((s, [k, q]) => s + xpDe(k) * q, XP.encomendaBase);
-  return { id: n, cliente: CLIENTES[Math.floor(rnd() * CLIENTES.length)], itens, moedas: Math.round(valor * 1.5), xp };
+  // Quem espera mais, recebe mais: o tempo de forno/canteiro entra no preco.
+  // Sem isso, 6 trigos (12 min) pagavam quase o mesmo que 2 arrozes (2 horas).
+  const minutos = Object.entries(itens).reduce((s, [k, q]) => {
+    const c = CULTURAS[k], prod = PRODUTOS[k];
+    if (c) return s + (c.minutos / Math.max(1, c.rende)) * q;
+    if (prod) return s + prod.minutos * q;
+    return s;
+  }, 0);
+  const moedas = Math.round(valor * 1.5 + minutos * CONFIG.moedaPorMinuto);
+  return { id: n, cliente: CLIENTES[Math.floor(rnd() * CLIENTES.length)], itens, moedas, xp, minutos: Math.round(minutos) };
 }
 
 export { rendimento, custoAgua };

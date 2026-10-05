@@ -18,6 +18,7 @@ export const CONFIG = {
   construcoesPorHerdade: 3,
   feedMax: 300,
   encomendasAbertas: 3,
+  moedaPorMinuto: 1,            // o que a encomenda paga pelo TEMPO que a planta leva
 };
 
 // A vendinha: cada um poe o que sobra a venda para a familia. O preco anda entre
