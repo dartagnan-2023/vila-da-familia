@@ -234,6 +234,10 @@ function pinta() {
 
   const mh = v.minhaHerdade;
   const prontosMeus = mh.canteiros.filter((c) => c.pronto), pedemMeus = mh.canteiros.filter((c) => c.problema);
+  // A semente escolhida fica "na mão": tocar num canteiro vazio planta ela de
+  // novo, sem reabrir a lista. Trocar é um toque no nome dela.
+  const semente = v.catalogo.culturas.find((c) => c.chave === app.cultura && c.liberada) ?? v.catalogo.culturas.find((c) => c.liberada);
+  app.cultura = semente.chave;
   const meus = mh.canteiros.map(canteiroMeu).join('')
     + mh.construcoes.filter((b) => !mh.maquinas.some((q) => q.maquina === b.chave)).map((b) => `<button class="canteiro maquina" data-acao="benfeitoria" data-chave="${b.chave}" title="${esc(b.texto)}">${b.icone}<span class="tempo">${esc(b.nome.toLowerCase())}</span></button>`).join('')
     + mh.maquinas.map((q) => `<button class="canteiro maquina" data-acao="maquina" data-maquina="${q.maquina}">${q.pronta ? q.produto.icone : q.icone}<span class="tempo">${q.pronta ? 'pronto!' : q.ocupada ? min(q.prontaEm) : q.nome.toLowerCase()}</span>${q.pronta ? '<span class="pede">✨</span>' : ''}</button>`).join('')
@@ -280,7 +284,11 @@ function pinta() {
   // Cada pedaco da tela e um bloco; no celular vao em fila, no PC viram telas.
   const blocoHorta = `
     ${crises.length ? crises.map((c) => `<button class="cartaz crise" data-acao="${c.acao}"><span class="ic">${c.icone}</span><span class="txt"><b>${esc(c.titulo)}</b>${esc(c.texto)}</span><span class="btn">${esc(c.botao)}</span></button>`).join('') : ''}
-    <div class="titulo" id="sec-minha">🏡 Minha horta ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : `<small>toque num canteiro</small>`}${v.vila.velocidade !== 100 && prontosMeus.length < 2 && pedemMeus.length < 2 ? `<span class="chip">${v.vila.velocidade > 100 ? '⚡' : '🐌'} ${v.vila.velocidade}%</span>` : ''}</div>
+    <div class="titulo" id="sec-minha">🏡 Minha horta
+      ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : ''}
+      ${prontosMeus.length < 2 && pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : ''}
+      <button class="chip semente" data-acao="escolher-semente" title="trocar a semente">${semente.icone} ${esc(semente.nome)} ▾</button>
+    </div>
     ${mh.canteiros.every((c) => c.vazio) && v.encomendas.length ? (() => { const e = v.encomendas.find((x) => x.itens.some((i) => CULTURAS[i.chave] && CULTURAS[i.chave].nivel <= h.nivel)) ?? v.encomendas[0]; const i = e.itens.find((x) => CULTURAS[x.chave]) ?? e.itens[0]; return `<button class="cartaz" data-acao="loja" data-cliente="${esc(e.cliente)}" style="margin-bottom:8px"><span class="ic">${i.icone}</span><span class="txt"><b>Horta vazia — plante pra alguém</b>${esc(e.cliente.replace(/^(a|o) /, ''))} quer ${i.qtd} ${esc(i.nome.toLowerCase())} e paga ${e.moedas} 🪙. Toque aqui.</span></button>`; })() : ''}
     <div class="fazenda minha">${meus}</div>
     ${prontosMeus.length >= 3 ? `<button class="btn cheio" data-acao="colher-tudo" style="margin-top:10px">🌾 Colher tudo (${prontosMeus.length})</button>` : ''}
@@ -413,7 +421,7 @@ function folhaPlantar(tile) {
   const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio).length;
   const pedem = {};
   for (const e of v.encomendas) for (const i of e.itens) if (!i.ok && CULTURAS[i.chave]) pedem[i.chave] = (pedem[i.chave] ?? '') + `${pedem[i.chave] ? ' · ' : ''}${e.cliente.replace(/^(a|o) /, '')} quer ${i.qtd - i.tenho}`;
-  folha(`<h2>O que plantar?</h2><p>Toque na semente. Ela cresce sozinha, mesmo com o jogo fechado.</p>
+  folha(`<h2>O que plantar?</h2><p>A semente escolhida fica na sua mão: depois é só tocar nos canteiros vazios, um atrás do outro. Pra trocar, toque no nome dela lá em cima.</p>
     ${vazios > 1 ? `<button class="btn cheio" data-acao="plantar-tudo" data-cultura="${app.cultura}" style="margin:0 0 12px">${iconeDe(app.cultura)} Plantar ${esc(nomeDe(app.cultura).toLowerCase())} nos ${vazios} vazios</button>` : ''}
     <div class="cartoes tres">${v.catalogo.culturas.map((c) => `<button class="cartao ${c.liberada ? '' : 'bloq'}" data-acao="plantar" data-tile="${tile}" data-cultura="${c.chave}" ${c.liberada ? '' : 'disabled'}>
       <span class="ic">${c.icone}</span><span class="nm">${esc(c.nome)}</span>
@@ -679,12 +687,23 @@ document.addEventListener('click', async (e) => {
 
     canteiro: () => {
       const c = v.minhaHerdade.canteiros[Number(d.tile)];
-      if (c.vazio) return folhaPlantar(c.i);
+      if (c.vazio) {
+        const s = v.catalogo.culturas.find((x) => x.chave === app.cultura && x.liberada);
+        if (!s) return folhaPlantar(c.i);
+        return manda({ tipo: 'PLANTAR', tile: c.i, cultura: s.chave }, e)
+          .then((r) => r.ok && toast(`${s.icone} ${s.nome} · pronto em ${s.minutos} min`, 'bom'));
+      }
       if (c.pronto) return manda({ tipo: 'COLHER', tile: c.i }, e).then((r) => r.ok && toast(`${c.icone} colheu ${c.nome.toLowerCase()} · foi pro celeiro`, 'bom'));
       if (c.problema) return manda({ tipo: 'CUIDAR', tile: c.i }, e).then((r) => r.ok && toast(`${c.problemaIcone} cuidou · voltou a crescer`, 'bom'));
       toast(`${c.nome} pronta em ${min(c.prontaEm - app.motor.mundo.agora)} — planta em outro canteiro enquanto isso`);
     },
-    plantar: async () => { app.cultura = d.cultura; fecha(); const r = await manda({ tipo: 'PLANTAR', tile: Number(d.tile), cultura: d.cultura }, e); if (r.ok) toast(`${iconeDe(d.cultura)} ${nomeDe(d.cultura)} plantado · pronto em ${CULTURAS[d.cultura].minutos} min`, 'bom'); },
+    'escolher-semente': () => folhaPlantar(v.minhaHerdade.canteiros.find((c) => c.vazio)?.i ?? null),
+    plantar: async () => {
+      app.cultura = d.cultura; fecha();
+      if (d.tile === 'null' || d.tile === '') { pinta(); return toast(`${iconeDe(d.cultura)} ${nomeDe(d.cultura)} na mão — toque nos canteiros`, 'bom'); }
+      const r = await manda({ tipo: 'PLANTAR', tile: Number(d.tile), cultura: d.cultura }, e);
+      if (r.ok) toast(`${iconeDe(d.cultura)} ${nomeDe(d.cultura)} · pronto em ${CULTURAS[d.cultura].minutos} min`, 'bom');
+    },
     'plantar-tudo': async () => { fecha(); const vazios = v.minhaHerdade.canteiros.filter((c) => c.vazio); const n = await mandaVarios(vazios.map((c) => ({ tipo: 'PLANTAR', tile: c.i, cultura: d.cultura })), 'nenhum canteiro vazio'); if (n) toast(`${iconeDe(d.cultura)} plantou em ${n} canteiro(s)`, 'bom'); },
     'colher-tudo': async () => { const n = await mandaVarios(v.minhaHerdade.canteiros.filter((c) => c.pronto).map((c) => ({ tipo: 'COLHER', tile: c.i })), 'nada maduro'); if (n) toast(`🌾 colheu ${n} canteiro(s) · foi pro celeiro`, 'bom'); },
     'cuidar-tudo': async () => { const n = await mandaVarios(v.minhaHerdade.canteiros.filter((c) => c.problema).map((c) => ({ tipo: 'CUIDAR', tile: c.i })), 'ninguém pedindo'); if (n) toast(`💧 cuidou de ${n} planta(s)`, 'bom'); },

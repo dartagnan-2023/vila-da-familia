@@ -156,10 +156,12 @@ function tarefas(motor, euId) {
 
   // 8. O que sobra no celeiro e alguém precisa vai pra vendinha por preço de feira.
   const lotes = (eu.vendinha ?? []).length;
+  const anunciado = {};
   if (lotes < 3) {
     for (const [item, qtd] of Object.entries(eu.colheita)) {
       const precisam = Object.values(m.jogadores).some((p) => p.id !== euId && (p.encomendas ?? []).some((e) => e.itens[item] && (p.colheita[item] ?? 0) < e.itens[item]));
       if (precisam && qtd >= 4) {
+        anunciado[item] = Math.min(qtd, 10);
         fila.push({ cmd: { tipo: 'ANUNCIAR', item, quantidade: Math.min(qtd, 10), preco: Math.min(qtd, 10) * precoDe(item) }, conta: `pus ${Math.min(qtd, 10)} ${item} na vendinha (alguém precisa)` });
         break;
       }
@@ -167,7 +169,8 @@ function tarefas(motor, euId) {
   }
   // 9. Dinheiro curto? Vende o que ninguém pediu.
   if (eu.inventario.moedas < 10) {
-    for (const [item, qtd] of Object.entries(eu.colheita)) {
+    for (const [item, total] of Object.entries(eu.colheita)) {
+      const qtd = total - (anunciado[item] ?? 0); // o que foi pra vendinha já saiu do celeiro
       if (qtd >= 5) { fila.push({ cmd: { tipo: 'VENDER', cultura: item, quantidade: qtd }, conta: `vendi ${qtd} ${item} (tava sem moeda)` }); break; }
     }
   }
