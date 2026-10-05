@@ -174,6 +174,13 @@ function tarefas(motor, euId) {
       if (qtd >= 5) { fila.push({ cmd: { tipo: 'VENDER', cultura: item, quantidade: qtd }, conta: `vendi ${qtd} ${item} (tava sem moeda)` }); break; }
     }
   }
+  // 10. O caixa da família. O Pipo não junta dinheiro: o que passa de 120 G ele
+  // guarda, e só tira quando está no chão — o caixa é pra quem precisa mesmo.
+  const sobra = eu.inventario.moedas - 120;
+  if (sobra >= 20) fila.push({ cmd: { tipo: 'GUARDAR', moedas: sobra }, conta: `guardei ${sobra} G no caixa da família` });
+  else if (eu.inventario.moedas < 10 && (m.vila.fundo ?? 0) >= 20 && (eu.hoje?.pegou ?? 0) === 0) {
+    fila.push({ cmd: { tipo: 'PEGAR', moedas: 20 }, conta: 'peguei 20 G do caixa (tava zerado)' });
+  }
   return fila;
 }
 

@@ -24,7 +24,18 @@ export function velocidade(mundo) {
   let v = 1 + (h - 50) / 250; // 0.8 .. 1.2
   if (mundo.vila.concluidas.includes('velocidade')) v += 0.1;
   if (mundo.comuns.agua < LIMIARES.secaAgua) v -= 0.15; // rio seco: tudo murcha
-  return Math.max(0.5, v);
+  v = Math.max(0.5, v);
+  // A Festa da Colheita: no sabado e no domingo a vila inteira cresce em dobro.
+  // A data vem do log (dataDoDia), entao todo mundo calcula o mesmo fim de semana.
+  if (mundo.vila.concluidas.includes('festa') && fimDeSemana(mundo)) v *= 2;
+  return v;
+}
+
+/** Sabado ou domingo pela data do log — nunca pelo relogio de quem esta lendo. */
+export function fimDeSemana(mundo) {
+  if (!mundo.dataDoDia) return false;
+  const d = new Date(`${mundo.dataDoDia}T12:00:00Z`).getUTCDay();
+  return d === 0 || d === 6;
 }
 
 /** Aceita tiles de versoes anteriores sem quebrar vilas existentes. */

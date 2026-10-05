@@ -64,11 +64,27 @@ export const CONSTRUCOES = {
 };
 
 // Obras coletivas: ninguem conclui sozinho. E o contrato social do jogo.
+//
+// Duas fases. A fase 1 e barata: existe pra ensinar que doar vale a pena. A
+// fase 2 so aparece quando a 1 inteira esta pronta, e custa caro de proposito:
+// e o ralo do ouro de quem ja comprou tudo (12 canteiros, 3 vagas cheias) e,
+// de quebra, devolve pra vila o objetivo comum que acabou junto com a Escola.
 export const OBRAS = {
-  ponte:    { nome: 'Ponte',   custo: { madeira: 40, pedra: 20 },  bonus: 'velocidade', texto: 'Tudo cresce 10% mais rápido para TODOS.' },
-  praca:    { nome: 'Praça',   custo: { madeira: 25, moedas: 100 }, bonus: 'harmonia',   texto: '+2 de harmonia por dia.' },
-  acude:    { nome: 'Açude',   custo: { pedra: 35, moedas: 60 },   bonus: 'agua',       texto: 'A água comum recarrega 50% mais rápido.' },
-  escola:   { nome: 'Escola',  custo: { madeira: 30, pedra: 15, moedas: 80 }, bonus: 'sabedoria', texto: 'Colheitas rendem +1 unidade.' },
+  ponte:    { nome: 'Ponte',   fase: 1, custo: { madeira: 40, pedra: 20 },  bonus: 'velocidade', texto: 'Tudo cresce 10% mais rápido para TODOS.' },
+  praca:    { nome: 'Praça',   fase: 1, custo: { madeira: 25, moedas: 100 }, bonus: 'harmonia',   texto: '+2 de harmonia por dia.' },
+  acude:    { nome: 'Açude',   fase: 1, custo: { pedra: 35, moedas: 60 },   bonus: 'agua',       texto: 'A água comum recarrega 50% mais rápido.' },
+  escola:   { nome: 'Escola',  fase: 1, custo: { madeira: 30, pedra: 15, moedas: 80 }, bonus: 'sabedoria', texto: 'Colheitas rendem +1 unidade.' },
+
+  mercado:    { nome: 'Mercado',           fase: 2, custo: { madeira: 60, moedas: 800 },            bonus: 'comercio', texto: 'Toda encomenda paga +20% para TODOS.' },
+  festa:      { nome: 'Festa da Colheita', fase: 2, custo: { madeira: 40, pedra: 40, moedas: 600 }, bonus: 'festa',    texto: 'Sábado e domingo tudo cresce em DOBRO.' },
+  biblioteca: { nome: 'Biblioteca',        fase: 2, custo: { pedra: 50, moedas: 1200 },             bonus: 'estudo',   texto: 'Tudo que a família faz rende +30% de XP.' },
+};
+
+// O caixa da familia: quem tem sobrando guarda, quem esta duro tira. O teto
+// diario existe pra ninguem esvaziar o caixa de uma vez — e pra sobrar amanha.
+export const FUNDO = {
+  tetoPorDia: 100,
+  passos: [10, 50, 200],
 };
 
 // XP por acao que nao e colheita nem producao.

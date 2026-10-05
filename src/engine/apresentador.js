@@ -1,8 +1,8 @@
 import {
   CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG, PROBLEMAS, TEMPO, EMOCOES,
-  nivelDe, xpParaNivel, precoDe, nomeDe,
+  nivelDe, xpParaNivel, precoDe, nomeDe, FUNDO,
 } from './conteudo.js';
-import { vizinhas, temConstrucao } from './mundo.js';
+import { vizinhas, temConstrucao, obrasDaVez, faseDaVila } from './mundo.js';
 import { REGRAS, missoesDoDia, lotesDe, vagasDe } from './regras.js';
 import { projetar, estaMadura, prontaEm, duracaoCultura, rotuloDuracao, velocidade } from './tempo.js';
 
@@ -85,12 +85,14 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       itens: Object.entries(e.itens).map(([k, q]) => ({ chave: k, nome: nomeDe(k), icone: iconeDe(k), qtd: q, tenho: eu.colheita[k] ?? 0, ok: (eu.colheita[k] ?? 0) >= q })),
       pronta: Object.entries(e.itens).every(([k, q]) => (eu.colheita[k] ?? 0) >= q),
     })) : [],
-    obras: Object.entries(OBRAS).map(([chave, o]) => {
+    obras: obrasDaVez(mundo).map(([chave, o]) => {
       const prog = mundo.vila.obras[chave]?.progresso ?? {};
       const itens = Object.entries(o.custo).map(([rec, alvo]) => ({ recurso: rec, feito: Math.min(prog[rec] ?? 0, alvo), alvo }));
       const pct = Math.round((itens.reduce((s, i) => s + i.feito / i.alvo, 0) / itens.length) * 100);
       return { chave, nome: o.nome, texto: o.texto, itens, pct, concluida: mundo.vila.concluidas.includes(o.bonus) };
     }),
+    fundo: fundoDaVila(mundo, eu),
+    fase: faseDaVila(mundo),
     missao: missaoAtual(mundo),
     missoesDoDia: eu ? missoesDoDia(mundo).map((m, i) => ({
       indice: i, texto: m.texto, meta: m.meta, feito: Math.min(m.meta, eu.hoje?.[m.chave] ?? 0),
@@ -206,9 +208,24 @@ function estadoComum(chave, valor) {
   return 'ok';
 }
 
+/**
+ * O caixa da familia visto por quem esta olhando: quanto tem, quanto ele ainda
+ * pode tirar hoje, e quem esta mais duro — e esse ultimo numero que faz o
+ * parente cheio de moeda abrir o caixa.
+ */
+function fundoDaVila(mundo, eu) {
+  const total = mundo.vila.fundo ?? 0;
+  const jaPegou = eu?.hoje?.pegou ?? 0;
+  const podeHoje = Math.max(0, Math.min(total, FUNDO.tetoPorDia - jaPegou));
+  const gente = Object.values(mundo.jogadores)
+    .map((p) => ({ id: p.id, nome: p.nome, sprite: p.sprite, moedas: p.inventario?.moedas ?? 0, eu: p.id === eu?.id }))
+    .sort((a, b) => a.moedas - b.moedas);
+  return { total, podeHoje, jaPegou, tetoPorDia: FUNDO.tetoPorDia, passos: FUNDO.passos, gente, maisDuro: gente[0] ?? null };
+}
+
 /** A obra coletiva mais adiantada que ainda falta: o painel "Missao Familiar". */
 function missaoAtual(mundo) {
-  const abertas = Object.entries(OBRAS)
+  const abertas = obrasDaVez(mundo)
     .filter(([, o]) => !mundo.vila.concluidas.includes(o.bonus))
     .map(([chave, o]) => {
       const prog = mundo.vila.obras[chave]?.progresso ?? {};

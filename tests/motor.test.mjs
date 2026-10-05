@@ -3,7 +3,8 @@ import { visao, acoesPossiveis } from '../src/engine/apresentador.js';
 import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
 import { CULTURAS, PRODUTOS, TEMPO, xpParaNivel, nivelDe } from '../src/engine/conteudo.js';
-import { estaMadura } from '../src/engine/tempo.js';
+import { estaMadura, velocidade } from '../src/engine/tempo.js';
+import { gerarEncomenda } from '../src/engine/regras.js';
 
 let passou = 0, falhou = 0;
 const teste = async (nome, fn) => {
@@ -538,6 +539,76 @@ await teste('planta madura ha pouco nao vira pedido de ajuda; depois de 10 min v
   igual(visao(m.mundo, 'bia').pedidosDeAjuda.length, 0, 'acabou de ficar pronta: e da Ana');
   espera(m, 10 * MIN);
   igual(visao(m.mundo, 'bia').pedidosDeAjuda.length, 1, 'passou do ponto: pede');
+});
+
+await teste('o caixa da familia: um guarda, o outro pega, com teto por dia', () => {
+  const m = vilaCom('Ana', 'Bia');
+  const ana = m.mundo.jogadores.ana, bia = m.mundo.jogadores.bia;
+  ana.inventario.moedas = 500; bia.inventario.moedas = 10;
+
+  ok(!manda(m, { tipo: 'PEGAR', por: 'bia', moedas: 10 }).ok, 'caixa vazio nao da nada');
+  ok(manda(m, { tipo: 'GUARDAR', por: 'ana', moedas: 300 }).ok);
+  igual(ana.inventario.moedas, 200, 'saiu do bolso da Ana');
+  igual(m.mundo.vila.fundo, 300, 'entrou no caixa');
+  ok(!manda(m, { tipo: 'GUARDAR', por: 'ana', moedas: 9999 }).ok, 'nao guarda o que nao tem');
+
+  ok(manda(m, { tipo: 'PEGAR', por: 'bia', moedas: 100 }).ok);
+  igual(bia.inventario.moedas, 110, 'Bia recebeu');
+  igual(m.mundo.vila.fundo, 200, 'o caixa diminuiu o mesmo tanto');
+  const r = manda(m, { tipo: 'PEGAR', por: 'bia', moedas: 1 });
+  ok(!r.ok && /do dia/.test(r.erro), r.erro);
+
+  // vira o dia: o teto volta
+  m.passarDia('dia:2026-09-16');
+  ok(manda(m, { tipo: 'PEGAR', por: 'bia', moedas: 50 }).ok, 'amanha tem mais');
+  igual(m.mundo.vila.fundo, 150);
+  igual(visao(m.mundo, 'bia').fundo.podeHoje, 50, 'a tela mostra o que ainda cabe hoje');
+});
+
+await teste('as obras grandes so abrem depois que a familia termina as quatro primeiras', () => {
+  const m = vilaCom('Ana');
+  igual(visao(m.mundo, 'ana').fase, 1);
+  igual(visao(m.mundo, 'ana').obras.length, 4, 'fase 1: so as quatro baratas aparecem');
+  const r = manda(m, { tipo: 'DOAR', por: 'ana', obra: 'mercado', recursos: { madeira: 1 } });
+  ok(!r.ok && /abre quando/.test(r.erro), r.erro);
+
+  m.mundo.vila.concluidas.push('velocidade', 'harmonia', 'agua', 'sabedoria');
+  const v = visao(m.mundo, 'ana');
+  igual(v.fase, 2);
+  igual(v.obras.length, 7, 'fase 2: as tres grandes entram na lista');
+  igual(v.missao.chave, 'mercado', 'a vila ganha um objetivo novo');
+  m.mundo.jogadores.ana.inventario.madeira = 60;
+  ok(manda(m, { tipo: 'DOAR', por: 'ana', obra: 'mercado', recursos: { madeira: 60 } }).ok);
+});
+
+await teste('Mercado paga mais pela encomenda, Biblioteca rende mais XP, Festa dobra no fim de semana', () => {
+  const m = vilaCom('Ana');
+  const semNada = gerarEncomenda(m.mundo, m.mundo.jogadores.ana, 7);
+  m.mundo.vila.concluidas.push('comercio');
+  const comMercado = gerarEncomenda(m.mundo, m.mundo.jogadores.ana, 7);
+  igual(comMercado.moedas, Math.round(semNada.moedas * 1.2), 'mesma encomenda, 20% a mais');
+
+  const colhe = (estudo) => {
+    const x = vilaCom('Ana');
+    if (estudo) x.mundo.vila.concluidas.push('estudo');
+    for (let i = 0; i < 6; i++) {
+      manda(x, { tipo: 'PLANTAR', por: 'ana', tile: 0, cultura: 'trigo' });
+      amadurece(x, 'ana', 0);
+      manda(x, { tipo: 'COLHER', por: 'ana', tile: 0 });
+    }
+    return x.mundo.jogadores.ana.xp;
+  };
+  const base = colhe(false), comEstudo = colhe(true);
+  // 30% a mais no total, com o troco de cada acao somado em vez de perdido.
+  igual(comEstudo, Math.floor(base * 1.3), `biblioteca: ${comEstudo} contra ${base}`);
+
+  // 2026-09-19 e um sabado; 2026-09-15 (T0) e uma terca.
+  const f = vilaCom('Ana');
+  const diaDeSemana = velocidade(f.mundo);
+  f.mundo.vila.concluidas.push('festa');
+  igual(velocidade(f.mundo), diaDeSemana, 'terca segue normal');
+  f.mundo.dataDoDia = '2026-09-19';
+  igual(velocidade(f.mundo), diaDeSemana * 2, 'sabado cresce em dobro');
 });
 
 console.log(`\n${passou} passaram, ${falhou} falharam\n`);

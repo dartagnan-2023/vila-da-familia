@@ -1,4 +1,4 @@
-import { CONFIG, ESTACOES } from './conteudo.js';
+import { CONFIG, ESTACOES, OBRAS } from './conteudo.js';
 
 /** Cria a vila vazia. A `semente` define clima, eventos e sorteios para sempre. */
 export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l: 3, a: 3 } } = {}) {
@@ -33,7 +33,7 @@ export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l:
     herdades,
     jogadores: {},
     comuns: { agua: 100, floresta: 100, solo: 100, harmonia: 50 },
-    vila: { obras: {}, concluidas: [], doado: { madeira: 0, pedra: 0, moedas: 0 } },
+    vila: { obras: {}, concluidas: [], doado: { madeira: 0, pedra: 0, moedas: 0 }, fundo: 0 },
     destino: { presagios: [], marcos: [] },
     sentimentos: [],   // o que a familia sentiu: combustivel das proximas atualizacoes
     seq: 0,
@@ -88,4 +88,16 @@ export function temConstrucao(herdade, efeito) {
 
 export function obraConcluida(mundo, bonus) {
   return mundo.vila.concluidas.includes(bonus);
+}
+
+/** A fase 2 das obras so abre quando a familia terminou a fase 1 inteira. */
+export function faseDaVila(mundo) {
+  const fase1 = Object.values(OBRAS).filter((o) => (o.fase ?? 1) === 1);
+  return fase1.every((o) => mundo.vila.concluidas.includes(o.bonus)) ? 2 : 1;
+}
+
+/** As obras que a vila pode tocar agora: [chave, obra]. */
+export function obrasDaVez(mundo) {
+  const fase = faseDaVila(mundo);
+  return Object.entries(OBRAS).filter(([, o]) => (o.fase ?? 1) <= fase);
 }

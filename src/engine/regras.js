@@ -1,8 +1,8 @@
 import {
   CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, CONFIG, SPRITES, TEMPO, PROBLEMAS, MISSOES, XP,
-  nivelDe, precoDe, nomeDe, xpDe, VENDINHA, EMOCOES,
+  nivelDe, precoDe, nomeDe, xpDe, VENDINHA, EMOCOES, FUNDO,
 } from './conteudo.js';
-import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida } from './mundo.js';
+import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida, faseDaVila } from './mundo.js';
 import { rngPara } from './rng.js';
 import { estaMadura, duracaoProduto, rotuloDuracao } from './tempo.js';
 
@@ -669,6 +669,54 @@ export const REGRAS = {
     },
   },
 
+  // --- o caixa da familia: o dinheiro parado de um vira semente do outro ----
+  GUARDAR: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      const n = Math.floor(cmd.moedas);
+      if (!(n > 0)) return 'guarde pelo menos 1 moeda';
+      if (mundo.jogadores[cmd.por].inventario.moedas < n) return `você não tem ${n} moedas`;
+      return null;
+    },
+    emite(mundo, cmd) {
+      const n = Math.floor(cmd.moedas);
+      return [{
+        tipo: 'FUNDO_GUARDOU',
+        ator: cmd.por,
+        dados: { moedas: n, xp: XP.doar },
+        comuns: { harmonia: 1 },
+        texto: `${nome(mundo, cmd.por)} guardou ${n} G no caixa da família.`,
+      }];
+    },
+  },
+
+  PEGAR: {
+    valida(mundo, cmd) {
+      const erro = checaBase(mundo, cmd);
+      if (erro) return erro;
+      const n = Math.floor(cmd.moedas);
+      if (!(n > 0)) return 'pegue pelo menos 1 moeda';
+      const caixa = mundo.vila.fundo ?? 0;
+      if (caixa < n) return caixa > 0 ? `o caixa tem só ${caixa} G` : 'o caixa está vazio';
+      const jaPegou = mundo.jogadores[cmd.por].hoje?.pegou ?? 0;
+      if (jaPegou + n > FUNDO.tetoPorDia) {
+        const resta = FUNDO.tetoPorDia - jaPegou;
+        return resta > 0 ? `hoje você ainda pode pegar ${resta} G` : 'você já pegou o do dia — amanhã tem mais';
+      }
+      return null;
+    },
+    emite(mundo, cmd) {
+      const n = Math.floor(cmd.moedas);
+      return [{
+        tipo: 'FUNDO_PEGOU',
+        ator: cmd.por,
+        dados: { moedas: n },
+        texto: `${nome(mundo, cmd.por)} pegou ${n} G do caixa da família.`,
+      }];
+    },
+  },
+
   DOAR: {
     valida(mundo, cmd) {
       const erro = checaBase(mundo, cmd);
@@ -676,6 +724,7 @@ export const REGRAS = {
       const obra = OBRAS[cmd.obra];
       if (!obra) return 'obra desconhecida';
       if (mundo.vila.concluidas.includes(obra.bonus)) return 'essa obra já ficou pronta';
+      if ((obra.fase ?? 1) > faseDaVila(mundo)) return 'essa obra só abre quando as primeiras ficarem prontas';
       const inv = mundo.jogadores[cmd.por].inventario;
       const rec = cmd.recursos ?? {};
       if (!Object.keys(rec).length) return 'doe alguma coisa';
@@ -765,7 +814,9 @@ export function gerarEncomenda(mundo, p, n) {
     if (prod) return s + prod.minutos * q;
     return s;
   }, 0);
-  const moedas = Math.round(valor * 1.5 + minutos * CONFIG.moedaPorMinuto);
+  // O Mercado da vila paga 20% a mais em tudo que sair daqui pra frente.
+  const feira = obraConcluida(mundo, 'comercio') ? 1.2 : 1;
+  const moedas = Math.round((valor * 1.5 + minutos * CONFIG.moedaPorMinuto) * feira);
   return { id: n, cliente: CLIENTES[Math.floor(rnd() * CLIENTES.length)], itens, moedas, xp, minutos: Math.round(minutos) };
 }
 

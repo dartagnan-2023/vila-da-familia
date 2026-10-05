@@ -13,7 +13,16 @@ const h = (mundo, id) => mundo.herdades[id];
 
 function xp(mundo, id, n) {
   const p = j(mundo, id);
-  if (p && n) p.xp = (p.xp ?? 0) + n;
+  if (!p || !n) return;
+  // A Biblioteca da vila: todo XP de todo mundo rende 30% a mais. Quase toda
+  // acao vale 1 ou 2 XP — arredondar na hora comeria o bonus inteiro, entao o
+  // troco fica guardado e entra no proximo. Mesma conta em toda maquina.
+  if (mundo.vila.concluidas.includes('estudo')) {
+    const bruto = n * 1.3 + (p.xpResto ?? 0);
+    n = Math.floor(bruto);
+    p.xpResto = Math.round((bruto - n) * 1000) / 1000;
+  }
+  p.xp = (p.xp ?? 0) + n;
 }
 
 // Contadores do dia (missoes). Jogadores de vilas antigas podem nao ter `hoje`.
@@ -48,6 +57,12 @@ export function garantirJogador(mundo, p) {
   }
   const her = h(mundo, p.herdade);
   if (her && !her.producao) her.producao = {};
+}
+
+/** Vilas criadas antes do caixa da familia ganham o campo na primeira mexida. */
+export function garantirVila(mundo) {
+  mundo.vila ??= { obras: {}, concluidas: [], doado: {} };
+  mundo.vila.fundo ??= 0;
 }
 
 const REDUCERS = {
@@ -251,6 +266,21 @@ const REDUCERS = {
     p.feitos.doacoes++;
     conta(mundo, ev.ator, 'doacoes');
     xp(mundo, ev.ator, d.xp);
+  },
+
+  FUNDO_GUARDOU(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    p.inventario.moedas -= d.moedas;
+    mundo.vila.fundo = (mundo.vila.fundo ?? 0) + d.moedas;
+    xp(mundo, ev.ator, d.xp);
+  },
+
+  FUNDO_PEGOU(mundo, ev, d) {
+    const p = j(mundo, ev.ator);
+    p.inventario.moedas += d.moedas;
+    mundo.vila.fundo = (mundo.vila.fundo ?? 0) - d.moedas;
+    p.hoje ??= {};
+    p.hoje.pegou = (p.hoje.pegou ?? 0) + d.moedas;
   },
 
   OBRA_CONCLUIDA(mundo, ev, d) {

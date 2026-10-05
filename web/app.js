@@ -334,11 +334,23 @@ function pinta() {
     <div class="titulo" id="sec-familia">👨‍👩‍👧 A família <small>toque pra ajudar</small><button class="chip" data-acao="familia-config">➕ convidar</button></div>
     ${outros || `<div class="cartaz"><span class="ic">🌱</span><span class="txt"><b>Só você por enquanto</b>Manda o convite pra família. Sozinho o jogo é metade.</span><button class="btn" data-acao="familia-config">Convidar</button></div>`}`;
 
+  // O caixa da familia: dinheiro parado de um vira semente do outro. So aparece
+  // quando tem o que mostrar — pra quem esta comecando, e mais uma caixa vazia.
+  const fd = v.fundo;
+  const duro = fd.maisDuro && !fd.maisDuro.eu && fd.maisDuro.moedas < 60 ? fd.maisDuro : null;
+  const blocoFundo = (fd.total > 0 || v.hud.moedas >= 150 || duro) ? `
+    <div class="titulo" id="sec-fundo">🏦 Caixa da família</div>
+    <button class="cartaz" data-acao="fundo"><span class="ic">🏦</span><span class="txt"><b>${fd.total} G no caixa</b>${
+      fd.podeHoje > 0 ? `Você pode pegar até ${fd.podeHoje} G hoje.`
+      : duro ? `${esc(duro.nome)} está com ${duro.moedas} G. Quem tem sobrando, guarda aqui.`
+      : 'Quem tem sobrando guarda; quem está duro pega.'}</span><span class="btn fraco">Abrir</span></button>` : '';
+
   const blocoObra = `
     <div class="titulo" id="sec-obra">🏗️ Obra da vila</div>
-    ${obra ? `<button class="cartaz" data-acao="obra"><span class="ic">${{ ponte: '🌉', praca: '⛲', acude: '💧', escola: '🏫' }[obra.chave] ?? '🏗️'}</span><span class="txt"><b>${esc(obra.nome)} — ${obra.pct}% pronta</b>${esc(obra.chamada)} Depois: ${esc(obra.texto)}<span class="barrao"><i style="--p:${obra.pct}%"></i></span></span><span class="btn fraco">Doar</span></button>`
+    ${obra ? `<button class="cartaz" data-acao="obra"><span class="ic">${OBRA_ICONE[obra.chave] ?? '🏗️'}</span><span class="txt"><b>${esc(obra.nome)} — ${obra.pct}% pronta</b>${esc(obra.chamada)} Depois: ${esc(obra.texto)}<span class="barrao"><i style="--p:${obra.pct}%"></i></span></span><span class="btn fraco">Doar</span></button>`
       : `<div class="cartaz"><span class="ic">🏆</span><span class="txt"><b>Todas as obras prontas</b>${v.obras.map((o) => o.nome).join(', ')}. Isso é raro.</span></div>`}
-    ${v.obras.filter((o) => o.concluida).length ? `<p class="mini" style="margin:6px 4px 0">🏆 Prontas: ${v.obras.filter((o) => o.concluida).map((o) => `${o.nome} (${o.texto.toLowerCase().replace(/\.$/, '')})`).join(' · ')}</p>` : ''}`;
+    ${v.obras.filter((o) => o.concluida).length ? `<p class="mini" style="margin:6px 4px 0">🏆 Prontas: ${v.obras.filter((o) => o.concluida).map((o) => `${o.nome} (${o.texto.toLowerCase().replace(/\.$/, '')})`).join(' · ')}</p>` : ''}
+    ${blocoFundo}`;
 
   const rodapeVila = `<p class="mini" style="margin:14px 4px 0;text-align:center">${esc(v.vila.nome)} · ${esc(v.vila.estacao)}, dia ${v.vila.dia} · ${v.vila.iconeClima} ${esc(v.vila.rotuloClima)} · 💧${v.comuns.find((c) => c.chave === 'agua').valor} 🌳${v.comuns.find((c) => c.chave === 'floresta').valor} ❤️${v.comuns.find((c) => c.chave === 'harmonia').valor}</p>`;
   const blocoFeed = `
@@ -406,6 +418,8 @@ function cliqueNoMapa(alvo) {
 }
 
 // --- folhas (uma decisao por vez) --------------------------------------------
+const OBRA_ICONE = { ponte: '🌉', praca: '⛲', acude: '💧', escola: '🏫', mercado: '🏛️', festa: '🎉', biblioteca: '📚' };
+
 function folha(html) {
   fecha();
   const veu = document.createElement('div'); veu.className = 'veu';
@@ -526,9 +540,31 @@ function folhaObra() {
   const v = v_();
   const m = v.missao;
   if (!m) return folha('<h2>🏆 Obras prontas</h2><p>A família terminou tudo. Isso é raro.</p>');
-  folha(`<h2>🏗️ ${esc(m.nome)} — ${m.pct}%</h2><p>${esc(m.texto)} É obra de todo mundo: cada um dá o que tem.</p>
+  folha(`<h2>${OBRA_ICONE[m.chave] ?? '🏗️'} ${esc(m.nome)} — ${m.pct}%</h2><p>${esc(m.texto)} É obra de todo mundo: cada um dá o que tem.</p>
+    ${v.fase === 2 ? '<p class="mini" style="margin:-6px 0 10px">🔓 Obras grandes liberadas — a família terminou as quatro primeiras. Estas custam caro de propósito.</p>' : ''}
     <div class="lista">${m.itens.map((i) => { const tenho = i.recurso === 'moedas' ? v.hud.moedas : v.hud[i.recurso] ?? 0; const dar = Math.min(tenho, i.falta); return `<div class="item"><span class="ic">${{ madeira: '🪵', pedra: '🪨', moedas: '🪙' }[i.recurso]}</span><span class="txt"><b>${i.recurso}: ${i.feito}/${i.alvo}</b>${i.falta ? `faltam ${i.falta} · você tem ${tenho}` : 'completo ✅'}</span>${dar > 0 ? `<button class="btn" data-acao="doar" data-obra="${m.chave}" data-recurso="${i.recurso}" data-qtd="${dar}">Doar ${dar}</button>` : ''}</div>`; }).join('')}</div>
     ${v.obras.filter((o) => !o.concluida && o.chave !== m.chave).length ? `<p class="mini" style="margin-top:10px">Depois: ${v.obras.filter((o) => !o.concluida && o.chave !== m.chave).map((o) => `${o.nome} (${o.texto.toLowerCase()})`).join(' · ')}</p>` : ''}`);
+}
+
+// O caixa da familia. Sem taxa, sem truque: o que entra sai inteiro. O unico
+// freio e o teto do dia, pra ninguem limpar o caixa de uma vez.
+function folhaFundo() {
+  const v = v_();
+  const f = v.fundo;
+  const tenho = v.hud.moedas;
+  const guardar = f.passos.filter((n) => n <= tenho);
+  const pegar = f.passos.filter((n) => n <= f.podeHoje);
+  folha(`<h2>🏦 Caixa da família</h2>
+    <p><b style="font-size:26px;font-family:'Baloo 2'">${f.total} G</b><br>Quem tem sobrando guarda aqui. Quem está duro pega. Nada fica pelo caminho.</p>
+    <div class="lista" style="margin-bottom:12px">
+      ${f.gente.map((p, i) => `<div class="item ${p.eu ? '' : 'apagado'}" style="padding:8px 12px"><span class="ic" style="font-size:22px">${p.sprite}</span><span class="txt" style="font-size:13px"><b style="font-size:13px">${esc(p.nome)}${p.eu ? ' (você)' : ''}</b>${p.moedas} G${i === 0 && p.moedas < 60 ? ' · é quem mais precisa' : p.moedas > 500 ? ' · tá sobrando' : ''}</span></div>`).join('')}
+    </div>
+    <h3>Guardar <span class="mini">· você tem ${tenho} G</span></h3>
+    <div class="linha-botoes">${guardar.map((n) => `<button class="btn" data-acao="guardar" data-qtd="${n}">+${n} G</button>`).join('') || '<span class="mini">Você não tem moeda sobrando agora.</span>'}</div>
+    <h3 style="margin-top:14px">Pegar <span class="mini">· até ${f.tetoPorDia} G por dia${f.jaPegou ? `, já pegou ${f.jaPegou}` : ''}</span></h3>
+    <div class="linha-botoes">${f.total === 0 ? '<span class="mini">O caixa está vazio.</span>'
+      : f.podeHoje === 0 ? '<span class="mini">Você já pegou o do dia. Amanhã tem mais.</span>'
+      : pegar.concat(pegar.includes(f.podeHoje) ? [] : [f.podeHoje]).map((n) => `<button class="btn" data-acao="pegar" data-qtd="${n}">−${n} G</button>`).join('')}</div>`);
 }
 
 function folhaConstruir() {
@@ -745,7 +781,15 @@ document.addEventListener('click', async (e) => {
     pendencia: () => { const x = app.pendencias?.[Number(d.i)]; if (!x) return; fecha(); if (x.conversa) return folhaConversa(x.conversa === 'todos' ? null : x.conversa); if (x.vendinha) return folhaCeleiro(); if (x.acao === 'cumprir-missao') return manda({ tipo: 'CUMPRIR_MISSAO', indice: x.indice }, e); if (desktop()) { app.tela = x.vai === 'sec-rua' ? 'lojas' : x.vai.startsWith('her-') ? 'familia' : 'horta'; pinta(); } $(x.vai)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
     'cumprir-missao': async () => { const r = await manda({ tipo: 'CUMPRIR_MISSAO', indice: Number(d.indice) }, e); if (r.ok) { toast('🎁 prêmio recebido', 'bom'); folhaPendencias(); } },
     obra: folhaObra,
-    doar: async () => { const r = await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } }); if (r.ok) { toast(`doou ${d.qtd} ${d.recurso} · a vila agradece`, 'bom'); folhaObra(); } },
+    fundo: folhaFundo,
+    guardar: async () => { const r = await manda({ tipo: 'GUARDAR', moedas: Number(d.qtd) }); if (r.ok) { toast(`🏦 guardou ${d.qtd} G · a família agradece`, 'bom'); folhaFundo(); } },
+    pegar: async () => { const r = await manda({ tipo: 'PEGAR', moedas: Number(d.qtd) }); if (r.ok) { toast(`🏦 pegou ${d.qtd} G do caixa`, 'bom'); folhaFundo(); } },
+    doar: async () => {
+      // As obras grandes custam centenas de moedas: ninguem esvazia o bolso sem querer.
+      if (d.recurso === 'moedas' && Number(d.qtd) > 200 && !confirm(`Doar ${d.qtd} G para a ${v.missao?.nome ?? 'obra'}? Não volta.`)) return;
+      const r = await manda({ tipo: 'DOAR', obra: d.obra, recursos: { [d.recurso]: Number(d.qtd) } });
+      if (r.ok) { toast(`doou ${d.qtd} ${d.recurso} · a vila agradece`, 'bom'); folhaObra(); }
+    },
     construir: folhaConstruir,
     maquina: () => folhaMaquina(d.maquina),
     benfeitoria: () => folhaBenfeitoria(d.chave),
