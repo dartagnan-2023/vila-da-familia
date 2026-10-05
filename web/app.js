@@ -254,11 +254,24 @@ function pinta() {
 
   // Bem comum em crise: a vila inteira sente, entao a vila inteira precisa ver.
   const comum = (chave) => v.comuns.find((c) => c.chave === chave).valor;
+  // A faixa olha o que a VILA precisa e o que VOCÊ já fez: quem já construiu a
+  // composteira não pode continuar lendo "construa uma composteira".
+  const tenho = (efeito) => mh.construcoes.some((b) => b.efeito === efeito);
+  const quantas = (efeito) => Object.values(m.herdades).filter((h) => h.dono && h.construcoes.includes(efeito)).length;
+  const faltam = () => Object.values(m.herdades).filter((h) => h.dono && !h.construcoes.includes('solo')).map((h) => m.jogadores[h.dono]?.nome).filter(Boolean);
   const crises = [];
-  if (comum('agua') < 25) crises.push({ icone: '🏜️', acao: 'mata', titulo: `O rio secou — ${comum('agua')} de 100`,
-    texto: 'Regar gasta a água de todos. Segure o arroz e o café (bebem 5 e 3), e plante mudas: mata em pé enche o rio e chama chuva.', botao: 'Plantar mudas' });
-  if (comum('solo') < 25) crises.push({ icone: '🪨', acao: 'construir', titulo: `A terra está cansada — ${comum('solo')} de 100`,
-    texto: 'Colheita demais sem descanso. Cada Composteira na vila devolve 3 de terra por dia — 5 madeira e 10 moedas.', botao: 'Construir' });
+  if (comum('agua') < 25) crises.push({ icone: '🏜️', acao: tenho('agua') ? 'mata' : 'construir',
+    titulo: `O rio secou — ${comum('agua')} de 100`,
+    texto: tenho('agua')
+      ? 'Regar gasta a água de todos, e teu Poço já corta o teu gasto pela metade. Segure o arroz e o café (bebem 5 e 3) e plante mudas: mata em pé enche o rio.'
+      : 'Regar gasta a água de todos. Um Poço na tua horta corta teu gasto pela metade (8 madeira, 20 moedas). E mata em pé enche o rio.',
+    botao: tenho('agua') ? 'Plantar mudas' : 'Fazer um poço' });
+  if (comum('solo') < 25) crises.push({ icone: '🪨', acao: tenho('solo') ? 'cobrar' : 'construir',
+    titulo: `A terra está cansada — ${comum('solo')} de 100`,
+    texto: tenho('solo')
+      ? `Tua Composteira já está devolvendo terra todo dia. Hoje a vila tem ${quantas('solo')} — cada uma vale +3 por dia.${faltam().length ? ` Ainda falta a de: ${faltam().join(', ')}.` : ' Todo mundo tem a sua!'}`
+      : 'Colheita demais sem descanso. Uma Composteira devolve 3 de terra por dia pra vila inteira — 5 madeira e 10 moedas, e não ocupa vaga.',
+    botao: tenho('solo') ? 'Cobrar a família' : 'Fazer a minha' });
   if (comum('floresta') < 40) crises.push({ icone: '🪵', acao: 'mata', titulo: `A mata está rala — ${comum('floresta')} de 100`,
     texto: 'Sem árvore a chuva some e a enxurrada leva a terra. Uma muda custa 1 madeira e devolve 4 de mata.', botao: 'Plantar mudas' });
 
@@ -749,6 +762,7 @@ document.addEventListener('click', async (e) => {
     },
     'pipo-fecha': () => { document.querySelector('.pipo')?.remove(); app.perguntando = null; },
     pipo: folhaPipo,
+    cobrar: () => { folhaConversa(null); setTimeout(() => { const i = $('in-recado'); if (i && !i.value) { i.value = 'A terra da vila tá no chão. Quem ainda não tem Composteira, faz a sua: 5 madeira e 10 moedas, e não ocupa vaga.'; i.focus(); } }, 150); },
     'guia-de-novo': () => { fecha(); localStorage.setItem('vila:guia', '0'); guia(); },
     sino: async () => {
       if (sinoLigado()) { localStorage.setItem('vila:sino', 'off'); toast('🔕 avisos desligados'); return folhaFamiliaConfig(); }
