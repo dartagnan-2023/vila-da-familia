@@ -280,11 +280,20 @@ function pinta() {
   if (comum('floresta') < 40) crises.push({ icone: '🪵', acao: 'mata', titulo: `A mata está rala — ${comum('floresta')} de 100`,
     texto: 'Sem árvore a chuva some e a enxurrada leva a terra. Uma muda custa 1 madeira e devolve 4 de mata.', botao: 'Plantar mudas' });
 
+  // O chamado. Fica junto das crises porque e exatamente isso: sem ele, o jogo
+  // depende da pessoa lembrar sozinha de abrir — e os numeros dizem que ninguem lembra.
+  if (podeChamar() && localStorage.getItem('vila:sino:nao') !== '1') {
+    crises.push({ icone: '🔔', acao: precisaInstalar() ? 'instalar' : 'sino',
+      titulo: 'Deixa o Pipo te avisar',
+      texto: 'Ele te chama no celular quando sua encomenda fechar, sua horta parar ou alguém falar com você — mesmo com o jogo fechado. Sem isso, só descobre quem abre o jogo.',
+      botao: precisaInstalar() ? 'Ver como' : 'Pode avisar', dispensa: 'sino-nao', classe: 'convite' });
+  }
+
   const obra = v.missao;
   const cenaViva = app.cena?.canvas;
   // Cada pedaco da tela e um bloco; no celular vao em fila, no PC viram telas.
   const blocoHorta = `
-    ${crises.length ? crises.map((c) => `<button class="cartaz crise" data-acao="${c.acao}"><span class="ic">${c.icone}</span><span class="txt"><b>${esc(c.titulo)}</b>${esc(c.texto)}</span><span class="btn">${esc(c.botao)}</span></button>`).join('') : ''}
+    ${crises.length ? crises.map((c) => `<div class="cartaz ${c.classe ?? 'crise'}" data-acao="${c.acao}" role="button"><span class="ic">${c.icone}</span><span class="txt"><b>${esc(c.titulo)}</b>${esc(c.texto)}</span><span class="btn">${esc(c.botao)}</span>${c.dispensa ? `<button class="chip" data-acao="${c.dispensa}" title="agora não">✕</button>` : ''}</div>`).join('') : ''}
     <div class="titulo" id="sec-minha">🏡 Minha horta
       ${prontosMeus.length >= 2 ? `<button class="chip acao" data-acao="colher-tudo">🌾 colher ${prontosMeus.length}</button>` : ''}
       ${prontosMeus.length < 2 && pedemMeus.length >= 2 ? `<button class="chip acao" data-acao="cuidar-tudo">💧 cuidar ${pedemMeus.length}</button>` : ''}
@@ -843,6 +852,7 @@ document.addEventListener('click', async (e) => {
       toast(r ? '🔔 pronto — o Pipo te acha mesmo com o jogo fechado' : '🔔 avisos ligados (só com o jogo aberto)', 'bom');
       folhaFamiliaConfig();
     },
+    'sino-nao': () => { localStorage.setItem('vila:sino:nao', '1'); pinta(); toast('beleza — dá pra ligar depois em 👥'); },
     instalar: () => folha(`<h2>📲 Receber avisos no celular</h2>
       <p>O iPhone só manda aviso de jogo que está na tela de início. É rápido:</p>
       <div class="lista">
@@ -958,18 +968,27 @@ const temPush = () => 'serviceWorker' in navigator && 'PushManager' in window;
 const noIphone = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const instalado = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 const precisaInstalar = () => noIphone() && !instalado();
+// Vale chamar a pessoa? So se o aviso pode funcionar e ela ainda nao ligou.
+const podeChamar = () => temPush() && Boolean(nuvem) && Boolean(app.chave) && Boolean(app.eu)
+  && 'Notification' in window && Notification.permission !== 'denied' && !sinoLigado();
 
 const base64ParaBytes = (s) => {
   const b = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(b, (c) => c.charCodeAt(0));
 };
 
+// `navigator.serviceWorker.ready` e uma promessa que, se o carteiro nao
+// registrou, nunca resolve — nem resolve, nem rejeita. Sem este prazo o botao
+// do sino ficava girando pra sempre: nenhum aviso, nenhum erro, nada na tela.
+const comPrazo = (promessa, ms = 4000) =>
+  Promise.race([promessa, new Promise((_, falha) => setTimeout(() => falha(new Error('o carteiro não respondeu')), ms))]);
+
 async function inscrevePush() {
   if (!temPush() || !nuvem || !app.chave || !app.eu) return false;
   try {
     const cfg = await import('./config.js');
     if (!cfg.VAPID_PUBLICA) return false;
-    const reg = registroSW ?? (await navigator.serviceWorker.ready);
+    const reg = registroSW ?? (await comPrazo(navigator.serviceWorker.ready));
     const inscricao = (await reg.pushManager.getSubscription())
       ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ParaBytes(cfg.VAPID_PUBLICA) }));
     const { error } = await nuvem.rpc('salvar_aviso', { p_chave: app.chave, p_jogador: app.eu, p_inscricao: inscricao.toJSON() });
@@ -980,7 +999,7 @@ async function inscrevePush() {
 
 async function desinscrevePush() {
   try {
-    const reg = registroSW ?? (await navigator.serviceWorker?.ready);
+    const reg = registroSW ?? (navigator.serviceWorker ? await comPrazo(navigator.serviceWorker.ready) : null);
     const i = await reg?.pushManager.getSubscription();
     await i?.unsubscribe();
     if (nuvem && app.chave && app.eu) await nuvem.rpc('apagar_aviso', { p_chave: app.chave, p_jogador: app.eu });

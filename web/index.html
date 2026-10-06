@@ -213,6 +213,11 @@
   .linha-botoes .btn{min-width:84px;justify-content:center}
   .cartaz .ic{font-size:36px;flex:none}
   .cartaz.crise{background:#ffe0dc;border:3px solid var(--red);margin-bottom:8px;animation:chama .6s steps(2,start) 4}
+  /* Convite nao e emergencia: se tudo pisca vermelho, ninguem olha o vermelho. */
+  .cartaz.convite{background:var(--gold);border:3px solid var(--orange2);margin-bottom:8px}
+  .cartaz.convite .txt b{color:var(--ink)}
+  .cartaz[role=button]{cursor:pointer}
+  .cartaz[role=button] .chip{flex:none;align-self:flex-start;padding:2px 8px;font-size:12px;opacity:.6}
   .cartaz.crise .txt b{color:#b3261e}
   .cartaz .txt{flex:1;font-weight:700;font-size:14px;min-width:0}
   .cartaz .txt b{display:block;font-family:"Baloo 2";font-size:17px}
