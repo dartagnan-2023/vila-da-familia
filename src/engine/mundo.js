@@ -33,7 +33,7 @@ export function criarMundo({ semente = 'vila', nome = 'Nossa Vila', grade = { l:
     herdades,
     jogadores: {},
     comuns: { agua: 100, floresta: 100, solo: 100, harmonia: 50 },
-    vila: { obras: {}, concluidas: [], doado: { madeira: 0, pedra: 0, moedas: 0 }, fundo: 0 },
+    vila: { obras: {}, concluidas: [], doado: { madeira: 0, pedra: 0, moedas: 0 }, fundo: 0, meta: null, festaAte: 0 },
     destino: { presagios: [], marcos: [] },
     sentimentos: [],   // o que a familia sentiu: combustivel das proximas atualizacoes
     seq: 0,
@@ -100,4 +100,9 @@ export function faseDaVila(mundo) {
 export function obrasDaVez(mundo) {
   const fase = faseDaVila(mundo);
   return Object.entries(OBRAS).filter(([, o]) => (o.fase ?? 1) <= fase);
+}
+
+/** Sobrou obra pra doar? Quando nao sobra, a missao de doar some do sorteio. */
+export function temObraAberta(mundo) {
+  return obrasDaVez(mundo).some(([, o]) => !mundo.vila.concluidas.includes(o.bonus));
 }

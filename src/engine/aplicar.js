@@ -1,6 +1,6 @@
-import { CONFIG } from './conteudo.js';
+import { CONFIG, FEIRA } from './conteudo.js';
 import { limita } from './mundo.js';
-import { gerarEncomenda } from './regras.js';
+import { gerarEncomenda, metaDaSemana, cumpriramACota } from './regras.js';
 
 // ---------------------------------------------------------------------------
 // O reducer. Evento -> mutacao do mundo. Unico lugar do motor que altera estado.
@@ -32,6 +32,11 @@ function conta(mundo, id, chave) {
   p.hoje ??= {};
   p.hoje[chave] = (p.hoje[chave] ?? 0) + 1;
   p.missoesFeitas ??= [];
+  // A mesma acao que conta pra missao do dia conta pra Feira da Vila.
+  const meta = mundo.vila?.meta;
+  if (meta && !meta.concluida && meta.chave === chave) {
+    meta.feito[id] = (meta.feito[id] ?? 0) + 1;
+  }
 }
 
 function creditaReputacao(mundo, de, para, n) {
@@ -59,10 +64,47 @@ export function garantirJogador(mundo, p) {
   if (her && !her.producao) her.producao = {};
 }
 
-/** Vilas criadas antes do caixa da familia ganham o campo na primeira mexida. */
+/**
+ * Campos novos em vilas antigas, e a virada da Feira.
+ *
+ * Roda a cada comando, depois que o motor ja acertou `dataDoDia` — entao a
+ * semana nova comeca no primeiro toque de segunda, em qualquer aparelho, sem
+ * precisar que alguem esteja online na virada.
+ */
 export function garantirVila(mundo) {
   mundo.vila ??= { obras: {}, concluidas: [], doado: {} };
   mundo.vila.fundo ??= 0;
+  mundo.vila.festaAte ??= 0;
+  const meta = metaDaSemana(mundo);
+  if (!meta) return;
+  if (mundo.vila.meta?.semana !== meta.semana) {
+    mundo.vila.meta = { ...meta, feito: {}, concluida: false };
+  }
+}
+
+/**
+ * A Feira fecha sozinha no instante em que a segunda pessoa cumpre a cota.
+ *
+ * Mutacao pura a partir do mesmo estado: toda maquina que reproduzir o log
+ * fecha a feira no mesmo comando, entao o hash continua batendo.
+ */
+function fecharFeira(mundo, ev) {
+  const meta = mundo.vila?.meta;
+  if (!meta || meta.concluida) return;
+  const gente = cumpriramACota(mundo);
+  if (gente.length < FEIRA.pessoasMin) return;
+  meta.concluida = true;
+  mundo.vila.festaAte = (mundo.agora ?? 0) + FEIRA.festaDias * 86400e3;
+  for (const id of gente) {
+    const p = j(mundo, id);
+    if (p) p.inventario.moedas += FEIRA.premio;
+  }
+  mundo.comuns.harmonia = limita(mundo.comuns.harmonia + FEIRA.harmonia, 0, CONFIG.comumMax);
+  const nomes = gente.map((id) => j(mundo, id)?.nome ?? id).join(' e ');
+  const texto = `🎪 A Feira da Vila aconteceu! ${nomes} fecharam a meta de ${meta.texto}. +${FEIRA.premio} G pra cada um e ${FEIRA.festaDias} dias de festa: tudo cresce mais rápido.`;
+  mundo.destino.marcos.push({ tick: mundo.tick, texto });
+  mundo.feed.push({ seq: ev.seq, tick: mundo.tick, tipo: 'FEIRA_FECHOU', ator: null, texto, comuns: null, ref: {} });
+  while (mundo.feed.length > CONFIG.feedMax) mundo.feed.shift();
 }
 
 const REDUCERS = {
@@ -352,6 +394,7 @@ export function aplicar(mundo, ev) {
   const fn = REDUCERS[ev.tipo];
   if (!fn) throw new Error(`evento sem reducer: ${ev.tipo}`);
   fn(mundo, ev, ev.dados ?? {});
+  fecharFeira(mundo, ev);
 }
 
 export function registrarFeed(mundo, ev) {

@@ -1,9 +1,9 @@
 import {
   CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, LIMIARES, CONFIG, PROBLEMAS, TEMPO, EMOCOES,
-  nivelDe, xpParaNivel, precoDe, nomeDe, FUNDO,
+  nivelDe, xpParaNivel, precoDe, nomeDe, FUNDO, FEIRA,
 } from './conteudo.js';
 import { vizinhas, temConstrucao, obrasDaVez, faseDaVila } from './mundo.js';
-import { REGRAS, missoesDoDia, lotesDe, vagasDe } from './regras.js';
+import { REGRAS, missoesDoDia, lotesDe, vagasDe, cumpriramACota } from './regras.js';
 import { projetar, estaMadura, prontaEm, duracaoCultura, rotuloDuracao, velocidade } from './tempo.js';
 
 // ---------------------------------------------------------------------------
@@ -91,6 +91,7 @@ export function visao(mundoCru, jogadorId, agora = mundoCru.agora) {
       const pct = Math.round((itens.reduce((s, i) => s + i.feito / i.alvo, 0) / itens.length) * 100);
       return { chave, nome: o.nome, texto: o.texto, itens, pct, concluida: mundo.vila.concluidas.includes(o.bonus) };
     }),
+    feira: feiraDaVila(mundo, eu),
     fundo: fundoDaVila(mundo, eu),
     fase: faseDaVila(mundo),
     missao: missaoAtual(mundo),
@@ -206,6 +207,39 @@ function estadoComum(chave, valor) {
   if (valor <= limiar) return 'critico';
   if (valor <= limiar * 1.6) return 'alerta';
   return 'ok';
+}
+
+/**
+ * A Feira da Vila da semana. O numero que importa nao e o total feito, e
+ * QUANTAS PESSOAS cumpriram a cota — e por isso que um bot nao fecha sozinho.
+ */
+function feiraDaVila(mundo, eu) {
+  const meta = mundo.vila?.meta;
+  if (!meta) return null;
+  const prontos = cumpriramACota(mundo);
+  const gente = Object.values(mundo.jogadores).map((p) => ({
+    id: p.id, nome: p.nome, sprite: p.sprite,
+    feito: Math.min(meta.feito?.[p.id] ?? 0, meta.cota),
+    cota: meta.cota,
+    pronto: prontos.includes(p.id),
+    eu: p.id === eu?.id,
+  })).sort((a, b) => b.feito - a.feito);
+  const meuFeito = Math.min(meta.feito?.[eu?.id] ?? 0, meta.cota);
+  return {
+    chave: meta.chave, texto: meta.texto, unidade: meta.unidade, cota: meta.cota,
+    concluida: Boolean(meta.concluida),
+    pessoas: prontos.length, pessoasMin: FEIRA.pessoasMin,
+    premio: FEIRA.premio, gente,
+    meuFeito, meuFalta: Math.max(0, meta.cota - meuFeito), euPronto: meuFeito >= meta.cota,
+    pct: Math.round((prontos.length / FEIRA.pessoasMin) * 100),
+    festaAte: mundo.vila.festaAte ?? 0,
+    emFesta: (mundo.agora ?? 0) < (mundo.vila.festaAte ?? 0),
+    chamada: meta.concluida
+      ? 'A feira já aconteceu esta semana. Segunda tem outra.'
+      : meuFeito >= meta.cota
+        ? `Você já fez a sua parte. Falta ${FEIRA.pessoasMin - prontos.length} pessoa(s) da família.`
+        : `Faltam ${meta.cota - meuFeito} ${meta.unidade} pra você fechar a sua parte.`,
+  };
 }
 
 /**

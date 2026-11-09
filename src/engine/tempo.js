@@ -1,4 +1,4 @@
-import { CULTURAS, PRODUTOS, TEMPO, LIMIARES } from './conteudo.js';
+import { CULTURAS, PRODUTOS, TEMPO, LIMIARES, FEIRA } from './conteudo.js';
 
 // ---------------------------------------------------------------------------
 // O relogio de verdade dentro do motor.
@@ -28,6 +28,8 @@ export function velocidade(mundo) {
   // A Festa da Colheita: no sabado e no domingo a vila inteira cresce em dobro.
   // A data vem do log (dataDoDia), entao todo mundo calcula o mesmo fim de semana.
   if (mundo.vila.concluidas.includes('festa') && fimDeSemana(mundo)) v *= 2;
+  // E a festa que a familia ganhou fechando a Feira da Vila.
+  if (mundo.agora < (mundo.vila.festaAte ?? 0)) v += FEIRA.festaBonus;
   return v;
 }
 

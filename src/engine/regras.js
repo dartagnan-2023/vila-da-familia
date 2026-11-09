@@ -1,8 +1,8 @@
 import {
   CULTURAS, PRODUTOS, CONSTRUCOES, OBRAS, CONFIG, SPRITES, TEMPO, PROBLEMAS, MISSOES, XP,
-  nivelDe, precoDe, nomeDe, xpDe, VENDINHA, EMOCOES, FUNDO,
+  nivelDe, precoDe, nomeDe, xpDe, VENDINHA, EMOCOES, FUNDO, METAS, FEIRA,
 } from './conteudo.js';
-import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida, faseDaVila } from './mundo.js';
+import { criarJogador, herdadeDe, herdadeLivre, vizinhas, temConstrucao, obraConcluida, faseDaVila, temObraAberta } from './mundo.js';
 import { rngPara } from './rng.js';
 import { estaMadura, duracaoProduto, rotuloDuracao } from './tempo.js';
 
@@ -764,7 +764,13 @@ export const REGRAS = {
 
 const resumo = (rec) => Object.entries(rec).map(([k, v]) => `${v} de ${k}`).join(' e ');
 
-/** As 3 missoes de hoje: sorteio deterministico por semente + dia. */
+/**
+ * As 3 missoes de hoje: sorteio deterministico por semente + dia.
+ *
+ * Missao que nao da pra cumprir nao entra no sorteio. "Doe para a obra da vila"
+ * ficou sendo pedida depois que as sete obras acabaram — a pessoa passou o dia
+ * procurando uma coisa que o jogo cobrava e que nao existia mais.
+ */
 export function missoesDoDia(mundo) {
   const rnd = rngPara(mundo.semente, mundo.tick, 'missoes');
   const sorteadas = [...MISSOES];
@@ -772,13 +778,42 @@ export function missoesDoDia(mundo) {
     const j = Math.floor(rnd() * (i + 1));
     [sorteadas[i], sorteadas[j]] = [sorteadas[j], sorteadas[i]];
   }
+  // O sorteio acima e byte a byte o de sempre — mexer nele trocaria as missoes
+  // de todos os dias ja vividos. A troca acontece DEPOIS, so no caso que nos
+  // interessa: a missao saiu, mas nao ha mais obra pra doar.
+  const vale = (m) => m.exige !== 'obra' || temObraAberta(mundo);
   const out = [];
   for (const m of sorteadas) {
-    if (out.some((o) => o.chave === m.chave)) continue;
+    if (out.some((o) => o.chave === m.chave) || !vale(m)) continue;
     out.push(m);
     if (out.length === 3) break;
   }
   return out;
+}
+
+// --- a Feira da Vila -------------------------------------------------------
+
+/** Numero da semana a partir da data do log. Segunda-feira abre semana nova. */
+export function semanaDe(data) {
+  if (!data) return 0;
+  const [a, m, d] = data.split('-').map(Number);
+  const dias = Math.floor(Date.UTC(a, m - 1, d) / 86400e3);
+  return Math.floor((dias + 3) / 7); // 01/01/1970 foi quinta: +3 joga o corte pra segunda
+}
+
+/** A meta desta semana — mesma para todo mundo, sorteada pela semente. */
+export function metaDaSemana(mundo) {
+  if (!mundo.dataDoDia || mundo.dataDoDia < FEIRA.desde) return null;
+  const semana = semanaDe(mundo.dataDoDia);
+  const rnd = rngPara(mundo.semente, semana, 'feira');
+  return { ...METAS[Math.floor(rnd() * METAS.length)], semana };
+}
+
+/** Quem ja cumpriu a propria cota nesta semana. */
+export function cumpriramACota(mundo) {
+  const meta = mundo.vila.meta;
+  if (!meta) return [];
+  return Object.entries(meta.feito ?? {}).filter(([, n]) => n >= meta.cota).map(([id]) => id);
 }
 
 export const CLIENTES = ['a Padaria da Esquina', 'o Mercadinho', 'a Feira de Domingo', 'a Escola', 'o Restaurante do Zé', 'a Igreja', 'a Pousada', 'a Quermesse'];

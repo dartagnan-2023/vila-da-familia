@@ -2,9 +2,9 @@ import { Motor } from '../src/engine/motor.js';
 import { visao, acoesPossiveis } from '../src/engine/apresentador.js';
 import { novaChave, lerChave, extrairChave } from '../src/engine/convite.js';
 import { TransporteLocal, Sessao } from '../src/net/transporte.js';
-import { CULTURAS, PRODUTOS, TEMPO, xpParaNivel, nivelDe } from '../src/engine/conteudo.js';
+import { CULTURAS, PRODUTOS, TEMPO, xpParaNivel, nivelDe, FEIRA } from '../src/engine/conteudo.js';
 import { estaMadura, velocidade } from '../src/engine/tempo.js';
-import { gerarEncomenda } from '../src/engine/regras.js';
+import { gerarEncomenda, missoesDoDia } from '../src/engine/regras.js';
 
 let passou = 0, falhou = 0;
 const teste = async (nome, fn) => {
@@ -609,6 +609,63 @@ await teste('Mercado paga mais pela encomenda, Biblioteca rende mais XP, Festa d
   igual(velocidade(f.mundo), diaDeSemana, 'terca segue normal');
   f.mundo.dataDoDia = '2026-09-19';
   igual(velocidade(f.mundo), diaDeSemana * 2, 'sabado cresce em dobro');
+});
+
+await teste('missao impossivel nao e sorteada: sem obra aberta, ninguem pede doacao', () => {
+  const m = vilaCom('Ana');
+  m.executar({ id: 'd0', tipo: 'PASSAR_DIA', data: '2026-11-09' });
+  const com = missoesDoDia(m.mundo);
+  ok(Array.isArray(com) && com.length === 3, 'com obra aberta o sorteio roda normal');
+  m.mundo.vila.concluidas.push('velocidade', 'harmonia', 'agua', 'sabedoria', 'comercio', 'festa', 'estudo');
+  const sem = missoesDoDia(m.mundo);
+  ok(!sem.some((x) => x.chave === 'doacoes'), 'sorteou o impossivel: ' + sem.map((x) => x.texto).join(' | '));
+  igual(sem.length, 3, 'continua sorteando 3');
+  // e o jogo recusa a doacao mesmo: era por isso que a missao ficava intransponivel
+  const r = manda(m, { tipo: 'DOAR', por: 'ana', obra: 'ponte', recursos: { madeira: 1 } });
+  ok(!r.ok, 'DOAR recusado com tudo pronto');
+});
+
+await teste('a Feira da Vila: um sozinho nao fecha, por mais que trabalhe; duas pessoas fecham', () => {
+  const m = vilaCom('Ana', 'Bia');
+  m.executar({ id: 'd1', tipo: 'PASSAR_DIA', data: '2026-11-09' });
+  const meta = m.mundo.vila.meta;
+  ok(meta, 'a semana abriu com uma meta');
+  igual(meta.concluida, false);
+
+  // a Ana faz muito mais que a cota, sozinha: nao fecha nada.
+  m.mundo.vila.meta.feito.ana = meta.cota + 50;
+  manda(m, { tipo: 'ABRACAR', por: 'ana', para: 'bia' });
+  igual(m.mundo.vila.meta.concluida, false, 'falta gente, nao falta trabalho');
+
+  const antes = m.mundo.jogadores.ana.inventario.moedas;
+  m.mundo.vila.meta.feito.bia = meta.cota;
+  manda(m, { tipo: 'ABRACAR', por: 'bia', para: 'ana' });
+  igual(m.mundo.vila.meta.concluida, true, 'duas pessoas fecharam a feira');
+  igual(m.mundo.jogadores.ana.inventario.moedas, antes + FEIRA.premio, 'a Ana recebeu o premio');
+  ok(m.mundo.vila.festaAte > m.mundo.agora, 'a vila entrou em festa');
+  ok(velocidade(m.mundo) > 1, 'a festa acelera todo mundo');
+  ok(m.mundo.feed.some((l) => l.tipo === 'FEIRA_FECHOU'), 'a vila ficou sabendo');
+});
+
+await teste('a Feira recomeca na segunda seguinte, e o log reproduz igual', () => {
+  const log = [];
+  const m = vilaCom('Ana', 'Bia');
+  log.push(...[['entrar-0', 'ana', 'Ana'], ['entrar-1', 'bia', 'Bia']].map(([id, por, nome]) => ({ id, tipo: 'ENTRAR', por, nome, nomeHerdade: 'Sitio ' + nome, em: T0 })));
+  const exec = (cmd) => { const c = { ...cmd, em: m.relogio }; const r = m.executar(c); if (r.ok) log.push(c); return r; };
+
+  exec({ id: 's1', tipo: 'PASSAR_DIA', data: '2026-11-09' });
+  const semana1 = m.mundo.vila.meta.semana;
+  exec({ id: 'a1', tipo: 'ABRACAR', por: 'ana', para: 'bia', data: '2026-11-09' });
+  igual(m.mundo.vila.meta.semana, semana1, 'mesma semana, mesma meta');
+  ok(Object.keys(m.mundo.vila.meta.feito).length >= 0);
+
+  m.relogio += 7 * 24 * 3600e3;
+  exec({ id: 's2', tipo: 'PASSAR_DIA', data: '2026-11-16' });
+  ok(m.mundo.vila.meta.semana > semana1, 'virou a semana');
+  igual(Object.keys(m.mundo.vila.meta.feito).length, 0, 'o placar zerou');
+
+  const m2 = Motor.reproduzir(log, OPC);
+  igual(m2.hash, m.hash, 'outra maquina chega no mesmo mundo');
 });
 
 console.log(`\n${passou} passaram, ${falhou} falharam\n`);

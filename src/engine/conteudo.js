@@ -153,12 +153,42 @@ export const MISSOES = [
   { chave: 'abracos',    meta: 2, texto: 'Abrace 2 pessoas',         premio: { moedas: 6 } },
   { chave: 'cortes',     meta: 2, texto: 'Corte lenha 2 vezes',      premio: { moedas: 8 } },
   { chave: 'arvores',    meta: 1, texto: 'Replante a mata',          premio: { moedas: 12 } },
-  { chave: 'doacoes',    meta: 1, texto: 'Doe para a obra da vila',  premio: { moedas: 10 } },
+  { chave: 'doacoes',    meta: 1, texto: 'Doe para a obra da vila',  premio: { moedas: 10 }, exige: 'obra' },
   { chave: 'vendas',     meta: 3, texto: 'Venda 3 vezes',            premio: { moedas: 8 } },
   { chave: 'recados',    meta: 1, texto: 'Deixe um recado no mural', premio: { moedas: 4 } },
   { chave: 'encomendas', meta: 1, texto: 'Entregue uma encomenda',   premio: { moedas: 15 } },
   { chave: 'producoes',  meta: 2, texto: 'Produza 2 vezes',          premio: { moedas: 10 } },
 ];
+
+// ---------------------------------------------------------------------------
+// A Feira da Vila: a meta coletiva da SEMANA.
+//
+// As obras foram desenhadas pra terminar — e terminaram, todas as sete. Quando
+// acabaram, acabou junto o motivo de aparecer: "a gente já fez tudo pela vila,
+// ou seja, não preciso mais nem jogar". Isto aqui recomeça toda segunda.
+//
+// O detalhe que faz a coisa funcionar: a meta nao conta QUANTAS vezes foi
+// feito, conta QUANTAS PESSOAS fizeram a propria cota. Um bot sozinho — por
+// mais trabalhador que seja — nunca fecha a feira. Precisa de gente.
+// ---------------------------------------------------------------------------
+export const METAS = [
+  { chave: 'ajudas',     cota: 3,  texto: 'cuidar da horta de um parente', unidade: 'ajudas' },
+  { chave: 'encomendas', cota: 3,  texto: 'entregar encomendas',           unidade: 'entregas' },
+  { chave: 'colheitas',  cota: 10, texto: 'colher a lavoura',              unidade: 'colheitas' },
+  { chave: 'arvores',    cota: 2,  texto: 'replantar a mata',              unidade: 'mudas' },
+  { chave: 'abracos',    cota: 2,  texto: 'abraçar quem é da casa',        unidade: 'abraços' },
+  { chave: 'producoes',  cota: 3,  texto: 'botar o moinho e o forno pra rodar', unidade: 'fornadas' },
+  { chave: 'plantios',   cota: 12, texto: 'encher os canteiros',           unidade: 'plantios' },
+];
+
+export const FEIRA = {
+  desde: '2026-11-09',  // antes disto a Feira nao existia: o passado fica como estava
+  pessoasMin: 2,      // duas pessoas bastam: o Pipo segura uma ponta, falta uma de carne e osso
+  premio: 60,         // moedas para CADA um que cumpriu a cota
+  harmonia: 12,
+  festaDias: 3,       // e a vila inteira cresce mais rapido por 3 dias
+  festaBonus: 0.25,
+};
 
 // Limiares de destino: quando um comum cruza a linha, o mundo inteiro sente.
 export const LIMIARES = {

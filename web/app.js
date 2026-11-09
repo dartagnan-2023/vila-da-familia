@@ -355,7 +355,16 @@ function pinta() {
       : duro ? `${esc(duro.nome)} está com ${duro.moedas} G. Quem tem sobrando, guarda aqui.`
       : 'Quem tem sobrando guarda; quem está duro pega.'}</span><span class="btn fraco">Abrir</span></button>` : '';
 
+  // A Feira da semana. Entra ANTES da obra porque e ela que sempre tem algo
+  // a fazer — obra acaba, feira recomeca toda segunda.
+  const f = v.feira;
+  const blocoFeira = f ? `
+    <div class="titulo" id="sec-feira">🎪 Feira da Vila <small>${f.concluida ? 'fechada essa semana' : 'recomeça toda segunda'}</small></div>
+    <button class="cartaz ${f.concluida ? '' : 'convite'}" data-acao="feira"><span class="ic">${f.concluida ? '🎉' : '🎪'}</span><span class="txt"><b>${f.concluida ? 'A feira aconteceu!' : `Esta semana: ${esc(f.texto)}`}</b>${esc(f.chamada)}${f.concluida ? '' : `<span class="barrao"><i style="--p:${Math.min(100, Math.round((f.meuFeito / f.cota) * 100))}%"></i></span>`}</span><span class="btn fraco">${f.concluida ? 'Ver' : 'Abrir'}</span></button>
+    ${f.emFesta ? '<p class="mini" style="margin:6px 4px 0">🎉 A vila está em festa — tudo cresce mais rápido por alguns dias.</p>' : ''}` : '';
+
   const blocoObra = `
+    ${blocoFeira}
     <div class="titulo" id="sec-obra">🏗️ Obra da vila</div>
     ${obra ? `<button class="cartaz" data-acao="obra"><span class="ic">${OBRA_ICONE[obra.chave] ?? '🏗️'}</span><span class="txt"><b>${esc(obra.nome)} — ${obra.pct}% pronta</b>${esc(obra.chamada)} Depois: ${esc(obra.texto)}<span class="barrao"><i style="--p:${obra.pct}%"></i></span></span><span class="btn fraco">Doar</span></button>`
       : `<div class="cartaz"><span class="ic">🏆</span><span class="txt"><b>Todas as obras prontas</b>${v.obras.map((o) => o.nome).join(', ')}. Isso é raro.</span></div>`}
@@ -558,6 +567,19 @@ function folhaObra() {
 
 // O caixa da familia. Sem taxa, sem truque: o que entra sai inteiro. O unico
 // freio e o teto do dia, pra ninguem limpar o caixa de uma vez.
+// A Feira. O painel mostra PESSOAS, nao um total — porque e disso que ela
+// precisa. O Pipo cumpre a cota dele e para; a familia fecha o resto.
+function folhaFeira() {
+  const v = v_();
+  const f = v.feira;
+  if (!f) return folha('<h2>🎪 Feira da Vila</h2><p>A feira começa na próxima segunda.</p>');
+  folha(`<h2>🎪 ${f.concluida ? 'A feira aconteceu!' : 'Feira da Vila'}</h2>
+    <p>A meta desta semana é <b>${esc(f.texto)}</b>. Cada um faz a sua cota de <b>${f.cota} ${esc(f.unidade)}</b> — e a feira só acontece quando <b>${f.pessoasMin} pessoas</b> fecharem a delas. Ninguém segura essa sozinho.</p>
+    ${f.concluida ? `<p class="mini">Quem cumpriu levou ${f.premio} G e a vila ganhou dias de festa. Segunda-feira abre outra.</p>` : ''}
+    <div class="lista">${f.gente.map((p) => `<div class="item ${p.pronto ? '' : 'apagado'}"><span class="ic">${p.pronto ? '✅' : p.sprite}</span><span class="txt"><b>${esc(p.nome)}${p.eu ? ' (você)' : ''}</b>${p.feito}/${p.cota} ${esc(f.unidade)}${p.pronto ? ' · fechou' : ''}</span></div>`).join('')}</div>
+    <p class="mini" style="margin-top:10px">${f.pessoas} de ${f.pessoasMin} pessoas prontas · prêmio ${f.premio} G pra cada um que cumprir${f.emFesta ? ' · a vila está em festa agora 🎉' : ''}</p>`);
+}
+
 function folhaFundo() {
   const v = v_();
   const f = v.fundo;
@@ -792,6 +814,7 @@ document.addEventListener('click', async (e) => {
     pendencia: () => { const x = app.pendencias?.[Number(d.i)]; if (!x) return; fecha(); if (x.conversa) return folhaConversa(x.conversa === 'todos' ? null : x.conversa); if (x.vendinha) return folhaCeleiro(); if (x.acao === 'cumprir-missao') return manda({ tipo: 'CUMPRIR_MISSAO', indice: x.indice }, e); if (desktop()) { app.tela = x.vai === 'sec-rua' ? 'lojas' : x.vai.startsWith('her-') ? 'familia' : 'horta'; pinta(); } $(x.vai)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },
     'cumprir-missao': async () => { const r = await manda({ tipo: 'CUMPRIR_MISSAO', indice: Number(d.indice) }, e); if (r.ok) { toast('🎁 prêmio recebido', 'bom'); folhaPendencias(); } },
     obra: folhaObra,
+    feira: folhaFeira,
     fundo: folhaFundo,
     guardar: async () => { const r = await manda({ tipo: 'GUARDAR', moedas: Number(d.qtd) }); if (r.ok) { toast(`🏦 guardou ${d.qtd} G · a família agradece`, 'bom'); folhaFundo(); } },
     pegar: async () => { const r = await manda({ tipo: 'PEGAR', moedas: Number(d.qtd) }); if (r.ok) { toast(`🏦 pegou ${d.qtd} G do caixa`, 'bom'); folhaFundo(); } },
