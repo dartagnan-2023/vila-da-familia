@@ -125,6 +125,28 @@ function tarefas(motor, euId, log = []) {
   const rioBaixo = m.comuns.agua < 25;
   const podeCuidar = (tipo) => !rioBaixo || tipo !== 'sede';
 
+  // 0. A MINHA cota da Feira da Vila.
+  //
+  // A Feira foi desenhada pra precisar de duas pessoas, e o Pipo é a metade de
+  // que a vila sempre dispõe — se ele não fechar a dele, sobra o dobro pra
+  // família e a feira nunca acontece. Mas ele fecha a cota e PARA: o segundo
+  // lugar é de gente, e é isso que faz a feira valer alguma coisa.
+  const feira = m.vila?.meta;
+  const minhaCota = feira ? (feira.feito?.[euId] ?? 0) : 0;
+  if (feira && !feira.concluida && minhaCota < feira.cota) {
+    const falta = feira.cota - minhaCota;
+    const porOutro = Object.values(m.jogadores).find((p) => p.id !== euId);
+    if (feira.chave === 'arvores' && eu.inventario.madeira >= falta) {
+      for (let i = 0; i < falta; i++) fila.push({ cmd: { tipo: 'PLANTAR_ARVORE' }, conta: `muda pra Feira da Vila (${minhaCota + i + 1}/${feira.cota})` });
+    } else if (feira.chave === 'abracos' && porOutro) {
+      for (const alvo of Object.values(m.jogadores).filter((p) => p.id !== euId).slice(0, falta)) {
+        fila.push({ cmd: { tipo: 'ABRACAR', para: alvo.id }, conta: `abracei o ${alvo.nome} (Feira da Vila)` });
+      }
+    }
+    // colheitas, plantios, ajudas, encomendas e producoes ele ja faz no dia a
+    // dia logo abaixo — a cota enche sozinha, nao precisa de regra separada.
+  }
+
   // 1. Quem está pedindo socorro vem antes de tudo — inclusive antes da minha
   // horta. E dentro disso, a horta de quem voltou a jogar vem primeiro: é a
   // pessoa que ainda pode ver a gentileza acontecer.
